@@ -26,14 +26,7 @@ git add .
 
 echo.
 echo 3. Creating initial commit...
-git commit -m "feat: initial commit - Finance Manager v1.0.0
-
-- Complete stock portfolio management system
-- Financial calculation engine with precision formatting
-- Enhanced UI with modern styling
-- Comprehensive database integration
-- VS Code workspace configuration
-- Documentation and CI/CD setup"
+git commit -m "feat: initial commit - Finance Manager v1.0.0" -m "- Complete stock portfolio management system" -m "- Financial calculation engine with precision formatting" -m "- Enhanced UI with modern styling" -m "- Comprehensive database integration" -m "- VS Code workspace configuration" -m "- Documentation and CI/CD setup"
 
 echo.
 echo 4. Repository is ready for GitHub!
