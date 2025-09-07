@@ -1,0 +1,13 @@
+{
+    "python.debugging.skipFiles": [
+        "<node_internals>/**",
+        "**/site-packages/**",
+        "**/Lib/tkinter/**",
+        "**/tkinter/**",
+        "**/__init__.py",
+        "**/CallWrapper*",
+        "**/threading.py",
+        "**/queue.py"
+    ],
+    "python.debugging.justMyCode": true
+}

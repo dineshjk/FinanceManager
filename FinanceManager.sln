@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36327.8
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Stocks", "Stocks\Stocks.pyproj", "{B87CDDB5-E21A-41CA-A064-4200FDC348DA}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "GUI", "GUI\GUI.pyproj", "{6E4F1BE5-3DB7-4F47-A80D-51F21925584E}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "GUIStock", "GUIStock\GUIStock.pyproj", "{B46D9010-94E0-4DEC-B06E-50494980E6DC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B87CDDB5-E21A-41CA-A064-4200FDC348DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B87CDDB5-E21A-41CA-A064-4200FDC348DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6E4F1BE5-3DB7-4F47-A80D-51F21925584E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6E4F1BE5-3DB7-4F47-A80D-51F21925584E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B46D9010-94E0-4DEC-B06E-50494980E6DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B46D9010-94E0-4DEC-B06E-50494980E6DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {34F623EA-2114-490B-9D3A-2D34B6CD25A8}
+	EndGlobalSection
+EndGlobal

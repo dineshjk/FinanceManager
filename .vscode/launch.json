@@ -1,0 +1,44 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Stock Portfolio Manager (Fixed)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/GUIStock/MyGUIStock.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}/..",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.."
+            }
+        },
+        {
+            "name": "Debug as FinanceManager Module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "FinanceManager.GUIStock.MyGUIStock",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}/..",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.."
+            }
+        },
+        {
+            "name": "Run Stock Portfolio Manager",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/GUIStock/MyGUIStock.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Debug MyGUIStock as module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "GUIStock.MyGUIStock",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

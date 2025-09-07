@@ -1,0 +1,305 @@
+def next_working_day(date_obj):
+    """Return next weekday (Mon-Fri) after given date (date_obj may be datetime.date)."""
+    # Accept either date or datetime; normalize to date
+    try:
+        d = date_obj.date()
+    except AttributeError:
+        d = date_obj
+    next_day = d + timedelta(days=1)
+    while next_day.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+        next_day += timedelta(days=1)
+    return next_day
+
+
+
+def enter_trade(parent):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Prevent duplicate window
+    for child in parent.winfo_children():
+        if isinstance(child, tk.Toplevel) and child.title() == "Data Entry - Trade":
+            child.lift()
+            return
+
+    win = tk.Toplevel(parent)
+    win.title("Data Entry - Trade")
+    win.geometry("520x320")
+    win.resizable(False, False)
+    win.transient(parent)
+    win.grab_set()
+
+    tk.Label(win, text="Data Entry", font=("Helvetica", 16, "bold"),
+             bg="navy", fg="white", pady=5).pack(fill="x")
+
+    form_frame = tk.Frame(win, padx=10, pady=10)
+    form_frame.pack(fill="both", expand=True)
+
+    entries = {}
+
+    # --- Contract No ---
+    tk.Label(form_frame, text="Cont No").grid(row=0, column=0, sticky="w", pady=2)
+    cont_no_entry = tk.Entry(form_frame, width=38)
+    cont_no_entry.grid(row=0, column=1, pady=2, sticky="w")
+    entries["cont_no"] = cont_no_entry
+
+    # --- Trade Date ---
+    tk.Label(form_frame, text="Trade Date").grid(row=1, column=0, sticky="w", pady=2)
+    trd_date_entry = DateEntry(form_frame, date_pattern="yyyy-mm-dd", width=12)
+    trd_date_entry.grid(row=1, column=1, pady=2, sticky="w")
+    entries["trd_dt"] = trd_date_entry
+
+    # --- Settlement No ---
+    def validate_int(P):
+        return P.isdigit() or P == ""
+    int_vcmd = (win.register(validate_int), "%P")
+
+    tk.Label(form_frame, text="Settlement No").grid(row=2, column=0, sticky="w", pady=2)
+    settle_no_var = tk.StringVar()
+    settle_no_entry = tk.Spinbox(
+        form_frame,
+        from_=0,
+        to=9999999,
+        width=12,
+        textvariable=settle_no_var,
+        validate="key",
+        validatecommand=int_vcmd
+    )
+    settle_no_entry.grid(row=2, column=1, pady=2, sticky="w")
+    entries["settle_no"] = settle_no_entry
+
+    # --- Settlement Date ---
+    tk.Label(form_frame, text="Settle Date").grid(row=3, column=0, sticky="w", pady=2)
+    settle_date_entry = DateEntry(form_frame, date_pattern="yyyy-mm-dd", width=12)
+    settle_date_entry.grid(row=3, column=1, pady=2, sticky="w")
+    entries["settle_dt"] = settle_date_entry
+
+    # --- No of Trades ---
+    tk.Label(form_frame, text="No of Trades").grid(row=4, column=0, sticky="w", pady=2)
+    trades_spin = tk.Spinbox(form_frame, from_=1, to=10, width=5,
+                             validate="key", validatecommand=int_vcmd)
+    trades_spin.grid(row=4, column=1, pady=2, sticky="w")
+    entries["no_of_trades"] = trades_spin
+
+    # ------------------------------
+    # Fix DateEntry month/year closing issue
+    # ------------------------------
+    def keep_popup_open(date_entry):
+        cal = date_entry._top_cal
+        if not cal:
+            return
+        orig_on_click = cal._on_click
+
+        def patched_on_click(event):
+            widget = str(event.widget)
+            if widget.endswith("prev_month") or widget.endswith("next_month") \
+               or widget.endswith("prev_year") or widget.endswith("next_year"):
+                orig_on_click(event)
+                return
+            orig_on_click(event)
+            date_entry._top_cal = None  # close only for date cells
+
+        cal._on_click = patched_on_click
+
+    trd_date_entry.bind("<<DateEntryOpened>>", lambda e: keep_popup_open(trd_date_entry))
+    settle_date_entry.bind("<<DateEntryOpened>>", lambda e: keep_popup_open(settle_date_entry))
+
+    # ------------------------------
+    # DB helpers
+    # ------------------------------
+    def compute_settle_no_from_db(trade_date):
+        try:
+            q = """
+                SELECT trd_dt, settle_no
+                FROM contracts
+                WHERE trd_dt < ?
+                ORDER BY trd_dt DESC
+                LIMIT 1
+            """
+            cursor.execute(q, (trade_date.strftime("%Y-%m-%d"),))
+            row = cursor.fetchone()
+            if row:
+                prev_trd_dt_str, prev_settle_no = row[0], row[1]
+                prev_trd_date = datetime.strptime(prev_trd_dt_str, "%Y-%m-%d").date()
+                try:
+                    prev_settle_no_int = int(prev_settle_no) if prev_settle_no not in (None, "") else (prev_trd_date.year * 1000 + 1)
+                except Exception:
+                    prev_settle_no_int = prev_trd_date.year * 1000 + 1
+                day_diff = max((trade_date - prev_trd_date).days, 0)
+                return prev_settle_no_int + day_diff
+            else:
+                return trade_date.year * 1000 + 1
+        except Exception:
+            return trade_date.year * 1000 + 1
+
+    def populate_from_contract(cont_no):
+        try:
+            q = """
+                SELECT trd_dt, settle_no, settle_dt, no_of_trades
+                FROM contracts
+                WHERE cont_no = ?
+                ORDER BY trd_dt DESC
+                LIMIT 1
+            """
+            cursor.execute(q, (cont_no,))
+            row = cursor.fetchone()
+            if row:
+                trd_dt_str, settle_no_db, settle_dt_str, no_of_trades_db = row
+                if trd_dt_str:
+                    trd_date_entry.set_date(trd_dt_str)
+                if settle_no_db is not None:
+                    settle_no_entry.delete(0, "end")
+                    settle_no_entry.insert(0, str(settle_no_db))
+                    settle_no_var.set(str(settle_no_db))
+                if settle_dt_str:
+                    settle_date_entry.set_date(settle_dt_str)
+                if no_of_trades_db is not None:
+                    trades_spin.delete(0, "end")
+                    trades_spin.insert(0, str(no_of_trades_db))
+                return True
+        except Exception:
+            pass
+        return False
+
+    # ------------------------------
+    # Lazy update functions
+    # ------------------------------
+    def update_settle_no_on_focus(event=None):
+        try:
+            trade_date = trd_date_entry.get_date()
+            settle_no_calc = compute_settle_no_from_db(trade_date)
+            min_allowed = trade_date.year * 1000
+            settle_no_entry.config(from_=min_allowed, to=9999999)
+            settle_no_var.set(str(settle_no_calc))
+        except Exception:
+            try:
+                settle_no_var.set(str(trd_date_entry.get_date().year * 1000 + 1))
+            except Exception:
+                pass
+
+    def update_settle_date_on_focus(event=None):
+        try:
+            trade_date = trd_date_entry.get_date()
+            settle_date_entry.set_date(next_working_day(trade_date))
+        except Exception:
+            try:
+                settle_date_entry.set_date(trd_date_entry.get_date())
+            except Exception:
+                pass
+
+    # ------------------------------
+    # Trade date change (now lighter)
+    # ------------------------------
+    def on_trade_date_change(event=None):
+        cont_no = cont_no_entry.get().strip()
+        if cont_no:
+            populate_from_contract(cont_no)
+
+    trd_date_entry.bind("<<DateEntrySelected>>", on_trade_date_change)
+
+    # Bind lazy updates
+    settle_no_entry.bind("<FocusIn>", update_settle_no_on_focus)
+    settle_date_entry.bind("<FocusIn>", update_settle_date_on_focus)
+
+    def fetch_existing_contract(event=None):
+        cont_no = cont_no_entry.get().strip()
+        if not cont_no:
+            return
+        filled = populate_from_contract(cont_no)
+        if not filled:
+            on_trade_date_change()
+
+    cont_no_entry.bind("<FocusOut>", fetch_existing_contract)
+
+    # ------------------------------
+    # Buttons
+    # ------------------------------
+    btn_frame = tk.Frame(win, pady=10)
+    btn_frame.pack(fill="x", anchor="e", padx=10)
+
+    def on_ok():
+        try:
+            num_trades = int(trades_spin.get())
+            int(settle_no_var.get())
+        except Exception:
+            messagebox.showerror("Invalid input", "Settlement No and No of Trades must be integers.", parent=win)
+            return
+
+        for i in range(1, num_trades + 1):
+            stock_id = select_stock_id(parent)
+            if not stock_id:
+                messagebox.showinfo("Cancelled", "Stock selection cancelled.")
+                break
+            print(f"Selected stock_id for trade {i}: {stock_id}")
+
+        win.destroy()
+
+    tk.Button(btn_frame, text="OK", width=10, command=on_ok).pack(side="right", padx=5)
+    tk.Button(btn_frame, text="Cancel", width=10, command=win.destroy).pack(side="right", padx=5)
+
+    win.wait_window(win)
+
+
+
+
+def select_stock_id(parent):
+    """Display all stocks and let the user select exactly one. Returns stock_id or None if cancelled."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT s.id_stk, s.stk_code, s.company_name, s.isin
+        FROM stocks s
+        ORDER BY s.stk_code ASC
+    """)
+    stocks = cursor.fetchall()
+    conn.close()
+
+    # Create a modal selection window
+    win = tk.Toplevel(parent)
+    win.title("Select Stock")
+    win.geometry("600x400")
+    win.transient(parent)
+    win.grab_set()
+
+    tk.Label(win, text="Select a Stock", font=("Helvetica", 14, "bold")).pack(pady=5)
+
+    # Variable to store selected stock ID
+    selected_stock_id = tk.StringVar()
+
+    # Scrollable listbox
+    frame = tk.Frame(win)
+    frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+    scrollbar = tk.Scrollbar(frame)
+    scrollbar.pack(side="right", fill="y")
+
+    listbox = tk.Listbox(frame, yscrollcommand=scrollbar.set, height=15, width=80)
+    for stock in stocks:
+        # stock: (id_stk, stk_code, company_name, isin)
+        listbox.insert(tk.END, f"{stock[1]} - {stock[2]} (ISIN: {stock[3]})")
+    listbox.pack(side="left", fill="both", expand=True)
+    scrollbar.config(command=listbox.yview)
+
+    def on_ok():
+        selection = listbox.curselection()
+        if selection:
+            index = selection[0]
+            selected_stock_id.set(stocks[index][0])  # store id_stk
+            win.destroy()
+        else:
+            messagebox.showwarning("No selection", "Please select a stock.")
+
+    def on_cancel():
+        selected_stock_id.set("")  # empty means no selection
+        win.destroy()
+
+    # Buttons
+    btn_frame = tk.Frame(win)
+    btn_frame.pack(pady=5)
+    tk.Button(btn_frame, text="OK", command=on_ok).pack(side="left", padx=5)
+    tk.Button(btn_frame, text="Cancel", command=on_cancel).pack(side="left", padx=5)
+
+    win.wait_window(win)
+
+    return selected_stock_id.get() if selected_stock_id.get() else None
+

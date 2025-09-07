@@ -1,0 +1,33 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "window.title": "Finance Manager",
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+        "python.analysis.extraPaths": [
+            "${workspaceFolder}/GUIStock",
+            "${workspaceFolder}/Stocks"
+        ],
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/*.pyc": true
+        },
+        "explorer.compactFolders": false,
+        "python.analysis.generateWithTypeAnnotation": true,
+        "python.analysis.aiCodeActions": {
+            
+            "implementAbstractClasses": true,
+            "generateSymbol": true,
+            "convertFormatString": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.vscode-pylance"
+        ]
+    }
+}
