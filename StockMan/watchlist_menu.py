@@ -703,7 +703,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 tree_scroll = ttk.Scrollbar(tree_container)
                 tree_scroll.pack(side="right", fill="y")
 
-                advice_cols = ("Scrip", "Broker House", "Advice", "Date of Report")
+                advice_cols = ("WL", "Scrip", "Broker House", "Advice", "Date of Report")
                 advice_tree = ttk.Treeview(
                     tree_container,
                     columns=advice_cols,
@@ -718,14 +718,19 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 for col in advice_cols:
                     advice_tree.heading(
                         col,
-                        text=col,
+                        text=col if col != "WL" else "👁️",
                         command=lambda _col=col: universal_tree_sort(advice_tree, _col, False),
                     )
-
-                advice_tree.column("Scrip", width=150, anchor="w")
-                advice_tree.column("Broker House", width=250, anchor="w")
-                advice_tree.column("Advice", width=250, anchor="w")
-                advice_tree.column("Date of Report", width=150, anchor="center")
+                    if col == "WL":
+                        advice_tree.column(col, width=40, anchor="center", stretch=False)
+                    elif col == "Scrip":
+                        advice_tree.column(col, width=150, anchor="w")
+                    elif col == "Broker House":
+                        advice_tree.column(col, width=250, anchor="w")
+                    elif col == "Advice":
+                        advice_tree.column(col, width=250, anchor="w")
+                    elif col == "Date of Report":
+                        advice_tree.column(col, width=150, anchor="center")
 
                 header_seen = False
                 for line in table_lines:
@@ -740,7 +745,72 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
 
                     while len(parts) < 4:
                         parts.append("")
-                    advice_tree.insert("", "end", values=parts[:4])
+
+                    scrip = parts[0]
+                    id_stk = None
+                    try:
+                        with get_db_connection() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT id_stk FROM stocks WHERE ticker = ? OR company_name = ?", (scrip, scrip))
+                            row = cursor.fetchone()
+                            if row:
+                                id_stk = row[0]
+                    except Exception as e:
+                        logger.error(f"Failed to lookup stock ID for {scrip}: {e}")
+
+                    row_values = ("➕",) + tuple(parts[:4])
+                    if id_stk is not None:
+                        advice_tree.insert("", "end", iid=str(id_stk), values=row_values)
+                    else:
+                        advice_tree.insert("", "end", values=("",) + tuple(parts[:4]))
+
+                def on_advice_double_click(event):
+                    region = advice_tree.identify("region", event.x, event.y)
+                    if region != "cell":
+                        return
+                    col_id = advice_tree.identify_column(event.x)
+                    if col_id == "#1":  # First column is WL
+                        sel = advice_tree.selection()
+                        if not sel:
+                            return
+                        item_id = sel[0]
+                        try:
+                            id_stk = int(item_id)
+                        except ValueError:
+                            return
+                        
+                        try:
+                            with get_db_connection() as conn:
+                                cursor = conn.cursor()
+                                cursor.execute(
+                                    "SELECT 1 FROM watchlist WHERE id_stk = ?", (id_stk,)
+                                )
+                                if cursor.fetchone():
+                                    show_colorful_info(
+                                        ai_win,
+                                        "Watchlist",
+                                        "This stock is already in your watchlist.",
+                                    )
+                                else:
+                                    cursor.execute(
+                                        "INSERT INTO watchlist (id_stk, target_buy_price, target_sell_price, notes) VALUES (?, 0.0, 0.0, '')",
+                                        (id_stk,),
+                                    )
+                                    conn.commit()
+                                    show_colorful_info(
+                                        ai_win,
+                                        "Watchlist",
+                                        "Stock added to watchlist successfully.",
+                                    )
+                                    load_watchlist()
+                        except sqlite3.Error as e:
+                            show_colorful_error(
+                                ai_win,
+                                "Database Error",
+                                f"Failed to add to watchlist: {e}",
+                            )
+
+                advice_tree.bind("<Double-1>", on_advice_double_click)
             else:
                 text_area.config(state="normal")
                 text_area.delete("1.0", tk.END)
@@ -864,7 +934,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 tree_scroll = ttk.Scrollbar(tree_container)
                 tree_scroll.pack(side="right", fill="y")
 
-                advice_cols = ("Scrip", "Buy Price Band", "Target Price", "Target Period", "Broker House", "Date of Report")
+                advice_cols = ("WL", "Scrip", "Buy Price Band", "Target Price", "Target Period", "Broker House", "Date of Report")
                 advice_tree = ttk.Treeview(
                     tree_container,
                     columns=advice_cols,
@@ -879,16 +949,23 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 for col in advice_cols:
                     advice_tree.heading(
                         col,
-                        text=col,
+                        text=col if col != "WL" else "👁️",
                         command=lambda _col=col: universal_tree_sort(advice_tree, _col, False),
                     )
-
-                advice_tree.column("Scrip", width=120, anchor="w")
-                advice_tree.column("Buy Price Band", width=120, anchor="e")
-                advice_tree.column("Target Price", width=110, anchor="e")
-                advice_tree.column("Target Period", width=120, anchor="center")
-                advice_tree.column("Broker House", width=220, anchor="w")
-                advice_tree.column("Date of Report", width=120, anchor="center")
+                    if col == "WL":
+                        advice_tree.column(col, width=40, anchor="center", stretch=False)
+                    elif col == "Scrip":
+                        advice_tree.column(col, width=120, anchor="w")
+                    elif col == "Buy Price Band":
+                        advice_tree.column(col, width=120, anchor="e")
+                    elif col == "Target Price":
+                        advice_tree.column(col, width=110, anchor="e")
+                    elif col == "Target Period":
+                        advice_tree.column(col, width=120, anchor="center")
+                    elif col == "Broker House":
+                        advice_tree.column(col, width=220, anchor="w")
+                    elif col == "Date of Report":
+                        advice_tree.column(col, width=120, anchor="center")
 
                 for line in table_lines:
                     parts = [p.strip() for p in line.split("|")[1:-1]]
@@ -902,7 +979,72 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
 
                     while len(parts) < 6:
                         parts.append("")
-                    advice_tree.insert("", "end", values=parts[:6])
+
+                    scrip = parts[0]
+                    id_stk = None
+                    try:
+                        with get_db_connection() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT id_stk FROM stocks WHERE ticker = ? OR company_name = ?", (scrip, scrip))
+                            row = cursor.fetchone()
+                            if row:
+                                id_stk = row[0]
+                    except Exception as e:
+                        logger.error(f"Failed to lookup stock ID for {scrip}: {e}")
+
+                    row_values = ("➕",) + tuple(parts[:6])
+                    if id_stk is not None:
+                        advice_tree.insert("", "end", iid=str(id_stk), values=row_values)
+                    else:
+                        advice_tree.insert("", "end", values=("",) + tuple(parts[:6]))
+
+                def on_advice_double_click(event):
+                    region = advice_tree.identify("region", event.x, event.y)
+                    if region != "cell":
+                        return
+                    col_id = advice_tree.identify_column(event.x)
+                    if col_id == "#1":  # First column is WL
+                        sel = advice_tree.selection()
+                        if not sel:
+                            return
+                        item_id = sel[0]
+                        try:
+                            id_stk = int(item_id)
+                        except ValueError:
+                            return
+                        
+                        try:
+                            with get_db_connection() as conn:
+                                cursor = conn.cursor()
+                                cursor.execute(
+                                    "SELECT 1 FROM watchlist WHERE id_stk = ?", (id_stk,)
+                                )
+                                if cursor.fetchone():
+                                    show_colorful_info(
+                                        ai_win,
+                                        "Watchlist",
+                                        "This stock is already in your watchlist.",
+                                    )
+                                else:
+                                    cursor.execute(
+                                        "INSERT INTO watchlist (id_stk, target_buy_price, target_sell_price, notes) VALUES (?, 0.0, 0.0, '')",
+                                        (id_stk,),
+                                    )
+                                    conn.commit()
+                                    show_colorful_info(
+                                        ai_win,
+                                        "Watchlist",
+                                        "Stock added to watchlist successfully.",
+                                    )
+                                    load_watchlist()
+                        except sqlite3.Error as e:
+                            show_colorful_error(
+                                ai_win,
+                                "Database Error",
+                                f"Failed to add to watchlist: {e}",
+                            )
+
+                advice_tree.bind("<Double-1>", on_advice_double_click)
             else:
                 text_area.config(state="normal")
                 text_area.delete("1.0", tk.END)
