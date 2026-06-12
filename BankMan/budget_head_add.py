@@ -55,7 +55,7 @@ _NO_PARENT_LABEL = "(None \u2014 top level)"
 # ---------------------------------------------------------------------------
 
 
-def _load_parent_choices() -> list[tuple[str, int | None]]:
+def _load_parent_choices(filter_type: str | None = None) -> list[tuple[str, int | None]]:
     """Return ``[(display_label, bh_id | None), …]`` for the parent
     dropdown.
 
@@ -66,7 +66,8 @@ def _load_parent_choices() -> list[tuple[str, int | None]]:
     choices: list[tuple[str, int | None]] = [(_NO_PARENT_LABEL, None)]
     try:
         for bh_id, desc, bh_type in _db_get_budget_heads():
-            choices.append((f"{desc}  [{bh_type}]", bh_id))
+            if not filter_type or bh_type == filter_type:
+                choices.append((f"{desc}  [{bh_type}]", bh_id))
     except Exception:  # noqa: BLE001
         pass  # Return only the sentinel entry on any DB error
     return choices
@@ -482,7 +483,7 @@ def add_account_type_main(
                 return
         except (tk.TclError, NameError):
             return
-        typed = type_combo.get().strip()
+        typed = type_combo.get().strip().upper()
         if typed and typed not in _BH_TYPES:
             show_colorful_error(
                 win,
@@ -491,6 +492,8 @@ def add_account_type_main(
             )
             flash_error(type_combo)
             type_combo.focus_set()
+        else:
+            _refresh_parent_combo()
 
     type_combo.bind("<FocusOut>", on_type_focus_out, add="+")
 
@@ -512,14 +515,23 @@ def add_account_type_main(
     tip_parent = "Optional: pick a parent to nest this as a sub-category."
     bind_tooltip(parent_combo, tooltip_var, tip_parent)
 
-    def _refresh_parent_combo():
-        new_choices = _load_parent_choices()
+    def _refresh_parent_combo(event=None):
+        typed_type = type_combo.get().strip().upper()
+        filter_type = typed_type if typed_type in _BH_TYPES else None
+        new_choices = _load_parent_choices(filter_type)
         parent_choices.clear()
         parent_choices.extend(new_choices)
         parent_labels.clear()
         parent_labels.extend(label for label, _ in new_choices)
         parent_combo["values"] = list(parent_labels)
         progressive_selection(parent_combo, list(parent_labels))
+        
+        # If current parent category is not in the new options, reset it
+        curr_val = parent_combo.get()
+        if curr_val not in parent_labels:
+            parent_combo.set(_NO_PARENT_LABEL)
+
+    type_combo.bind("<<ComboboxSelected>>", _refresh_parent_combo, add="+")
 
     def on_parent_focus_out(_event=None):
         try:
