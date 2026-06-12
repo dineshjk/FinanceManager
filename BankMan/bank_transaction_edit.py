@@ -215,7 +215,7 @@ def edit_bank_transaction(
 
     win = tk.Toplevel(parent)
     win.title(f"✏️  Edit Bank Transaction  #{trans_id}  ✏️")
-    win.geometry("1100x630")
+    win.geometry("1100x680")
     win.resizable(False, False)
     win.configure(bg=_THEME["main_bg"])
     win.transient(parent)
