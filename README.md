@@ -23,13 +23,13 @@ graph TD
         BM_Main --> BM_Recon[Reconciliation Tools]
     end
 
-    subgraph Shared Utilities
+    subgraph SharedUtilities [Shared Utilities]
         Shared_Db[globals.py - Database Connections]
         Shared_UI[gui_utils.py & dialog_utils.py]
     end
     
-    StockMan --> Shared Utilities
-    BankMan --> Shared Utilities
+    StockMan --> SharedUtilities
+    BankMan --> SharedUtilities
 ```
 
 ---
