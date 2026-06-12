@@ -1456,9 +1456,9 @@ def db_update_bank_transaction(
         "subledger_module_changed": False,
     }
 
-    # Normalise: treat empty string same as None
-    new_module = module_type or None
-    old_module = old_module_type or None
+    # Normalise: treat empty string or None as 'NONE'
+    new_module = module_type or "NONE"
+    old_module = old_module_type or "NONE"
 
     with get_db_connection(BANK_DB_PATH) as conn:
         cursor = conn.cursor()

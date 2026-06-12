@@ -593,7 +593,7 @@ def edit_bank_transaction(
 
         # — Module Type —
         mt_val = module_type_var.get()
-        mt_db: str | None = None if mt_val == "NONE" else mt_val
+        mt_db = mt_val
 
         # — Entry Type —
         et_val = entry_type_var.get()
