@@ -22,7 +22,7 @@ from .trade_update import update_trade
 from .trade_utils import rebuild_sell_allocations
 from Shared.modal_utils import disable_parent, add_escape_binding
 from Shared.window_manager import push_window, pop_window, safe_close_modal
-from Shared.gui_utils import apply_button_animations
+from Shared.gui_utils import apply_button_animations, universal_tree_sort
 
 
 def show_trade_manager(
@@ -77,34 +77,6 @@ def show_trade_manager(
         foreground=UI_THEME.get("gold", "#FFD700"),
         font=UI_THEME.get("font_bold", ("Helvetica", 12, "bold")),
     )
-
-    def sort_by_column(tree, col, descending):
-        """Sort tree contents when a column header is clicked."""
-        data = [
-            (tree.set(child, col), child) for child in tree.get_children("")
-        ]
-
-        # Helper to handle mixed data types (Currency, Numbers, Strings)
-        def convert_type(val):
-            try:
-                # Strip ₹ symbol and commas for clean numerical sorting
-                clean_val = val.replace("₹", "").replace(",", "").strip()
-                return float(clean_val)
-            except ValueError:
-                return val.lower()
-
-        # Sort the data
-        data.sort(key=lambda x: convert_type(x[0]), reverse=descending)
-
-        # Rearrange items in sorted positions
-        for index, (val, child) in enumerate(data):
-            tree.move(child, "", index)
-
-        # Reverse sort direction for the next click
-        tree.heading(
-            col, command=lambda c=col: sort_by_column(tree, c, not descending)
-        )
-
     # --- Treeview Setup ---
     tree_frame = tk.Frame(
         mgr_win, bg=UI_THEME["bg_input"], bd=1, relief="ridge"
@@ -139,7 +111,7 @@ def show_trade_manager(
         tree.heading(
             col,
             text=text,
-            command=lambda c=col: sort_by_column(tree, c, False),
+            command=lambda c=col: universal_tree_sort(tree, c, False),
         )
 
     # Configure Color Tags for row insertion

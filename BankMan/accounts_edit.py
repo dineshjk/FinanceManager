@@ -42,6 +42,7 @@ from Shared.gui_utils import (
     flash_error,
     setup_footer_tooltip,
     bind_date_spin,
+    universal_tree_sort,
 )
 from Shared.dialog_utils import show_colorful_error, show_colorful_info
 from Shared.modal_utils import disable_parent
@@ -192,25 +193,12 @@ def edit_account(
         tree.heading(
             col,
             text=col if col != "ac_id" else "",
-            command=lambda c=col: _sort_tree(tree, c, False),
+            command=lambda c=col: universal_tree_sort(tree, c, False),
         )
 
     tree.pack(fill="both", expand=True)
 
-    # Column-sort helper
-    def _sort_tree(tv: ttk.Treeview, col: str, desc: bool) -> None:
-        data = [(tv.set(child, col), child) for child in tv.get_children("")]
 
-        def _k(v):
-            try:
-                return float(v[0].replace("₹", "").replace(",", "").strip())
-            except ValueError:
-                return v[0].lower()
-
-        data.sort(key=_k, reverse=desc)
-        for i, (_, iid) in enumerate(data):
-            tv.move(iid, "", i)
-        tv.heading(col, command=lambda c=col: _sort_tree(tv, c, not desc))
 
     # ── Load treeview from DB ─────────────────────────────────────────────
     def load_tree() -> None:

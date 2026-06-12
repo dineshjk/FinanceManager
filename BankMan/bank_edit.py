@@ -36,6 +36,7 @@ from Shared.gui_utils import (
     bind_tooltip,
     flash_error,
     setup_footer_tooltip,
+    universal_tree_sort,
 )
 from Shared.dialog_utils import show_colorful_error, show_colorful_info
 from Shared.modal_utils import disable_parent
@@ -47,24 +48,7 @@ _T = BANK_EDIT_UI_THEME
 
 
 # ---------------------------------------------------------------------------
-# Treeview helpers
-# ---------------------------------------------------------------------------
 
-
-def _sort_column(tree: ttk.Treeview, col: str, descending: bool) -> None:
-    """Sort *tree* by *col*; toggle direction on the next click."""
-    data = [(tree.set(child, col), child) for child in tree.get_children("")]
-
-    def _coerce(val: str):
-        return val.lower() if isinstance(val, str) else val
-
-    data.sort(key=lambda x: _coerce(x[0]), reverse=descending)
-    for index, (_, child) in enumerate(data):
-        tree.move(child, "", index)
-    tree.heading(
-        col,
-        command=lambda c=col: _sort_column(tree, c, not descending),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +177,7 @@ def edit_bank(
         tree.heading(
             col,
             text=col,
-            command=lambda c=col: _sort_column(tree, c, False),
+            command=lambda c=col: universal_tree_sort(tree, c, False),
         )
         tree.column(col, width=width, stretch=stretch, anchor=anchor)
 

@@ -29,6 +29,7 @@ from Shared.gui_utils import apply_button_animations, apply_entry_theme
 from Shared.gui_progressive import progressive_selection
 from .company_add import add_company
 from .company_ex_import import export_company
+from .helpers import universal_tree_sort
 
 
 def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
@@ -113,16 +114,27 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
     )
     tree_scroll.config(command=tree.yview)
 
-    # Configure Columns
-    tree.heading("Company", text="Company")
-    tree.heading("Target Buy", text="Target Buy")
-    tree.heading("Target Sell", text="Target Sell")
-    tree.heading("Current", text="Cur. Qty")
-    tree.heading("Full Avg", text="Full Avg")
-    tree.heading("Curr Avg", text="Curr Avg")
-    tree.heading("Live Price", text="Live Price")
-    tree.heading("Status", text="Status")
-    tree.heading("Notes", text="Notes")
+    # Configure Columns and Sorting
+    for col in cols:
+        if col in ("ID", "id_stk", "ticker"):
+            continue
+        text_map = {
+            "Company": "Company",
+            "Target Buy": "Target Buy",
+            "Target Sell": "Target Sell",
+            "Current": "Cur. Qty",
+            "Full Avg": "Full Avg",
+            "Curr Avg": "Curr Avg",
+            "Live Price": "Live Price",
+            "Status": "Status",
+            "Notes": "Notes"
+        }
+        if col in text_map:
+            tree.heading(
+                col,
+                text=text_map[col],
+                command=lambda _col=col: universal_tree_sort(tree, _col, False),
+            )
 
     tree.column("ID", width=0, stretch=tk.NO)
     tree.column("id_stk", width=0, stretch=tk.NO)
@@ -702,11 +714,13 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 tree_scroll.config(command=advice_tree.yview)
                 advice_tree.pack(side="left", fill="both", expand=True)
 
-                # Configure Columns
-                advice_tree.heading("Scrip", text="Scrip")
-                advice_tree.heading("Broker House", text="Broker House")
-                advice_tree.heading("Advice", text="Advice")
-                advice_tree.heading("Date of Report", text="Date of Report")
+                # Configure Columns & Sorting
+                for col in advice_cols:
+                    advice_tree.heading(
+                        col,
+                        text=col,
+                        command=lambda _col=col: universal_tree_sort(advice_tree, _col, False),
+                    )
 
                 advice_tree.column("Scrip", width=150, anchor="w")
                 advice_tree.column("Broker House", width=250, anchor="w")
@@ -861,13 +875,13 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 tree_scroll.config(command=advice_tree.yview)
                 advice_tree.pack(side="left", fill="both", expand=True)
 
-                # Configure Columns
-                advice_tree.heading("Scrip", text="Scrip")
-                advice_tree.heading("Buy Price Band", text="Buy Price Band")
-                advice_tree.heading("Target Price", text="Target Price")
-                advice_tree.heading("Target Period", text="Target Period")
-                advice_tree.heading("Broker House", text="Broker House")
-                advice_tree.heading("Date of Report", text="Date of Report")
+                # Configure Columns & Sorting
+                for col in advice_cols:
+                    advice_tree.heading(
+                        col,
+                        text=col,
+                        command=lambda _col=col: universal_tree_sort(advice_tree, _col, False),
+                    )
 
                 advice_tree.column("Scrip", width=120, anchor="w")
                 advice_tree.column("Buy Price Band", width=120, anchor="e")

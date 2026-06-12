@@ -46,55 +46,7 @@ def list_all_id_stk(parent: Union[tk.Toplevel, tk.Tk]) -> _t.List[int]:
     return ids
 
 
-def universal_tree_sort(tree: ttk.Treeview, col: str, reverse: bool) -> None:
-    """A generic sorter that handles Strings, Currency, Percentages, and DD-MM-YYYY dates."""
-    data_list = [
-        (tree.set(child, col), child)
-        for child in tree.get_children("")
-        if "summary" not in tree.item(child, "tags") and child != "SUMMARY"
-    ]
-
-    def convert_type(val_tuple):
-        val = str(val_tuple[0]).strip()
-        # Handle empty/loading states
-        if val in ("N/A", "-", "", "TBD", "Fetching...", "Calculating..."):
-            return float("-inf") if reverse else float("inf")
-
-        # Strip currency and formatting
-        clean_val = (
-            val.split("(")[0]
-            .replace(",", "")
-            .replace("₹", "")
-            .replace("%", "")
-            .strip()
-        )
-
-        # Check if it's a DD-MM-YYYY date
-        if (
-            len(clean_val) == 10
-            and clean_val[2] == "-"
-            and clean_val[5] == "-"
-        ):
-            try:
-                return datetime.strptime(clean_val, "%d-%m-%Y").timestamp()
-            except ValueError:
-                pass
-
-        # Try numeric, fallback to string
-        try:
-            return float(clean_val)
-        except ValueError:
-            return val.lower()
-
-    data_list.sort(key=convert_type, reverse=reverse)
-
-    for index, (val, child) in enumerate(data_list):
-        tree.move(child, "", index)
-
-    tree.heading(
-        col,
-        command=lambda _col=col: universal_tree_sort(tree, _col, not reverse),
-    )
+from Shared.gui_utils import universal_tree_sort
 
 
 def financial_year_label(value_date: date) -> str:

@@ -25,7 +25,7 @@ from Shared.dialog_utils import (
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
-from Shared.gui_utils import apply_button_animations
+from Shared.gui_utils import apply_button_animations, universal_tree_sort
 from .bank_edit import edit_bank
 from .bank_transaction_edit import edit_bank_transaction
 
@@ -93,28 +93,7 @@ def show_bank_manager(
         font=UI_THEME.get("font_bold", ("Helvetica", 12, "bold")),
     )
 
-    # ------------------------------------------------------------------
-    # Column-sort helper (click a heading to toggle ascending/descending)
-    # ------------------------------------------------------------------
-    def sort_by_column(tree: ttk.Treeview, col: str, descending: bool) -> None:
-        """Sort *tree* by *col*; toggle direction on next click."""
-        data = [(tree.set(child, col), child) for child in tree.get_children("")]
 
-        def _coerce(val: str):
-            try:
-                # Strip rupee symbol and commas so monetary columns sort
-                # numerically rather than lexicographically.
-                return float(val.replace("₹", "").replace(",", "").strip())
-            except ValueError:
-                return val.lower()
-
-        data.sort(key=lambda x: _coerce(x[0]), reverse=descending)
-
-        for index, (_, child) in enumerate(data):
-            tree.move(child, "", index)
-
-        # Flip the sort direction for the next click on this heading.
-        tree.heading(col, command=lambda c=col: sort_by_column(tree, c, not descending))
 
     # ------------------------------------------------------------------
     # Treeview and scrollbar
@@ -158,7 +137,7 @@ def show_bank_manager(
         tree.heading(
             col,
             text=heading_text,
-            command=lambda c=col: sort_by_column(tree, c, False),
+            command=lambda c=col: universal_tree_sort(tree, c, False),
         )
 
     # Row colour tags
@@ -486,29 +465,7 @@ def show_bank_transactions_manager(
         font=UI_THEME.get("font_bold", ("Helvetica", 12, "bold")),
     )
 
-    # ------------------------------------------------------------------
-    # Column-sort helper — mirrors trade_manager exactly
-    # ------------------------------------------------------------------
-    def sort_by_column(tree: ttk.Treeview, col: str, descending: bool) -> None:
-        """Sort *tree* by *col*; toggle direction on next click."""
-        data = [(tree.set(child, col), child) for child in tree.get_children("")]
 
-        def _coerce(val: str):
-            try:
-                # Strip ₹ / commas so monetary columns sort numerically.
-                return float(val.replace("₹", "").replace(",", "").strip())
-            except ValueError:
-                return val.lower()
-
-        data.sort(key=lambda x: _coerce(x[0]), reverse=descending)
-
-        for index, (_, child) in enumerate(data):
-            tree.move(child, "", index)
-
-        tree.heading(
-            col,
-            command=lambda c=col: sort_by_column(tree, c, not descending),
-        )
 
     # ------------------------------------------------------------------
     # Treeview + scrollbar
@@ -552,7 +509,7 @@ def show_bank_transactions_manager(
         tree.heading(
             col,
             text=heading_text,
-            command=lambda c=col: sort_by_column(tree, c, False),
+            command=lambda c=col: universal_tree_sort(tree, c, False),
         )
 
     # Row colour tags — same palette as trade_manager

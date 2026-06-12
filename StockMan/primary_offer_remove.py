@@ -24,6 +24,7 @@ from Shared.dialog_utils import (
 from .trade_utils import compute_avg_price
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
+from Shared.gui_utils import universal_tree_sort
 
 
 def _perform_offer_removal(id_offer: int, parent_win: tk.Toplevel) -> bool:
@@ -169,13 +170,16 @@ def remove_primary_offer(
         height=12,
     )
 
-    tree.heading("ID", text="ID")
-    tree.heading("Type", text="Type")
-    tree.heading("Company", text="Company")
-    tree.heading("Offer Name", text="Offer Name")
-    tree.heading("Status", text="Status")
-    tree.heading("Applied", text="Applied Qty")
-    tree.heading("Allotted", text="Allotted Qty")
+    for col, text in [
+        ("ID", "ID"),
+        ("Type", "Type"),
+        ("Company", "Company"),
+        ("Offer Name", "Offer Name"),
+        ("Status", "Status"),
+        ("Applied", "Applied Qty"),
+        ("Allotted", "Allotted Qty"),
+    ]:
+        tree.heading(col, text=text, command=lambda _c=col: universal_tree_sort(tree, _c, False))
 
     tree.column("ID", width=50, anchor="center")
     tree.column("Type", width=100, anchor="center")

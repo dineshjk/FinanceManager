@@ -36,33 +36,9 @@ from Shared.dialog_utils import (
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
-from Shared.gui_utils import apply_button_animations
-
-# ---------------------------------------------------------------------------
-# Internal sort helper
-# ---------------------------------------------------------------------------
+from Shared.gui_utils import apply_button_animations, universal_tree_sort
 
 
-def _make_sort_fn(tree: ttk.Treeview, col: str, descending: bool):
-    """Return a command that sorts *tree* by *col* and flips direction."""
-
-    def _sort():
-        data = [(tree.set(child, col), child) for child in tree.get_children("")]
-
-        def _coerce(val: str):
-            try:
-                return float(val.replace("₹", "").replace(",", "").strip())
-            except ValueError:
-                return val.lower()
-
-        data.sort(key=lambda x: _coerce(x[0]), reverse=descending)
-
-        for index, (_, child) in enumerate(data):
-            tree.move(child, "", index)
-
-        tree.heading(col, command=_make_sort_fn(tree, col, not descending))
-
-    return _sort
 
 
 # ===========================================================================
@@ -160,7 +136,7 @@ def show_bh_manager(
         tree.heading(
             col,
             text=heading_text,
-            command=_make_sort_fn(tree, col, False),
+            command=lambda c=col: universal_tree_sort(tree, c, False),
         )
 
     tree.tag_configure("income_row", foreground="#4ade80")  # green

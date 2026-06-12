@@ -18,6 +18,7 @@ import sqlite3
 
 from Shared.globals import get_db_connection, logger
 from Shared.dialog_utils import show_colorful_info, show_colorful_error
+from Shared.gui_utils import universal_tree_sort
 
 
 def _parse_iso_trade_date(date_str: str):
@@ -518,7 +519,7 @@ def select_trade_from_list(
     tree = ttk.Treeview(tree_frame, columns=cols, show="headings")
 
     for col in cols:
-        tree.heading(col, text=col)
+        tree.heading(col, text=col, command=lambda _c=col: universal_tree_sort(tree, _c, False))
         tree.column(col, width=120, anchor="center")
     tree.column("ID", width=60, anchor="e")
     tree.column("Company", width=250, anchor="w")
@@ -679,11 +680,10 @@ def select_company_from_list(
 
     cols = ("ID", "Company Name", "ISIN")
     tree = ttk.Treeview(tree_frame, columns=cols, show="headings")
-    tree.heading("ID", text="ID")
+    for col, text in [("ID", "ID"), ("Company Name", "Company Name"), ("ISIN", "ISIN")]:
+        tree.heading(col, text=text, command=lambda _c=col: universal_tree_sort(tree, _c, False))
     tree.column("ID", width=60, anchor="e")
-    tree.heading("Company Name", text="Company Name")
     tree.column("Company Name", width=400, anchor="w")
-    tree.heading("ISIN", text="ISIN")
     tree.column("ISIN", width=150, anchor="center")
 
     tree.tag_configure("oddrow", background=odd_row_bg)
@@ -1500,16 +1500,19 @@ def select_stocks_for_sell_management(
     tree = ttk.Treeview(
         tree_frame, columns=cols, show="headings", selectmode="extended"
     )
-    tree.heading("id_stk", text="ID")
+    for col, text in [
+        ("id_stk", "ID"),
+        ("Company", "Company"),
+        ("ISIN", "ISIN"),
+        ("Current Qty", "Curr Qty"),
+        ("SELL Trades", "SELL Trades"),
+    ]:
+        tree.heading(col, text=text, command=lambda _c=col: universal_tree_sort(tree, _c, False))
     tree.column("id_stk", width=50, anchor="e")
-    tree.heading("Company", text="Company")
     tree.column("Company", width=320, anchor="w")
-    tree.heading("ISIN", text="ISIN")
     tree.column("ISIN", width=140, anchor="center")
-    tree.heading("Current Qty", text="Curr Qty")
     tree.column("Current Qty", width=90, anchor="e")
-    tree.heading("SELL Trades", text="SELL Trades")
-    tree.column("SELL Trades", width=90, anchor="e")
+    tree.column("SELL Trades", width=110, anchor="e")
 
     tree.tag_configure("oddrow", background=odd_row_bg)
     tree.tag_configure("evenrow", background=even_row_bg)

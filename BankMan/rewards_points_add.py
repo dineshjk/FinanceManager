@@ -25,6 +25,7 @@ from Shared.gui_utils import (
     REWARDS_ADD_UI_THEME,
     apply_button_animations,
     bind_date_spin,
+    universal_tree_sort,
 )
 from Shared.dialog_utils import (
     show_colorful_info,
@@ -117,10 +118,13 @@ def show_session_transactions(parent_win, records, escape_callback):
 
     cols = ("card", "date", "earned", "redeemed")
     tree = ttk.Treeview(tree_frame, columns=cols, show="headings", height=8)
-    tree.heading("card", text="Card Master")
-    tree.heading("date", text="Statement Dt")
-    tree.heading("earned", text="Earned")
-    tree.heading("redeemed", text="Redeemed")
+    for col, text in [
+        ("card", "Card Master"),
+        ("date", "Statement Dt"),
+        ("earned", "Earned"),
+        ("redeemed", "Redeemed"),
+    ]:
+        tree.heading(col, text=text, command=lambda _c=col: universal_tree_sort(tree, _c, False))
 
     tree.column("card", width=200, anchor="w")
     tree.column("date", width=100, anchor="center")

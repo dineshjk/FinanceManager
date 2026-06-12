@@ -19,6 +19,7 @@ from Shared.gui_utils import (
     BANK_TRANSACTION_ADD_UI_THEME,
     apply_button_animations,  # <-- Added missing import
     bind_date_spin,
+    universal_tree_sort,
 )
 from Shared.dialog_utils import (
     show_colorful_info,
@@ -702,7 +703,7 @@ def show_pair_select_modal(
         ("withdrawal", "Withdrawal", 100),
         ("deposit", "Deposit", 100),
     ]:
-        tree.heading(col, text=heading)
+        tree.heading(col, text=heading, command=lambda _c=col: universal_tree_sort(tree, _c, False))
         tree.column(col, width=width, anchor="center")
 
     for row in rows:

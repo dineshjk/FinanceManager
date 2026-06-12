@@ -23,7 +23,7 @@ from .rollback_manager import (
     delete_demerger,
 )
 from Shared.window_manager import push_window, pop_window, safe_close_modal
-from Shared.gui_utils import apply_button_animations
+from Shared.gui_utils import apply_button_animations, universal_tree_sort
 
 
 def show_corp_manager(parent: tk.Toplevel | tk.Tk) -> None:
@@ -97,12 +97,15 @@ def show_corp_manager(parent: tk.Toplevel | tk.Tk) -> None:
     )
     tree_scroll.config(command=tree.yview)
 
-    tree.heading("ID", text="ID")
-    tree.heading("Date", text="Record/Ex Date")
-    tree.heading("Company", text="Target Company")
-    tree.heading("Type", text="Action Type")
-    tree.heading("Details", text="Ratio / Details")
-    tree.heading("Notes", text="Remarks")
+    for col, text in [
+        ("ID", "ID"),
+        ("Date", "Record/Ex Date"),
+        ("Company", "Target Company"),
+        ("Type", "Action Type"),
+        ("Details", "Ratio / Details"),
+        ("Notes", "Remarks"),
+    ]:
+        tree.heading(col, text=text, command=lambda _c=col: universal_tree_sort(tree, _c, False))
 
     # Hide the ID column
     tree.column("ID", width=0, stretch=tk.NO)

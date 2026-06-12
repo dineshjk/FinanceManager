@@ -26,7 +26,7 @@ from .trade_utils import (
     process_allotment,
     rebuild_sell_allocations,
 )
-from Shared.gui_utils import apply_button_animations
+from Shared.gui_utils import apply_button_animations, universal_tree_sort
 from .validation_utils import ValidationError, validate_trade_import_payload
 
 SRC_LEGACY_DB = os.path.join(PROJECT_ROOT, "data", "mystocks_old.db")
@@ -886,38 +886,11 @@ def trade_entry_from_file(
     )
     tree = ttk.Treeview(tree_frame, columns=cols, show="headings", height=15)
 
-    # Sorting logic for headers
-    def treeview_sort_column(tv, col, reverse):
-        l = [(tv.set(k, col), k) for k in tv.get_children("")]
-
-        if col == "Date":
-            try:
-                # Tell python how to properly sort the new DD-MM-YYYY format
-                l.sort(
-                    key=lambda t: datetime.strptime(t[0], "%d-%m-%Y"),
-                    reverse=reverse,
-                )
-            except ValueError:
-                l.sort(reverse=reverse)
-        else:
-            try:
-                l.sort(
-                    key=lambda t: float(t[0].replace(",", "")), reverse=reverse
-                )
-            except ValueError:
-                l.sort(reverse=reverse)
-
-        for index, (val, k) in enumerate(l):
-            tv.move(k, "", index)
-        tv.heading(
-            col, command=lambda: treeview_sort_column(tv, col, not reverse)
-        )
-
     for col in cols:
         tree.heading(
             col,
             text=col,
-            command=lambda _col=col: treeview_sort_column(tree, _col, False),
+            command=lambda _col=col: universal_tree_sort(tree, _col, False),
         )
 
     tree.column("Select", width=60, anchor="center")

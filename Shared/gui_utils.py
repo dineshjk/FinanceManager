@@ -8,7 +8,7 @@ Shared GUI utilities for Stock Portfolio Management System.
 
 import tkinter as tk
 from tkinter import ttk
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from .globals import UI_THEME
 
@@ -954,6 +954,68 @@ def bind_date_spin(date_widget, callback=None) -> None:
 
     date_widget.bind("<Up>", lambda e: _spin(e, 1))
     date_widget.bind("<Down>", lambda e: _spin(e, -1))
+
+
+def universal_tree_sort(tree: ttk.Treeview, col: str, reverse: bool) -> None:
+    """A generic sorter that handles Strings, Currency, Percentages, and various date formats."""
+    # Find all items to sort, ignoring summary rows
+    data_list = [
+        (tree.set(child, col), child)
+        for child in tree.get_children("")
+        if "summary" not in tree.item(child, "tags") and child != "SUMMARY"
+    ]
+
+    def convert_type(val_tuple):
+        val = str(val_tuple[0]).strip()
+        # Handle empty/loading states
+        if val in ("N/A", "-", "", "TBD", "Fetching...", "Calculating...", "—"):
+            return float("-inf") if reverse else float("inf")
+
+        # Strip currency and formatting
+        clean_val = (
+            val.split("(")[0]
+            .replace(",", "")
+            .replace("₹", "")
+            .replace("%", "")
+            .strip()
+        )
+
+        # Check for date formats (length between 8 and 10 with 2 separators)
+        if 8 <= len(clean_val) <= 10 and (
+            clean_val.count("-") == 2 or clean_val.count("/") == 2
+        ):
+            for fmt in ("%d-%m-%Y", "%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d"):
+                try:
+                    return datetime.strptime(clean_val, fmt).timestamp()
+                except ValueError:
+                    continue
+
+        # Try numeric, fallback to string
+        try:
+            return float(clean_val)
+        except ValueError:
+            return val.lower()
+
+    data_list.sort(key=convert_type, reverse=reverse)
+
+    for index, (val, child) in enumerate(data_list):
+        tree.move(child, "", index)
+
+        # Keep alternating colors (oddrow/evenrow or odd/even tags) consistent after sorting
+        current_tags = list(tree.item(child, "tags") or [])
+        if "oddrow" in current_tags or "evenrow" in current_tags:
+            filtered_tags = [t for t in current_tags if t not in ("oddrow", "evenrow")]
+            new_tag = "evenrow" if index % 2 == 0 else "oddrow"
+            tree.item(child, tags=filtered_tags + [new_tag])
+        elif "odd" in current_tags or "even" in current_tags:
+            filtered_tags = [t for t in current_tags if t not in ("odd", "even")]
+            new_tag = "even" if index % 2 == 0 else "odd"
+            tree.item(child, tags=filtered_tags + [new_tag])
+
+    tree.heading(
+        col,
+        command=lambda _col=col: universal_tree_sort(tree, _col, not reverse),
+    )
 
 
 # File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\gui_utils.py ends here
