@@ -37,8 +37,8 @@ from .bank_db_utils import (
     get_all_accounts,
     get_all_user_descriptions,
     get_active_fd_masters,
-    _db_get_all_card_masters,
-    _db_get_ppf_master_id,
+    get_all_card_masters as _db_get_all_card_masters,
+    get_single_ppf_master_id as _db_get_ppf_master_id,
 )
 
 # ---------------------------------------------------------------------------
