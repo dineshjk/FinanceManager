@@ -1128,7 +1128,19 @@ def _fmt_amount_on_focus_out(entry: tk.Entry, _event=None) -> None:
 
 
 def add_bank_transaction_main(
-    parent: Union[tk.Toplevel, tk.Tk], calling_button: tk.Widget | None = None
+    parent: Union[tk.Toplevel, tk.Tk],
+    calling_button: tk.Widget | None = None,
+    *,
+    prefill_pair_id: int | None = None,
+    prefill_withdrawal: float | None = None,
+    prefill_deposit: float | None = None,
+    prefill_val_date: str | None = None,
+    prefill_trans_date: str | None = None,
+    prefill_serial: int | None = None,
+    prefill_cheque: str | None = None,
+    prefill_bank_desc: str | None = None,
+    prefill_user_desc: str | None = None,
+    prefill_bh_id: int | None = None,
 ) -> None:
     """Main function to launch the Add Bank Transaction window."""
 
@@ -2439,6 +2451,50 @@ def add_bank_transaction_main(
     win.bind("<F3>", lambda e: "break")
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
+
+    # ── Prefill application ────────────────────────────────────────────────
+    if prefill_withdrawal is not None:
+        withdrawal_entry.delete(0, tk.END)
+        withdrawal_entry.insert(0, f"{prefill_withdrawal:.2f}")
+    if prefill_deposit is not None:
+        deposit_entry.delete(0, tk.END)
+        deposit_entry.insert(0, f"{prefill_deposit:.2f}")
+    if prefill_pair_id is not None:
+        pair_id_var.set(str(prefill_pair_id))
+    if prefill_val_date is not None:
+        try:
+            value_dt.set_date(datetime.strptime(prefill_val_date, "%Y-%m-%d"))
+        except Exception:
+            pass
+    if prefill_trans_date is not None:
+        try:
+            trans_dt.set_date(datetime.strptime(prefill_trans_date, "%Y-%m-%d"))
+        except Exception:
+            pass
+    if prefill_serial is not None:
+        serial_no_entry.delete(0, tk.END)
+        serial_no_entry.insert(0, str(prefill_serial))
+    if prefill_cheque:
+        cheque_no_entry.delete(0, tk.END)
+        cheque_no_entry.insert(0, prefill_cheque)
+    if prefill_bank_desc:
+        bank_remark_entry.delete(0, tk.END)
+        bank_remark_entry.insert(0, prefill_bank_desc)
+    if prefill_user_desc:
+        user_desc_combo.set(prefill_user_desc)
+    if prefill_bh_id is not None:
+        bh_name = next((name for name, bid in budget_map.items() if bid == prefill_bh_id), None)
+        if bh_name:
+            budget_head_combo.set(bh_name)
+            if bh_type_map.get(bh_name) == "INCOME":
+                entry_type_var.set("INCOME")
+            elif bh_type_map.get(bh_name) == "EXPENSE":
+                entry_type_var.set("EXPENSE")
+        else:
+            budget_head_combo.set("(none)")
+            entry_type_var.set("TRANSFER")
+    elif prefill_pair_id is not None:
+        entry_type_var.set("TRANSFER")
 
     # ── Initial focus ─────────────────────────────────────────────────────
     win.after(100, account_combo.focus_set)
