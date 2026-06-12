@@ -81,8 +81,8 @@ _MODULE_TYPES = [
 ]
 _ENTRY_TYPES = ["INCOME", "EXPENSE", "TRANSFER"]
 
-_F = ("Helvetica", 13)  # standard field font
-_FB = ("Helvetica", 13, "bold")  # bold for amounts
+_F = ("Helvetica", 14)  # standard field font
+_FB = ("Helvetica", 14, "bold")  # bold for amounts
 _FH = ("Helvetica", 18, "bold")  # header title
 
 
@@ -246,18 +246,6 @@ def edit_bank_transaction(
         bd=2,
     ).pack(fill="x", pady=8)
 
-    # ── Account (read-only banner) ────────────────────────────────────────
-    acct_frame = tk.Frame(win, bg=_THEME["header_bg"])
-    acct_frame.pack(fill="x", padx=5, pady=0)
-
-    tk.Label(
-        acct_frame,
-        text=f"Account:  {data['account_label']}",
-        font=("Helvetica", 12, "bold"),
-        bg=_THEME["header_bg"],
-        fg="#CCE0FF",
-    ).pack(side="left", padx=12, pady=5)
-
     # ── Main form ─────────────────────────────────────────────────────────
     form_body = tk.Frame(win, bg=_THEME["main_bg"])
     form_body.pack(fill="x", padx=12, pady=4)
@@ -269,10 +257,21 @@ def edit_bank_transaction(
     band1, lrow1, erow1 = _make_band(form_body, _C_BAND)
     band1.pack(fill="x", pady=(0, 4))
 
-    _band_label(lrow1, "Sr No.", _C_BAND, _F, fg=_L_FG)
+    _band_label(lrow1, "Account", _C_BAND, _F, fg=_L_FG)
+    _band_label(lrow1, "Sr No.", _C_BAND, _F, padx=230, fg=_L_FG)
     _band_label(lrow1, "Cheque No", _C_BAND, _F, padx=20, fg=_L_FG)
     _band_label(lrow1, "Value Dt", _C_BAND, _F, padx=20, fg=_L_FG)
     _band_label(lrow1, "Trans Dt", _C_BAND, _F, padx=90, fg=_L_FG)
+
+    acct_var = tk.StringVar(value=data["account_label"])
+    acct_entry = tk.Entry(erow1, textvariable=acct_var, width=25, font=_F, state="readonly")
+    acct_entry.pack(side="left", padx=(0, 20))
+    apply_entry_theme(acct_entry, is_readonly=True)
+    bind_tooltip(
+        acct_entry,
+        tooltip_var,
+        "The bank account for this transaction (read-only).",
+    )
 
     serial_var = tk.StringVar(value=str(data["serial_no"]) if data["serial_no"] else "")
     serial_entry = tk.Entry(erow1, textvariable=serial_var, width=5, font=_F)
@@ -496,24 +495,19 @@ def edit_bank_transaction(
 
     # ── Warning label ─────────────────────────────────────────────────────
     warn_frame = tk.Frame(win, bg="#FEF3C7", relief="ridge", bd=1)
-    warn_frame.pack(fill="x", padx=12, pady=(2, 0))
+    warn_frame.pack(fill="x", padx=12, pady=(2, 2))
 
     tk.Label(
         warn_frame,
         text=(
-            "ℹ  Cascading effects are applied automatically:\n"
-            "   • Downstream balance_after values are recalculated when amounts change.\n"
-            "   • The paired transfer row is re-linked when Pair ID is modified.\n"
-            "   • The linked sub-ledger row (FD/CC/Loan/PPF) has its date & amount "
-            "synced when module type is unchanged.\n"
-            "   ⚠  If you change Module Type, the old sub-ledger row is NOT touched — "
-            "fix it manually."
+            "ℹ  Cascading effects (downstream balances, pair links, and sub-ledger dates/amounts) are synced automatically.\n"
+            "⚠  If you change Module Type, the old sub-ledger row is NOT touched — please fix it manually if needed."
         ),
-        font=("Helvetica", 10),
+        font=("Helvetica", 10, "bold"),
         bg="#FEF3C7",
         fg="#92400E",
         justify="left",
-    ).pack(anchor="w", padx=10, pady=5)
+    ).pack(anchor="w", padx=10, pady=4)
 
     # ── Button bar ────────────────────────────────────────────────────────
     btn_frame = tk.Frame(win, bg=_THEME["main_bg"], relief="ridge", bd=2, pady=6)
