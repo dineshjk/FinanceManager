@@ -1,0 +1,7 @@
+# Paste your personal Google AI Studio Gemini API Key below.
+# You can get a free API key at: https://aistudio.google.com/
+#
+# Save this file as 'api_key.txt' in the project root folder.
+# DO NOT commit 'api_key.txt' to Git!
+#
+YOUR_API_KEY_HERE

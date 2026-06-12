@@ -1,0 +1,3 @@
+# Ruff configuration
+line-length = 79
+exclude = ["**/*Copy*.py", "**/__pycache__/**", ".venv/**"]

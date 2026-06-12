@@ -1,0 +1,32 @@
+# API Keys and Secrets
+api_key.txt
+
+# Personal Databases and User Data
+data/*
+!data/.gitkeep
+
+# Global database & spreadsheet exclusions
+*.db
+*.xlsx
+*.csv
+
+# Editor & IDE folders
+.vs/
+.vscode/
+
+# Python cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+
+# Log files and directories
+log/
+*.log
+
+# Private backup and screenshot folders
+Backup B S and S/
+Screenshot for CLI/
+aaa.txt
