@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\bank_transactions_add.py
+# BankMan/bank_transactions_add.py
 
 """
 Module for adding new bank transactions to the database.

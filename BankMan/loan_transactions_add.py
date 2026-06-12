@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\loan_transactions_add.py
+# BankMan/loan_transactions_add.py
 
 """
 Module for adding Loan Transaction records (loan_transactions table).

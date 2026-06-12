@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# tests/trade_file.py
 """Import helper: read legacy DB rows and import them into the current DB.
 
 This module provides three small pieces used by the importer command:

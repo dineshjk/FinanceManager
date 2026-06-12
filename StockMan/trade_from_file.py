@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\trade_from_file.py
+# StockMan/trade_from_file.py
 
 """
 trade_from_file.py
@@ -1151,6 +1151,3 @@ def trade_entry_from_file(
 
     win.bind("<Escape>", cleanup)
     win.protocol("WM_DELETE_WINDOW", cleanup)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\trade_from_file.py ends here

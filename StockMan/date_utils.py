@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\date_utils.py
+# StockMan/date_utils.py
 
 """
 Date utility functions for the Stock Portfolio Management System.
@@ -193,6 +193,3 @@ def validate_iso_date_or_raise(value, field_name: str = "date") -> str:
             f"{field_name!r} must be YYYY-MM-DD (valid date); got: {value!r}"
         )
     return norm
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\date_utils.py ends here

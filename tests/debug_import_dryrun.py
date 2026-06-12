@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/debug_import_dryrun.py
 #!/usr/bin/env python3
 """Attempt importing transactions into a temporary DB and print exceptions.
 

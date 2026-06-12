@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# StockMan/config.py
 import logging
 
 # Centralized UI Theme (Decoupled from StockMan)

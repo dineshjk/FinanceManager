@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: BankMan\loan_transactions_ex_import.py
+# BankMan/loan_transactions_ex_import.py
 
 """loan_transactions_ex_import.py
 

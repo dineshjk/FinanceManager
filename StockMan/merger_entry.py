@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\merger_entry.py
+# StockMan/merger_entry.py
 
 """
 This module handles the management of Corporate Mergers,
@@ -804,6 +804,3 @@ def add_merger(
             parent.grab_set()
     except tk.TclError:
         pass
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\merger_entry.py ends here

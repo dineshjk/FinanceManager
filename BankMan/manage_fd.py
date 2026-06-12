@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/BankMan/manage_fd.py
+# BankMan/manage_fd.py
 
 """
 UI module for viewing and managing Fixed Deposit master records and transactions.

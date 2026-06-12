@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_triggers.py
 """Smoke test for the allotment trigger.
 
 Creates a temporary DB, calls create_database(), inserts sample rows and

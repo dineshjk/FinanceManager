@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\bank_database_setup.py
+# BankMan/bank_database_setup.py
 
 """Database schema and initialization for BankMan.
 

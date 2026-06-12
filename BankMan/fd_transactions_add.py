@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\fd_transactions_add.py
+# BankMan/fd_transactions_add.py
 
 """
 Module for adding Fixed Deposit transaction records (fd_transactions table).

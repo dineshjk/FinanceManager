@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: BankMan\ppf_transactions_ex_import.py
+# BankMan/ppf_transactions_ex_import.py
 
 """ppf_transactions_ex_import.py
 

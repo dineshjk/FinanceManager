@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/run_black_recent.py
 #!/usr/bin/env python3
 """Run Black on recently modified Python files in the StockMan package.
 

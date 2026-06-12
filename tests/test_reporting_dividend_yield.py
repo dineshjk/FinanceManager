@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_reporting_dividend_yield.py
 from datetime import datetime
 import sqlite3
 

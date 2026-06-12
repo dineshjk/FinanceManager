@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_import_transaction.py
 import sqlite3
 from StockMan.trade_from_file import import_transaction
 from Shared.globals import STOCK_DB_PATH

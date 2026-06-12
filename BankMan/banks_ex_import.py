@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\banks_ex_import.py
+# BankMan/banks_ex_import.py
 
 """banks_ex_import.py
 

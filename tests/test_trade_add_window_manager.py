@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_trade_add_window_manager.py
 from datetime import date
 
 import pytest

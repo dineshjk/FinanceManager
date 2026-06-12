@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\ipo.py
+# StockMan/ipo.py
 
 """
 This module handles the management of IPOs within the stock portfolio.
@@ -1023,6 +1023,3 @@ def ipo(
             parent.grab_set()
     except tk.TclError:
         pass
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\ipo.py ends here

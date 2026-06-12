@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# StockMan/data_manager.py
 import os
 import yfinance as yf
 import pandas as pd

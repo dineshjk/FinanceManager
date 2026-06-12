@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/audit_import.py
 #!/usr/bin/env python3
 """Audit the import by comparing the backup DB with the current live DB.
 

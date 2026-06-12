@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/print_audit_summary.py
 from pathlib import Path
 import json
 

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/inspect_db.py
 #!/usr/bin/env python3
 """Inspect a SQLite DB: list tables and row counts for key tables."""
 import os

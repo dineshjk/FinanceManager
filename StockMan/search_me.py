@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# StockMan/search_me.py
 import os
 import zipfile
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\export_trades.py
+# StockMan/export_trades.py
 
 """
 This module contains the function to export all database tables to an Excel file.
@@ -127,6 +127,3 @@ def export_trades(parent: Any) -> None:
             parent, "Export Error", f"An error occurred during export: {e}"
         )
         logger.error(f"An error occurred during export: {e}", exc_info=True)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\export_trades.py ends here

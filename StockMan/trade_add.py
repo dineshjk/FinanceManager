@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\
-# FinanceManager\StockMan\trade_add.py
+# StockMan/trade_add.py
 
 """
 trade_add.py
@@ -3432,8 +3431,3 @@ def add_trade(
             parent.grab_set()
     except tk.TclError:
         pass
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\trade_add.py ends here
-
-

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\gui_utils.py
+# Shared/gui_utils.py
 
 
 """
@@ -1016,6 +1016,3 @@ def universal_tree_sort(tree: ttk.Treeview, col: str, reverse: bool) -> None:
         col,
         command=lambda _col=col: universal_tree_sort(tree, _col, not reverse),
     )
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\gui_utils.py ends here

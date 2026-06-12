@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\validation_utils.py
+# StockMan/validation_utils.py
 
 
 """Centralized validation exception mapping and UI helpers.
@@ -243,6 +243,3 @@ def show_validation_error(
     """
     msg = map_validation_exception(exc)
     show_colorful_error(parent, title, msg)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\validation_utils.py ends here

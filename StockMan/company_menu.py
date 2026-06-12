@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
+# StockMan/company_menu.py
 # File:
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_menu.py
 
 
 """
@@ -101,4 +101,3 @@ def show_company_menu_modal(parent, come_back_index=None):
 
 
 # File:
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_menu.py ends here

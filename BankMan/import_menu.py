@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\import_menu.py
+# BankMan/import_menu.py
 
 """
 Import Data menu for the BankMan application.

@@ -1,4 +1,5 @@
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\direct_trade_menu.py
+# -*- coding: utf-8 -*-
+# StockMan/direct_trade_menu.py
 
 
 """Direct trading modal for IPOs, Rights and Allotments."""
@@ -74,6 +75,3 @@ def show_direct_trade_menu_modal(
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")
     enable_parent(modal_id)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\direct_trade_menu.py ends here

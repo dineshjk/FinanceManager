@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\loan_ex_import_menu.py
+# BankMan/loan_ex_import_menu.py
 
 """
 Loan Export / Import sub-menus for the BankMan application.

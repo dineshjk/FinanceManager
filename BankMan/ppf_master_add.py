@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\ppf_master_add.py
+# BankMan/ppf_master_add.py
 
 """
 Module for adding new PPF (Public Provident Fund) master accounts.

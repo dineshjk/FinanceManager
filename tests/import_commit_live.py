@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/import_commit_live.py
 #!/usr/bin/env python3
 """Import legacy DB rows into the live DB and commit changes.
 

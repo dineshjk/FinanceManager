@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# StockMan/finance_dashboard.py
 import tkinter as tk
 from Shared.menu_factory import create_menu_window
 

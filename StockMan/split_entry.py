@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\split_entry.py
+# StockMan/split_entry.py
 
 """
 This module handles the management of Stock Splits
@@ -768,6 +768,3 @@ def add_split_share(
             parent.grab_set()
     except tk.TclError:
         pass
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\split_entry.py ends here

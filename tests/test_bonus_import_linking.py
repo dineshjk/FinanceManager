@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_bonus_import_linking.py
 import importlib
 import sqlite3
 from pathlib import Path

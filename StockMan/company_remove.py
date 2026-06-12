@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_remove.py
+# StockMan/company_remove.py
 
 """
 company_remove.py
@@ -90,6 +90,3 @@ def remove_company(parent: Union[tk.Toplevel, tk.Tk]) -> None:
             parent, "Database Error", f"Failed to remove company: {e}"
         )
         logger.error("Failed to remove company id_stk %s: %s", id_stk, e)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_remove.py ends here

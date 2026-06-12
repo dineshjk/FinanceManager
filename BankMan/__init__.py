@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\__init__.py
+# BankMan/__init__.py
 
 """
 BankMan Package Initialization.

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\dialog_utils.py
+# Shared/dialog_utils.py
 
 """
 Professional dialog components with dynamic sizing for the Stock Portfolio
@@ -379,6 +379,3 @@ def show_colorful_yesno(parent, title, message):
 #         selectbackground=[("readonly", "#8a1e62")],
 #         selectforeground=[("readonly", "yellow")],
 #     )
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\dialog_utils.py ends here

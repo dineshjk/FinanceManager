@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\sell_management.py
+# StockMan/sell_management.py
 
 """
 sell_management.py
@@ -304,6 +304,3 @@ def show_sell_management_modal(
 
     finally:
         enable_parent(modal_id)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\sell_management.py ends here

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/BankMan/manage_ppf.py
+# BankMan/manage_ppf.py
 
 """
 UI module for viewing and managing PPF master records and transactions.

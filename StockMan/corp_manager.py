@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/StockMan/corp_manager.py
+# StockMan/corp_manager.py
 
 """
 UI module for viewing historical corporate actions and triggering safe database rollbacks.

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\
-# BankMan\budget_head_add.py
+# BankMan/budget_head_add.py
 
 """Module for adding budget head (income/expense category) entries.
 

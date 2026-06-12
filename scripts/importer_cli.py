@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# scripts/importer_cli.py
 r"""Importer CLI: preview (dry-run) or commit imports from a legacy DB into the
 app DB.
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\accounts_add.py
+# BankMan/accounts_add.py
 
 """
 Module for adding new accounts to the database.

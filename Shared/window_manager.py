@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\window_manager.py
+# Shared/window_manager.py
 
 """
 Centralized window stack manager for modal dialogs in Tkinter.
@@ -152,6 +152,3 @@ def safe_close_modal(window, parent=None, calling_button=None):
             pass
 
     return "break"
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\window_manager.py ends here

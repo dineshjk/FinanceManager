@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/invoke_import_dry_ui.py
 #!/usr/bin/env python3
 """Open a hidden root and call the trade menu Import (dry-run) action.
 This simulates a user pressing the Import (dry-run) button.

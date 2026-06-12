@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\menu_factory.py
+# StockMan/menu_factory.py
 
 """
 Universal menu window factory for Tkinter/ttk GUIs.
@@ -351,6 +351,3 @@ def create_menu_window(config):
 
         window.bind("<Destroy>", on_destroy, add=True)
     return window, buttons
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\menu_factory.py ends here

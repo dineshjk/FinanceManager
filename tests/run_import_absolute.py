@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/run_import_absolute.py
 #!/usr/bin/env python3
 """Import legacy DB by absolute path into current DB.
 

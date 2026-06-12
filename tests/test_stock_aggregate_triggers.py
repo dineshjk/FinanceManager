@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_stock_aggregate_triggers.py
 import importlib
 import sqlite3
 import sys

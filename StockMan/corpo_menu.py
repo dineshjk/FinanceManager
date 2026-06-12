@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\corpo_menu.py
+# StockMan/corpo_menu.py
 
 
 """
@@ -255,6 +255,3 @@ def show_corporate_menu_modal(parent, come_back_index=None):
     parent.wait_window(corp_win)
     parent.grab_set()
     enable_parent(modal_id)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\corpo_menu.py ends here

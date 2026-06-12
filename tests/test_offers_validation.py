@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_offers_validation.py
 import importlib
 import sys
 from pathlib import Path

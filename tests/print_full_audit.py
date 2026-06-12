@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/print_full_audit.py
 from pathlib import Path
 import json
 import glob

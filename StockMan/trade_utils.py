@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\trade_utils.py
+# StockMan/trade_utils.py
 
 """
 trade_utils.py
@@ -1627,6 +1627,3 @@ def select_stocks_for_sell_management(
 
     parent_win.wait_window(sel_win)
     return None if cancelled[0] else selected_ids
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\trade_utils.py ends here

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\cc_ex_import_menu.py
+# BankMan/cc_ex_import_menu.py
 
 """
 Credit Card Export / Import sub-menus for the BankMan application.

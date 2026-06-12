@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\stocks.py
+# StockMan/stocks.py
 
 """
 Main entry point for Stock Portfolio Management GUI application.
@@ -313,6 +313,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\stocks.py ends here

@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-#
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\run_importer_test.py
+# -*- coding: utf-8 -*-
+# StockMan/run_importer_test.py
 
 
 """Test runner: create a small dummy source DB, simulate choosing it via
@@ -108,6 +108,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\run_importer_test.py ends here

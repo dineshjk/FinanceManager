@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\modal_utils.py
+# Shared/modal_utils.py
 
 """
 Centralized Modal Window Management System
@@ -108,8 +108,3 @@ def add_escape_binding(
         logger.debug("Escape key binding added to modal window")
     except (tk.TclError, RuntimeError, AttributeError) as e:
         logger.error("Error adding escape binding: %s", e)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\modal_utils.py ends here
-
-

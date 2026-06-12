@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\cc_master_add.py
+# BankMan/cc_master_add.py
 
 """
 Module for adding new Credit Card master records (card_master table).

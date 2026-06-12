@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\primary_offer_remove.py
+# StockMan/primary_offer_remove.py
 
 """
 primary_offer_remove.py
@@ -301,6 +301,3 @@ def remove_primary_offer(
             parent.grab_set()
     except tk.TclError:
         pass
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\primary_offer_remove.py ends here

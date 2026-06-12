@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\bank_db_utils.py
+# BankMan/bank_db_utils.py
 
 """
 Database utility functions for the BankMan module.

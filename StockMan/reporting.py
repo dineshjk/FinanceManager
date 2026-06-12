@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\reporting.py
+# StockMan/reporting.py
 
 
 """
@@ -3385,6 +3385,3 @@ def p_and_l(
 
     threading.Thread(target=load_data, daemon=True).start()
     parent.wait_window(pnl_win)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\reporting.py ends here

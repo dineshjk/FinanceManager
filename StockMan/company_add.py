@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_add.py
+# StockMan/company_add.py
 
 """company_add.py
 
@@ -758,6 +758,3 @@ def add_company(
     # Make window modal and wait
     parent.wait_window(ac)
     parent.grab_set()
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_add.py ends here

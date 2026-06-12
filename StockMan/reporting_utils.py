@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# StockMan/reporting_utils.py
 from datetime import date, datetime, time
 import math
 from .date_utils import format_date_for_display

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/StockMan/trade_manager.py
+# StockMan/trade_manager.py
 
 """
 UI module for viewing historical trades and triggering safe database rollbacks.

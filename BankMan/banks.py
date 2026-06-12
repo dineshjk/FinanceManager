@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: c:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\banks.py
+# BankMan/banks.py
 
 import tkinter as tk
 import sys

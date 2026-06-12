@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\rewards_points_add.py
+# BankMan/rewards_points_add.py
 
 """
 Module for adding Credit Card Rewards Points (rewards_points table).

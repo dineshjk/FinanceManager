@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\manage_transactions_menu.py
+# BankMan/manage_transactions_menu.py
 
 """
 Manage Transactions menu for the BankMan application.

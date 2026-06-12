@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\helpers.py
+# StockMan/helpers.py
 
 """
 This file provides the following helper functions.
@@ -184,6 +184,3 @@ def calculate_investment_summary_stats(
         )
 
     return {"overall": overall, "yearly": yearly}
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\helpers.py ends here

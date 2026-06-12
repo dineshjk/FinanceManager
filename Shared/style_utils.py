@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\style_utils.py
+# Shared/style_utils.py
 
 """
 style_utils.py
@@ -97,6 +97,3 @@ def ensure_ttk_style(style_name):
         )
         style.map(style_name, **cfg["color_map"])
         _initialized_styles[style_name] = True
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\style_utils.py ends here

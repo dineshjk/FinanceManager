@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\trade_update.py
+# StockMan/trade_update.py
 
 """
 trade_update.py
@@ -2011,6 +2011,3 @@ def update_trade(
             parent.grab_set()
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\trade_update.py ends here

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/repair_db_links.py
 #!/usr/bin/env python3
 """Repair deterministic link fields in an existing StockMan database."""
 

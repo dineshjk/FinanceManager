@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/import_debug_live.py
 #!/usr/bin/env python3
 """Import with per-transaction debug output into the live DB.
 

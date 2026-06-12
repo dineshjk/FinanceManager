@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_reporting_investment_stats.py
 import pytest
 
 from StockMan.helpers import calculate_investment_summary_stats

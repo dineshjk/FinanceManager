@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\fd_data_entry_menu.py
+# BankMan/fd_data_entry_menu.py
 
 """
 Fixed Deposit Data Entry menu for the BankMan application.

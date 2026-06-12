@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_importer_ui.py
 #!/usr/bin/env python3
 """Programmatic test runner for the importer UI.
 

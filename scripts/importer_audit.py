@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# scripts/importer_audit.py
 r"""Small verification script producing a CSV audit of transactions vs
 exchange_orders.
 

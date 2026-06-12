@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# scripts/inspect_legacy_tx.py
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path('.').resolve()))

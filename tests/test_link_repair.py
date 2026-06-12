@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_link_repair.py
 import importlib
 import sqlite3
 import sys

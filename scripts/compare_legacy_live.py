@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# scripts/compare_legacy_live.py
 from pathlib import Path
 import sys
 

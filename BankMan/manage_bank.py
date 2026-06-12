@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/BankMan/manage_bank.py
+# BankMan/manage_bank.py
 
 """
 UI module for viewing bank transactions and triggering safe database deletions.

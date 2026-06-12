@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# tests/test_sell_management.py
 """
 test_sell_management.py
 -----------------------
@@ -610,6 +611,3 @@ def test_enforcement_failure_rollback_restores_prechange_state(tmp_path):
     assert qty_after == 10
     assert _sold_qty(conn, buy_id) == 10
     assert len(_sell_records_for_sell(conn, sell_id)) == 1
-
-
-# File: test_sell_management.py ends here

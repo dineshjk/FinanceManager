@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\ppf_ex_import_menu.py
+# BankMan/ppf_ex_import_menu.py
 
 """
 PPF Export / Import sub-menus for the BankMan application.

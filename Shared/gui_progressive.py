@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\gui_progressive.py
+# Shared/gui_progressive.py
 
 """Utilities for progressive/autocomplete UI elements and test modals.
 
@@ -222,6 +222,3 @@ def progressive_selection(combobox, values_list):
 #             parent.grab_set()
 #     except tk.TclError:
 #         logger.debug("parent.grab_set skipped: parent destroyed.")
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\gui_progressive.py ends here

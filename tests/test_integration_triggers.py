@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_integration_triggers.py
 """Integration tests for current schema trigger and repair behavior."""
 
 import importlib

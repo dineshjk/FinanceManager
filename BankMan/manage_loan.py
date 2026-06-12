@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/BankMan/manage_loan.py
+# BankMan/manage_loan.py
 
 """
 UI module for viewing and managing Loan master records and transactions.

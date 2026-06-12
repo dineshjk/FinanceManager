@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\export_menu.py
+# BankMan/export_menu.py
 
 """
 Export Data menu for the BankMan application.

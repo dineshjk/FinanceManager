@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\watchlist_menu.py
+# StockMan/watchlist_menu.py
 
 """
 Watchlist and Price Alerts UI.

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_importer_core.py
 import sqlite3
 
 # Add project root to the Python path

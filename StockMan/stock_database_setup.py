@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\database_setup.py
+# StockMan/stock_database_setup.py
 
 """Database schema and initialization helpers for StockMan.
 
@@ -1704,6 +1704,3 @@ def create_stockman_database(_parent) -> Tuple[bool, str]:
     except sqlite3.Error as e:
         logger.error("Database creation failed: %s", e, exc_info=True)
         return False, f"Database creation failed: {str(e)}"
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\database_setup.py ends here

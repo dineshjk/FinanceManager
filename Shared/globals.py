@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/StockMan/globals.py
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\Shared\globals.py
+# Shared/globals.py
 
 """
 Global constants, configurations, and standardized messages for the Stock Portfolio Management application.

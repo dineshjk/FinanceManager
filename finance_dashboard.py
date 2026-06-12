@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\finance_dashboard.py
+# finance_dashboard.py
 
 import tkinter as tk
 import sys

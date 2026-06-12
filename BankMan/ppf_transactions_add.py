@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\ppf_transactions_add.py
+# BankMan/ppf_transactions_add.py
 
 """
 GUI entry form for adding PPF (Public Provident Fund) transactions.

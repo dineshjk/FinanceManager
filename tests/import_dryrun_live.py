@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/import_dryrun_live.py
 #!/usr/bin/env python3
 """Perform a dry-run import into the live DB by running the import inside
 a transaction and rolling it back at the end.

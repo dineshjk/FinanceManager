@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\budget_head_ex_import.py
+# BankMan/budget_head_ex_import.py
 
 """budget_head_ex_import.py
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\offers.py
+# StockMan/offers.py
 
 
 """Helpers to create/update primary offers and allotments.
@@ -204,6 +204,3 @@ def add_rights_issue(
         issue_price=issue_price,
         ratio=ratio,
     )
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\offers.py ends here

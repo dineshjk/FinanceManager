@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/StockMan/rollback_manager.py
+# StockMan/rollback_manager.py
 
 """
 Centralized housekeeping engine for the StockMan application.

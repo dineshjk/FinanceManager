@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_export.py
+# StockMan/company_ex_import.py
 
 """company_export.py
 
@@ -303,6 +303,3 @@ def import_company(parent):
         f"Inserted: {inserted}\nSkipped (already present or blank): "
         f"{skipped}\nMalformed lines: {malformed}\nSource: {src_file}",
     )
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_export.py ends here

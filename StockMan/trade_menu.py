@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\trade_menu.py
+# StockMan/trade_menu.py
 
 """Trade management menu for StockMan.
 
@@ -90,6 +90,3 @@ def show_trade_menu_modal(
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")
     enable_parent(modal_id)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\trade_menu.py ends here

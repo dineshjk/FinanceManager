@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# StockMan/scanner.py
 import os
 import pandas as pd
 

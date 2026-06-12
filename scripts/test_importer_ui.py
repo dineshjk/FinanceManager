@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# scripts/test_importer_ui.py
 """Programmatic UI test for the importer modal.
 
 Run this from the project root. It opens a hidden root Tk window and calls

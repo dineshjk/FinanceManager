@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/run_importer_test.py
 """Test runner: create a small dummy source DB, simulate choosing it via
 the file dialog, open the importer modal, and auto-close after a short
 delay so logs are produced for verification."""

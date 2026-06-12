@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\fd_master_add.py
+# BankMan/fd_master_add.py
 
 """
 Module for adding new Fixed Deposit master records (fd_master table).

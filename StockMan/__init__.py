@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/StockMan/__init__.py
+# StockMan/__init__.py
 
 """
 StockMan Package Initialization.
@@ -109,6 +109,3 @@ __all__ = [
     "universal_tree_sort",
     "create_stockman_database",
 ]
-
-
-# File: FinanceManager/StockMan/__init__.py ends here

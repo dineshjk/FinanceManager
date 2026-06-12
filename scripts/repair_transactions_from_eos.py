@@ -1,4 +1,5 @@
-# repair_transactions_from_eos.py
+# -*- coding: utf-8 -*-
+# scripts/repair_transactions_from_eos.py
 # Recompute transaction aggregates from exchange_orders and update transactions.
 # Creates a timestamped backup before modifying the DB and prints a short summary.
 

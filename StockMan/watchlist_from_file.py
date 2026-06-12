@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\watchlist_from_file.py
+# StockMan/watchlist_from_file.py
 
 """
 watchlist_from_file.py

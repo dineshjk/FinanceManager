@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\dialog_sizing.py
+# Shared/dialog_sizing.py
 
 
 """
@@ -102,6 +102,3 @@ def calculate_wraplength(dialog_width, padding=40):
         int: Optimal wraplength for text widgets
     """
     return max(200, dialog_width - padding)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\dialog_sizing.py

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
+# StockMan/company_bulk_entry.py
 # File:
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_bulk_entry.py
 
 """
 Bulk entry of company data into the stocks table with progress UI and
@@ -824,4 +824,3 @@ def bulk_entry_company(parent: Union[tk.Tk, tk.Toplevel]) -> None:
 
 
 # File:
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\company_bulk_entry.py ends here

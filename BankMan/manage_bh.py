@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/BankMan/manage_bh.py
+# BankMan/manage_bh.py
 
 """
 UI module for viewing and managing Budget Head records.

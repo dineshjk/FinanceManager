@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\ppf_data_entry_menu.py
+# BankMan/ppf_data_entry_menu.py
 
 """
 PPF Data Entry menu for the BankMan application.

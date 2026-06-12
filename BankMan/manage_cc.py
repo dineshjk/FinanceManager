@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/BankMan/manage_cc.py
+# BankMan/manage_cc.py
 
 """
 UI module for viewing and managing Credit Card master records and transactions.

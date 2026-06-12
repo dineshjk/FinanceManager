@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: FinanceManager/StockMan/bonus_entry.py
+# StockMan/bonus_entry.py
 
 """
 This module handles the management of Bonus Share corporate actions
@@ -1088,6 +1088,3 @@ def bonus_shares(
             parent.grab_set()
     except tk.TclError:
         pass
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\bonus_entry.py ends here

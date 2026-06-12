@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/test_reporting_utils.py
 from datetime import date
 import sqlite3
 from datetime import datetime

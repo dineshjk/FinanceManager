@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\maint_menu.py
+# StockMan/maint_menu.py
 
 
 """Maintenance menu for StockMan."""
@@ -75,6 +75,3 @@ def show_maint_menu_modal(
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")
     enable_parent(modal_id)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\maint_menu.py ends here

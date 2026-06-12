@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: # File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\dividend.py
+# StockMan/dividend.py
 
 """
 This module handles the management of dividends within the stock portfolio.
@@ -1277,6 +1277,3 @@ def add_dividend(
             parent.grab_set()
     except tk.TclError:
         pass
-
-
-# File: # File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\dividend.py ends here

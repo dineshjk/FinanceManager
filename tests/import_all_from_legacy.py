@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# tests/import_all_from_legacy.py
 #!/usr/bin/env python3
 """Import all transactions from resolved legacy DB into the current DB.
 

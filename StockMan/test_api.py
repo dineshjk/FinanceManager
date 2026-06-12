@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# StockMan/test_api.py
 import google.generativeai as genai
 from ai_analyzer import get_api_key
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\BankMan\bank_edit.py
+# BankMan/bank_edit.py
 
 """
 Module for editing existing bank records in the ``banks`` table.

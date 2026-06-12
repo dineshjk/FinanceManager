@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\demerger_entry.py
+# StockMan/demerger_entry.py
 
 """
 This module handles Corporate Demergers.
@@ -948,6 +948,3 @@ def add_demerger(
     dem_win.protocol("WM_DELETE_WINDOW", _close_demerger)
     parent_combo.focus_set()
     parent.wait_window(dem_win)
-
-
-# File: C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\StockMan\demerger_entry.py ends here
