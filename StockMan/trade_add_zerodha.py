@@ -71,6 +71,7 @@ def add_trade_zerodha(
     win = tk.Toplevel(parent)
     win.title("✨ Data Entry - Trade (Zerodha Contract) ✨")
     win.geometry("1180x920")
+    win.minsize(1080, 720)
     win.resizable(True, True)
     win.configure(bg=bg_win)
     win.transient(parent)
@@ -151,8 +152,14 @@ def add_trade_zerodha(
         "<Configure>",
         lambda e: body_canvas.configure(scrollregion=body_canvas.bbox("all")),
     )
-    body_canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+    canvas_win_id = body_canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
     body_canvas.configure(yscrollcommand=scrollbar.set)
+
+    def _on_canvas_configure(event):
+        # Keep inner scroll_frame matched to full canvas width
+        body_canvas.itemconfig(canvas_win_id, width=event.width)
+
+    body_canvas.bind("<Configure>", _on_canvas_configure)
 
     scrollbar.pack(side="right", fill="y")
     body_canvas.pack(side="left", fill="both", expand=True)
@@ -181,11 +188,13 @@ def add_trade_zerodha(
     # Row 0: Cont No, Trade Dt, Settle No, Settle Dt
     r0 = tk.Frame(cont_box, bg=bg_section)
     r0.pack(fill="x", pady=2)
+    for c_idx in range(8):
+        r0.grid_columnconfigure(c_idx, weight=1 if c_idx in (1, 3, 5, 7) else 0)
 
-    tk.Label(r0, text="Contract No:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).pack(side="left", padx=(0, 4))
+    tk.Label(r0, text="Contract No:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(row=0, column=0, sticky="w", padx=(0, 4))
     cont_no_var = tk.StringVar(value="CNT-")
     cont_no_entry = tk.Entry(r0, textvariable=cont_no_var, width=22, font=("Helvetica", 12, "bold"))
-    cont_no_entry.pack(side="left", padx=(0, 15))
+    cont_no_entry.grid(row=0, column=1, sticky="w", padx=(0, 15))
     bind_tooltip(cont_no_entry, tooltip_var, "Zerodha Contract Note Number, e.g. 'CNT-26/27-96502367'")
 
     def _check_auto_icici_switch(_event=None):
@@ -194,21 +203,21 @@ def add_trade_zerodha(
             win.after(100, _on_switch_icici)
     cont_no_entry.bind("<KeyRelease>", _check_auto_icici_switch, add="+")
 
-    tk.Label(r0, text="Trade Date:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).pack(side="left", padx=(0, 4))
+    tk.Label(r0, text="Trade Date:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(row=0, column=2, sticky="w", padx=(0, 4))
     trd_dt_entry = DateEntry(r0, date_pattern="dd-mm-yyyy", width=11, font=("Helvetica", 11))
-    trd_dt_entry.pack(side="left", padx=(0, 15))
+    trd_dt_entry.grid(row=0, column=3, sticky="w", padx=(0, 15))
     bind_date_spin(trd_dt_entry)
     bind_tooltip(trd_dt_entry, tooltip_var, "Date on which trades took place.")
 
-    tk.Label(r0, text="Settlement No:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).pack(side="left", padx=(0, 4))
+    tk.Label(r0, text="Settlement No:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(row=0, column=4, sticky="w", padx=(0, 4))
     settle_no_var = tk.StringVar(value="0")
     settle_no_entry = tk.Entry(r0, textvariable=settle_no_var, width=10, font=("Helvetica", 11, "bold"))
-    settle_no_entry.pack(side="left", padx=(0, 15))
+    settle_no_entry.grid(row=0, column=5, sticky="w", padx=(0, 15))
     bind_tooltip(settle_no_entry, tooltip_var, "Settlement Number from Zerodha Contract Note.")
 
-    tk.Label(r0, text="Settlement Date:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).pack(side="left", padx=(0, 4))
+    tk.Label(r0, text="Settlement Date:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(row=0, column=6, sticky="w", padx=(0, 4))
     settle_dt_entry = DateEntry(r0, date_pattern="dd-mm-yyyy", width=11, font=("Helvetica", 11))
-    settle_dt_entry.pack(side="left", padx=(0, 5))
+    settle_dt_entry.grid(row=0, column=7, sticky="w", padx=(0, 5))
     bind_date_spin(settle_dt_entry)
     bind_tooltip(settle_dt_entry, tooltip_var, "Settlement Date for pay-in/pay-out.")
 
@@ -272,7 +281,7 @@ def add_trade_zerodha(
     # Company selection
     tk.Label(tr_input_frame, text="Company / Symbol:", font=("Helvetica", 11, "bold"), bg="#fef3c7").grid(row=0, column=0, sticky="w", padx=4, pady=2)
     company_var = tk.StringVar()
-    company_combo = ttk.Combobox(tr_input_frame, textvariable=company_var, values=company_names, width=32, font=("Helvetica", 11, "bold"))
+    company_combo = ttk.Combobox(tr_input_frame, textvariable=company_var, values=company_names, width=36, font=("Helvetica", 11, "bold"))
     company_combo.grid(row=0, column=1, sticky="w", padx=4, pady=2)
     progressive_selection(company_combo, company_names)
 
@@ -545,26 +554,26 @@ def add_trade_zerodha(
         tree_frame,
         columns=tr_cols,
         show="headings",
-        height=4,
+        height=5,
         yscrollcommand=tr_scroll.set,
     )
     tr_scroll.config(command=tr_tree.yview)
 
     tr_col_widths = {
-        "#": (35, "center"),
-        "Company": (220, "w"),
-        "ISIN": (120, "center"),
-        "Type": (70, "center"),
-        "Exch": (60, "center"),
-        "Qty": (70, "e"),
-        "WAP": (90, "e"),
-        "Turnover (₹)": (120, "e"),
-        "Brok/sh (₹)": (80, "e"),
-        "Sell Chrg (₹)": (90, "e"),
+        "#": (40, "center", False),
+        "Company": (260, "w", True),
+        "ISIN": (130, "center", False),
+        "Type": (75, "center", False),
+        "Exch": (65, "center", False),
+        "Qty": (75, "e", False),
+        "WAP": (95, "e", False),
+        "Turnover (₹)": (140, "e", True),
+        "Brok/sh (₹)": (90, "e", False),
+        "Sell Chrg (₹)": (100, "e", False),
     }
-    for col, (w, anch) in tr_col_widths.items():
+    for col, (w, anch, st) in tr_col_widths.items():
         tr_tree.heading(col, text=col, command=lambda c=col: universal_tree_sort(tr_tree, c, False))
-        tr_tree.column(col, width=w, anchor=anch)
+        tr_tree.column(col, width=w, anchor=anch, stretch=st)
 
     tr_tree.pack(fill="both", expand=True)
 
@@ -615,12 +624,15 @@ def add_trade_zerodha(
 
     # Grid of levies inputs
     lg_frame = tk.Frame(levies_box, bg="#ede9fe")
-    lg_frame.pack(fill="x", pady=2)
+    lg_frame.pack(fill="x", pady=4)
+
+    for c in range(6):
+        lg_frame.grid_columnconfigure(c, weight=1 if c % 2 == 1 else 0)
 
     def _make_levy_row(parent_f, r, c, label_text, var, tooltip="", is_int=False):
-        tk.Label(parent_f, text=label_text, font=("Helvetica", 11), bg="#ede9fe", fg=fg_label).grid(row=r, column=c*2, sticky="w", padx=(8, 4), pady=3)
-        ent = tk.Entry(parent_f, textvariable=var, width=13, font=("Helvetica", 11, "bold"), justify="right")
-        ent.grid(row=r, column=c*2+1, sticky="w", padx=(0, 15), pady=3)
+        tk.Label(parent_f, text=label_text, font=("Helvetica", 11), bg="#ede9fe", fg=fg_label).grid(row=r, column=c*2, sticky="w", padx=(10, 4), pady=4)
+        ent = tk.Entry(parent_f, textvariable=var, width=14, font=("Helvetica", 11, "bold"), justify="right")
+        ent.grid(row=r, column=c*2+1, sticky="w", padx=(0, 20), pady=4)
         if tooltip:
             bind_tooltip(ent, tooltip_var, tooltip)
         return ent
@@ -642,9 +654,9 @@ def add_trade_zerodha(
 
     # Col 0 / Col 1 / Col 2
     # Row 0: Gross Pay-in/Pay-out Obligation
-    tk.Label(lg_frame, text="(m) Pay In / Pay Out Obligation (₹):", font=("Helvetica", 11, "bold"), bg="#ede9fe", fg="#1e3a8a").grid(row=0, column=0, sticky="w", padx=8, pady=3)
-    ob_entry = tk.Entry(lg_frame, textvariable=obligation_var, width=13, font=("Helvetica", 11, "bold"), justify="right")
-    ob_entry.grid(row=0, column=1, sticky="w", padx=(0, 15), pady=3)
+    tk.Label(lg_frame, text="(m) Pay In / Pay Out Obligation (₹):", font=("Helvetica", 11, "bold"), bg="#ede9fe", fg="#1e3a8a").grid(row=0, column=0, sticky="w", padx=(10, 4), pady=4)
+    ob_entry = tk.Entry(lg_frame, textvariable=obligation_var, width=14, font=("Helvetica", 11, "bold"), justify="right")
+    ob_entry.grid(row=0, column=1, sticky="w", padx=(0, 20), pady=4)
     bind_tooltip(ob_entry, tooltip_var, "Net obligation from ISINs (Buy Turnover - Sell Turnover). Positive = Pay-in, Negative = Pay-out.")
 
     # Row 0 Col 1: Brokerage
@@ -667,14 +679,14 @@ def add_trade_zerodha(
     _make_levy_row(lg_frame, 3, 1, "Consolidated Sell/DP Chrg (₹):", sell_chrg_cont_var, "Consolidated DP / sell charges (optional).")
 
     # Bottom summary of levies
-    levies_summary_bar = tk.Frame(levies_box, bg="#ede9fe")
-    levies_summary_bar.pack(fill="x", pady=(6, 2))
+    levies_summary_bar = tk.Frame(levies_box, bg="#ddd6fe", bd=1, relief="ridge", padx=10, pady=6)
+    levies_summary_bar.pack(fill="x", pady=(8, 4))
 
-    tk.Label(levies_summary_bar, text="Total Taxes & Charges (₹):", font=("Helvetica", 11, "bold"), bg="#ede9fe", fg="#5b21b6").pack(side="left", padx=(10, 4))
-    tk.Label(levies_summary_bar, textvariable=total_levies_var, font=("Helvetica", 12, "bold"), bg="#ede9fe", fg="#5b21b6").pack(side="left", padx=(0, 30))
+    tk.Label(levies_summary_bar, text="Total Taxes & Charges (₹):", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#5b21b6").pack(side="left", padx=(10, 4))
+    tk.Label(levies_summary_bar, textvariable=total_levies_var, font=("Helvetica", 12, "bold"), bg="#ddd6fe", fg="#5b21b6").pack(side="left", padx=(0, 40))
 
-    tk.Label(levies_summary_bar, text="(w) Net Settlement Amount (₹):", font=("Helvetica", 12, "bold"), bg="#ede9fe", fg="#b91c1c").pack(side="left", padx=(10, 4))
-    tk.Label(levies_summary_bar, textvariable=net_contract_amt_var, font=("Helvetica", 14, "bold"), bg="#ede9fe", fg="#b91c1c").pack(side="left", padx=(0, 10))
+    tk.Label(levies_summary_bar, text="(w) Net Settlement Amount (₹):", font=("Helvetica", 12, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(10, 4))
+    tk.Label(levies_summary_bar, textvariable=net_contract_amt_var, font=("Helvetica", 14, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(0, 10))
 
     def _recalculate_net_contract_amount(*_args):
         try:

@@ -156,7 +156,23 @@ def test_zerodha_window_launch_and_close():
     root = tk.Tk()
     root.withdraw()
     try:
-        with patch.object(root, "wait_window", return_value=None), \
+        def _check_win(win):
+            assert win.minsize() == (1080, 720)
+            canvases = [w for w in win.winfo_children() if isinstance(w, tk.Canvas)]
+            assert len(canvases) == 1
+            canvas = canvases[0]
+
+            # Simulate configure event with width 1180
+            canvas.event_generate("<Configure>", width=1180, height=800)
+            root.update_idletasks()
+
+            items = canvas.find_all()
+            assert len(items) >= 1
+            win_item_id = items[0]
+            # Width should have updated to event.width (1180)
+            assert canvas.itemcget(win_item_id, "width") == "1180"
+
+        with patch.object(root, "wait_window", side_effect=_check_win), \
              patch("Shared.modal_utils.disable_parent", return_value="modal_1"), \
              patch("Shared.window_manager.push_window"), \
              patch("Shared.window_manager.safe_close_modal"):
