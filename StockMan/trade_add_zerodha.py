@@ -24,6 +24,11 @@ from tkcalendar import DateEntry
 from Shared.globals import (
     get_db_connection,
     logger,
+    BROK,
+    GST,
+    SEBI,
+    STT,
+    get_etc,
 )
 from Shared.dialog_utils import (
     show_colorful_info,
@@ -48,6 +53,24 @@ from .trade_utils import (
     enforce_no_oversell_for_stock,
     bifurcate_zerodha_levies,
 )
+
+
+def get_current_fy_prefix(d: Union[date, datetime]) -> str:
+    """Return 'CNT-y1/y2-' for the Indian Financial Year (Apr-Mar) of the given date.
+
+    In Indian Financial Year YYYY-(YYYY+1), y1 is the last two digits of YYYY
+    and y2 is the last two digits of YYYY+1.
+    For example, for dates in FY 2026-2027, returns 'CNT-26/27-'.
+    """
+    if hasattr(d, "date") and callable(getattr(d, "date")):
+        d = d.date()
+    if d.month >= 4:
+        y1 = d.year % 100
+        y2 = (d.year + 1) % 100
+    else:
+        y1 = (d.year - 1) % 100
+        y2 = d.year % 100
+    return f"CNT-{y1:02d}/{y2:02d}-"
 
 
 def add_trade_zerodha(
@@ -158,22 +181,28 @@ def add_trade_zerodha(
         fg=bg_header,
         relief="groove",
         bd=2,
-        padx=10,
+        padx=12,
         pady=6,
     )
     cont_box.pack(fill="x", padx=10, pady=4)
 
-    # Row 0: Cont No, Trade Dt, Settle No, Settle Dt
-    r0 = tk.Frame(cont_box, bg=bg_section)
-    r0.pack(fill="x", pady=2)
-    for c_idx in range(8):
-        r0.grid_columnconfigure(c_idx, weight=1 if c_idx in (1, 3, 5, 7) else 0)
+    hdr_grid = tk.Frame(cont_box, bg=bg_section)
+    hdr_grid.pack(fill="x", pady=2)
+    hdr_grid.grid_columnconfigure(0, weight=0)
+    hdr_grid.grid_columnconfigure(1, weight=1)
+    hdr_grid.grid_columnconfigure(2, weight=0)
+    hdr_grid.grid_columnconfigure(3, weight=1)
 
-    tk.Label(r0, text="Contract No:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(row=0, column=0, sticky="w", padx=(0, 4))
-    cont_no_var = tk.StringVar(value="CNT-")
-    cont_no_entry = tk.Entry(r0, textvariable=cont_no_var, width=22, font=("Helvetica", 12, "bold"))
-    cont_no_entry.grid(row=0, column=1, sticky="w", padx=(0, 15))
-    bind_tooltip(cont_no_entry, tooltip_var, "Zerodha Contract Note Number, e.g. 'CNT-26/27-96502367'")
+    # Row 0: Contract No & Trade Date
+    tk.Label(hdr_grid, text="Contract No:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(
+        row=0, column=0, sticky="w", padx=(4, 6), pady=3
+    )
+    initial_cont_prefix = get_current_fy_prefix(datetime.now().date())
+    cont_no_var = tk.StringVar(value=initial_cont_prefix)
+    cont_no_entry = tk.Entry(hdr_grid, textvariable=cont_no_var, font=("Helvetica", 11, "bold"))
+    cont_no_entry.grid(row=0, column=1, sticky="ew", padx=(0, 25), pady=3)
+    cont_no_entry.icursor(tk.END)
+    bind_tooltip(cont_no_entry, tooltip_var, f"Zerodha Contract Note Number, e.g. '{initial_cont_prefix}96502367'")
 
     def _check_auto_icici_switch(_event=None):
         val = cont_no_var.get().strip().upper()
@@ -181,41 +210,60 @@ def add_trade_zerodha(
             win.after(100, _on_switch_icici)
     cont_no_entry.bind("<KeyRelease>", _check_auto_icici_switch, add="+")
 
-    tk.Label(r0, text="Trade Date:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(row=0, column=2, sticky="w", padx=(0, 4))
-    trd_dt_entry = DateEntry(r0, date_pattern="dd-mm-yyyy", width=11, font=("Helvetica", 11))
-    trd_dt_entry.grid(row=0, column=3, sticky="w", padx=(0, 15))
+    tk.Label(hdr_grid, text="Trade Date:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(
+        row=0, column=2, sticky="w", padx=(10, 6), pady=3
+    )
+    trd_dt_entry = DateEntry(hdr_grid, date_pattern="dd-mm-yyyy", font=("Helvetica", 11))
+    trd_dt_entry.grid(row=0, column=3, sticky="ew", padx=(0, 10), pady=3)
     bind_date_spin(trd_dt_entry)
     bind_tooltip(trd_dt_entry, tooltip_var, "Date on which trades took place.")
 
-    tk.Label(r0, text="Settlement No:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(row=0, column=4, sticky="w", padx=(0, 4))
+    # Row 1: Settlement No & Settlement Date
+    tk.Label(hdr_grid, text="Settlement No:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(
+        row=1, column=0, sticky="w", padx=(4, 6), pady=3
+    )
     settle_no_var = tk.StringVar(value="0")
-    settle_no_entry = tk.Entry(r0, textvariable=settle_no_var, width=10, font=("Helvetica", 11, "bold"))
-    settle_no_entry.grid(row=0, column=5, sticky="w", padx=(0, 15))
+    settle_no_entry = tk.Entry(hdr_grid, textvariable=settle_no_var, font=("Helvetica", 11, "bold"))
+    settle_no_entry.grid(row=1, column=1, sticky="ew", padx=(0, 25), pady=3)
     bind_tooltip(settle_no_entry, tooltip_var, "Settlement Number from Zerodha Contract Note.")
 
-    tk.Label(r0, text="Settlement Date:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(row=0, column=6, sticky="w", padx=(0, 4))
-    settle_dt_entry = DateEntry(r0, date_pattern="dd-mm-yyyy", width=11, font=("Helvetica", 11))
-    settle_dt_entry.grid(row=0, column=7, sticky="w", padx=(0, 5))
+    tk.Label(hdr_grid, text="Settlement Date:", font=("Helvetica", 11, "bold"), bg=bg_section, fg=fg_label).grid(
+        row=1, column=2, sticky="w", padx=(10, 6), pady=3
+    )
+    settle_dt_entry = DateEntry(hdr_grid, date_pattern="dd-mm-yyyy", font=("Helvetica", 11))
+    settle_dt_entry.grid(row=1, column=3, sticky="ew", padx=(0, 10), pady=3)
     bind_date_spin(settle_dt_entry)
     bind_tooltip(settle_dt_entry, tooltip_var, "Settlement Date for pay-in/pay-out.")
 
-    # Auto-adjust settle date when trade date changes
+    # Auto-adjust settle date and prefix when trade date changes
     def _on_trd_dt_change(_event=None):
         try:
             t_dt = trd_dt_entry.get_date()
             s_dt = next_working_day(t_dt)
             settle_dt_entry.set_date(s_dt)
+
+            cur_cont = cont_no_var.get().strip()
+            new_prefix = get_current_fy_prefix(t_dt)
+            if not cur_cont or cur_cont.startswith("CNT-"):
+                parts = cur_cont.split("-")
+                if len(parts) <= 2 or (len(parts) == 3 and not parts[2]):
+                    cont_no_var.set(new_prefix)
+                elif len(parts) == 3 and parts[2]:
+                    cont_no_var.set(f"{new_prefix}{parts[2]}")
+
+            if "_recalculate_default_levies" in globals() or "_recalculate_default_levies" in locals():
+                _recalculate_default_levies()
         except Exception:
             pass
     trd_dt_entry.bind("<<DateEntrySelected>>", _on_trd_dt_change)
 
-    # Row 1: Note
-    r1 = tk.Frame(cont_box, bg=bg_section)
-    r1.pack(fill="x", pady=(4, 2))
-    tk.Label(r1, text="Contract Note / Remark:", font=("Helvetica", 10), bg=bg_section, fg=fg_label).pack(side="left", padx=(0, 4))
+    # Row 2: Contract Note / Remark
+    tk.Label(hdr_grid, text="Contract Note / Remark:", font=("Helvetica", 10), bg=bg_section, fg=fg_label).grid(
+        row=2, column=0, sticky="w", padx=(4, 6), pady=(4, 2)
+    )
     note_cont_var = tk.StringVar()
-    note_cont_entry = tk.Entry(r1, textvariable=note_cont_var, width=70, font=("Helvetica", 10))
-    note_cont_entry.pack(side="left", fill="x", expand=True, padx=4)
+    note_cont_entry = tk.Entry(hdr_grid, textvariable=note_cont_var, font=("Helvetica", 10))
+    note_cont_entry.grid(row=2, column=1, columnspan=3, sticky="ew", padx=(0, 10), pady=(4, 2))
 
     # ── 2. Trades Entry Section (ISIN / Security Row) ─────────────────────
     trades_box = tk.LabelFrame(
@@ -389,8 +437,8 @@ def add_trade_zerodha(
             f"Gross Obligation: ₹ {abs(net_ob):,.2f} {ob_type}"
         )
         obligation_var.set(f"{net_ob:.2f}")
-        gross_obligation_display_var.set(f"₹ {abs(net_ob):,.2f} {ob_type}")
-        _recalculate_net_contract_amount()
+        gross_obligation_display_var.set(f"₹ {abs(net_ob):,.2f} ({ob_type})")
+        _recalculate_default_levies()
 
     def _on_add_or_update_trade():
         c_name = company_var.get().strip()
@@ -587,7 +635,7 @@ def add_trade_zerodha(
     )
     summary_lbl.pack(anchor="w", pady=(2, 0))
 
-    # ── 3. Statutory Levies & Charges (Footer) ────────────────────────────
+    # ── 3. Statutory Levies & Charges (Contract Note Footer) ─────────────
     levies_box = tk.LabelFrame(
         main_frame,
         text="  Statutory Levies & Charges (Contract Note Footer)  ",
@@ -601,95 +649,245 @@ def add_trade_zerodha(
     )
     levies_box.pack(fill="x", padx=10, pady=6)
 
-    # Grid of levies inputs: 3 rows x 3 columns
+    # Grid of levies inputs: 5 rows x 2 fields per row (4 columns total: Label 1, Entry 1, Label 2, Entry 2)
     lg_frame = tk.Frame(levies_box, bg="#ede9fe")
     lg_frame.pack(fill="x", pady=4)
 
-    for c in range(6):
-        lg_frame.grid_columnconfigure(c, weight=1 if c % 2 == 1 else 0)
+    lg_frame.grid_columnconfigure(0, weight=0)
+    lg_frame.grid_columnconfigure(1, weight=1)
+    lg_frame.grid_columnconfigure(2, weight=0)
+    lg_frame.grid_columnconfigure(3, weight=1)
 
-    def _make_levy_row(parent_f, r, c, label_text, var, tooltip="", is_int=False):
-        tk.Label(parent_f, text=label_text, font=("Helvetica", 11), bg="#ede9fe", fg=fg_label).grid(row=r, column=c*2, sticky="w", padx=(10, 4), pady=4)
-        ent = tk.Entry(parent_f, textvariable=var, width=14, font=("Helvetica", 11, "bold"), justify="right")
-        ent.grid(row=r, column=c*2+1, sticky="w", padx=(0, 20), pady=4)
+    def _make_levy_field(parent_f, r, c_pair, label_text, var, tooltip="", is_bold=False):
+        c_lbl = c_pair * 2
+        c_ent = c_pair * 2 + 1
+        lbl = tk.Label(
+            parent_f,
+            text=label_text,
+            font=("Helvetica", 11, "bold" if is_bold else "normal"),
+            bg="#ede9fe",
+            fg=fg_label,
+        )
+        lbl.grid(row=r, column=c_lbl, sticky="w", padx=(10, 6), pady=4)
+        ent = tk.Entry(
+            parent_f,
+            textvariable=var,
+            font=("Helvetica", 11, "bold"),
+            justify="right",
+        )
+        ent.grid(row=r, column=c_ent, sticky="ew", padx=(0, 20 if c_pair == 0 else 10), pady=4)
         if tooltip:
             bind_tooltip(ent, tooltip_var, tooltip)
         return ent
 
-    # Variables for Levies
-    brok_cont_var = tk.StringVar(value="0.00")
-    etc_cont_var = tk.StringVar(value="0.00")
-    cgst_var = tk.StringVar(value="0.00")
-    sgst_var = tk.StringVar(value="0.00")
-    igst_var = tk.StringVar(value="0.00")
-    stt_var = tk.StringVar(value="0")
-    sebi_var = tk.StringVar(value="0.00")
-    stamp_var = tk.StringVar(value="0.00")
-    sell_chrg_cont_var = tk.StringVar(value="0.00")
-    total_levies_var = tk.StringVar(value="₹ 0.00")
-    net_contract_amt_var = tk.StringVar(value="₹ 0.00")
+    # Variables for Levies & Obligations (Fields a through j)
+    payin_payout_var = tk.StringVar(value="0.00")         # a. Pay in Pay Out
+    taxable_val_var = tk.StringVar(value="0.00")          # b. Taxable Value (sum of brok + 0.01)
+    etc_cont_var = tk.StringVar(value="0.00")             # c. ETC (formula as in trade_add)
+    clearing_var = tk.StringVar(value="0.00")             # d. Clearing Charges (0.00)
+    gst_var = tk.StringVar(value="0.00")                  # e. GST (18% default)
+    igst_var = tk.StringVar(value="0.00")                 # f. IGST (0.00)
+    stt_var = tk.StringVar(value="0")                     # g. STT (default value as in ICICI trade_add)
+    sebi_var = tk.StringVar(value="0.00")                 # h. SEBI (default value as in ICICI trade_add)
+    stamp_var = tk.StringVar(value="0.00")                # i. Stamp Duty (0.00)
+    net_client_amt_var = tk.StringVar(value="0.00")       # j. Net Amount Receivable/Payable by client
 
-    # Row 0: Brokerage | Exchange Trans Charges | Stamp Duty
-    _make_levy_row(lg_frame, 0, 0, "Brokerage (₹):", brok_cont_var, "Taxable value of supply / brokerage (₹0 on Zerodha equity delivery).")
-    _make_levy_row(lg_frame, 0, 1, "Exchange Trans. Charges (₹):", etc_cont_var, "Exchange Transaction Charges.")
-    _make_levy_row(lg_frame, 0, 2, "Stamp Duty (₹):", stamp_var, "State Stamp Duty (charged strictly on BUY trades).")
+    total_levies_display_var = tk.StringVar(value="₹ 0.00")
+    net_settlement_status_var = tk.StringVar(value="₹ 0.00  [Payable by Client (DEBIT / Outflow)]")
 
-    # Row 1: CGST | SGST | IGST
-    _make_levy_row(lg_frame, 1, 0, "CGST (₹):", cgst_var, "Central GST (typically 9% on brokerage + ETC + SEBI).")
-    _make_levy_row(lg_frame, 1, 1, "SGST (₹):", sgst_var, "State GST (typically 9% on brokerage + ETC + SEBI).")
-    _make_levy_row(lg_frame, 1, 2, "IGST (₹):", igst_var, "Integrated GST (if interstate).")
+    # Row 0:
+    # a. Pay in Pay Out
+    payin_payout_entry = _make_levy_field(
+        lg_frame, 0, 0, "Pay in / Pay Out (₹):", payin_payout_var,
+        "Net Obligation from all ISIN trades: Total Buy Turnover - Total Sell Turnover.",
+        is_bold=True,
+    )
+    # b. Taxable Value
+    taxable_val_entry = _make_levy_field(
+        lg_frame, 0, 1, "Taxable Value (₹):", taxable_val_var,
+        "Taxable value of supply / brokerage (Default: sum of brokerage + 0.01).",
+    )
 
-    # Row 2: STT | SEBI | Sell/DP Charges
-    _make_levy_row(lg_frame, 2, 0, "STT (₹):", stt_var, "Securities Transaction Tax (Must be an integer!).", is_int=True)
-    _make_levy_row(lg_frame, 2, 1, "SEBI Turnover Fees (₹):", sebi_var, "SEBI Turnover Charges.")
-    _make_levy_row(lg_frame, 2, 2, "Sell / DP Charges (₹):", sell_chrg_cont_var, "Consolidated DP / sell charges (optional).")
+    # Row 1:
+    # c. ETC
+    etc_cont_entry = _make_levy_field(
+        lg_frame, 1, 0, "Exchange Trans. Charges (₹):", etc_cont_var,
+        "Exchange Transaction Charges (Computed using applicable exchange rate).",
+    )
+    # d. Clearing Charges
+    clearing_entry = _make_levy_field(
+        lg_frame, 1, 1, "Clearing Charges (₹):", clearing_var,
+        "Clearing Charges (Default: 0.00).",
+    )
+
+    # Row 2:
+    # e. GST
+    gst_entry = _make_levy_field(
+        lg_frame, 2, 0, "GST (18%) (₹):", gst_var,
+        "Consolidated Goods & Services Tax (Default: 18% of Taxable Value + ETC + SEBI).",
+    )
+    # f. IGST
+    igst_entry = _make_levy_field(
+        lg_frame, 2, 1, "IGST (₹):", igst_var,
+        "Integrated GST if interstate (Default: 0.00).",
+    )
+
+    # Row 3:
+    # g. STT
+    stt_entry = _make_levy_field(
+        lg_frame, 3, 0, "Securities Trans. Tax (₹):", stt_var,
+        "Securities Transaction Tax (Default: 0.1% of non-ETF turnover, integer).",
+    )
+    # h. SEBI
+    sebi_entry = _make_levy_field(
+        lg_frame, 3, 1, "SEBI Turnover Fees (₹):", sebi_var,
+        "SEBI Turnover Charges (Default: turnover * 0.000001).",
+    )
+
+    # Row 4:
+    # i. Stamp Duty
+    stamp_entry = _make_levy_field(
+        lg_frame, 4, 0, "Stamp Duty (₹):", stamp_var,
+        "State Stamp Duty (Default: 0.00).",
+    )
+    # j. Net Amount Receivable/Payable by client
+    net_client_amt_entry = _make_levy_field(
+        lg_frame, 4, 1, "Net Amt Rec/Pay by Client (₹):", net_client_amt_var,
+        "Net Amount Receivable or Payable by client (Computed as per ICICI trade_add UI).",
+        is_bold=True,
+    )
 
     # Bottom summary of levies
     levies_summary_bar = tk.Frame(levies_box, bg="#ddd6fe", bd=1, relief="ridge", padx=10, pady=6)
     levies_summary_bar.pack(fill="x", pady=(8, 4))
 
-    tk.Label(levies_summary_bar, text="Gross Obligation:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#1e3a8a").pack(side="left", padx=(6, 4))
-    tk.Label(levies_summary_bar, textvariable=gross_obligation_display_var, font=("Helvetica", 12, "bold"), bg="#ddd6fe", fg="#1e3a8a").pack(side="left", padx=(0, 25))
+    tk.Label(levies_summary_bar, text="Pay in / Pay Out Obligation:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#1e3a8a").pack(side="left", padx=(6, 4))
+    tk.Label(levies_summary_bar, textvariable=gross_obligation_display_var, font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#1e3a8a").pack(side="left", padx=(0, 20))
 
     tk.Label(levies_summary_bar, text="Total Taxes & Charges:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#5b21b6").pack(side="left", padx=(6, 4))
-    tk.Label(levies_summary_bar, textvariable=total_levies_var, font=("Helvetica", 12, "bold"), bg="#ddd6fe", fg="#5b21b6").pack(side="left", padx=(0, 25))
+    tk.Label(levies_summary_bar, textvariable=total_levies_display_var, font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#5b21b6").pack(side="left", padx=(0, 20))
 
-    tk.Label(levies_summary_bar, text="Net Settlement Amount:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(6, 4))
-    tk.Label(levies_summary_bar, textvariable=net_contract_amt_var, font=("Helvetica", 13, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(0, 6))
+    tk.Label(levies_summary_bar, text="Net Settlement:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(6, 4))
+    tk.Label(levies_summary_bar, textvariable=net_settlement_status_var, font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(0, 6))
 
     def _recalculate_net_contract_amount(*_args):
         try:
-            ob = float(obligation_var.get().strip() or "0.0")
-            brok = float(brok_cont_var.get().strip() or "0.0")
+            ob = float(payin_payout_var.get().strip() or "0.0")
+            taxable = float(taxable_val_var.get().strip() or "0.0")
             etc = float(etc_cont_var.get().strip() or "0.0")
-            cg = float(cgst_var.get().strip() or "0.0")
-            sg = float(sgst_var.get().strip() or "0.0")
-            ig = float(igst_var.get().strip() or "0.0")
+            clearing = float(clearing_var.get().strip() or "0.0")
+            gst = float(gst_var.get().strip() or "0.0")
+            igst = float(igst_var.get().strip() or "0.0")
             stt = float(stt_var.get().strip() or "0.0")
             sebi = float(sebi_var.get().strip() or "0.0")
             stamp = float(stamp_var.get().strip() or "0.0")
-            schrg = float(sell_chrg_cont_var.get().strip() or "0.0")
 
-            tot_lev = round(brok + etc + cg + sg + ig + stt + sebi + stamp + schrg, 2)
-            total_levies_var.set(f"₹ {tot_lev:,.2f}")
+            tot_lev = round(taxable + etc + clearing + gst + igst + stt + sebi + stamp, 2)
+            total_levies_display_var.set(f"₹ {tot_lev:,.2f}")
 
-            # For net bank settlement:
-            # Pay-in (Buy obligation > 0) -> pay-in + charges
-            # Pay-out (Sell obligation < 0) -> payout - charges
+            # For net amount receivable / payable by client:
+            # As per ICICI trade_add logic:
+            # For BUY: net_trade_value = lp_value + levies (client pays)
+            # For SELL: net_trade_value = lp_value - levies (client receives)
+            # Overall net bank settlement:
+            # If ob >= 0 (Pay-in, Buy >= Sell): client pays ob + tot_lev
+            # If ob < 0 (Pay-out, Sell > Buy): client receives abs(ob) - tot_lev
             if ob >= 0:
                 net_amt = round(ob + tot_lev, 2)
-                direction = "(Pay-in Outflow)"
+                status = "Payable by Client (DEBIT / Outflow)"
             else:
-                net_amt = round(abs(ob) - tot_lev, 2)
-                direction = "(Pay-out Inflow)"
+                net_val = round(abs(ob) - tot_lev, 2)
+                if net_val >= 0:
+                    net_amt = net_val
+                    status = "Receivable by Client (CREDIT / Inflow)"
+                else:
+                    net_amt = abs(net_val)
+                    status = "Payable by Client (DEBIT / Outflow)"
 
-            net_contract_amt_var.set(f"₹ {abs(net_amt):,.2f} {direction}")
+            # Avoid cursor jumping if entry is currently focused
+            try:
+                if win.focus_get() != net_client_amt_entry:
+                    net_client_amt_var.set(f"{net_amt:.2f}")
+            except Exception:
+                net_client_amt_var.set(f"{net_amt:.2f}")
+
+            net_settlement_status_var.set(f"₹ {net_amt:,.2f}  [{status}]")
         except ValueError:
-            total_levies_var.set("₹ 0.00")
-            net_contract_amt_var.set("₹ 0.00")
+            total_levies_display_var.set("₹ 0.00")
+            net_settlement_status_var.set("₹ 0.00")
 
-    for v in (obligation_var, brok_cont_var, etc_cont_var, cgst_var, sgst_var, igst_var, stt_var, sebi_var, stamp_var, sell_chrg_cont_var):
+    def _recalculate_default_levies():
+        """Calculate and set default values for fields a through j based on current trades."""
+        if not trades_list:
+            payin_payout_var.set("0.00")
+            taxable_val_var.set("0.00")
+            etc_cont_var.set("0.00")
+            clearing_var.set("0.00")
+            gst_var.set("0.00")
+            igst_var.set("0.00")
+            stt_var.set("0")
+            sebi_var.set("0.00")
+            stamp_var.set("0.00")
+            net_client_amt_var.set("0.00")
+            _recalculate_net_contract_amount()
+            return
+
+        b_tot = sum(t["qty"] * t["wap"] for t in trades_list if t["trade_type"] == "BUY")
+        s_tot = sum(t["qty"] * t["wap"] for t in trades_list if t["trade_type"] == "SELL")
+        total_turnover = b_tot + s_tot
+
+        # a. Pay in Pay Out: Net Obligation for ISIN (Their total)
+        net_ob = round(b_tot - s_tot, 2)
+        payin_payout_var.set(f"{net_ob:.2f}")
+
+        # b. Taxable Value: sum of brokerage + 0.01
+        sum_brok = sum(t["qty"] * t.get("brok_unit", 0.0) for t in trades_list)
+        taxable_val = round(sum_brok + 0.01, 2)
+        taxable_val_var.set(f"{taxable_val:.2f}")
+
+        # c. ETC: As applicable formula as in trade_add (sum of turnover * get_etc(trd_dt, exch))
+        try:
+            t_dt = trd_dt_entry.get_date()
+        except Exception:
+            t_dt = datetime.now().date()
+        etc_sum = 0.0
+        for t in trades_list:
+            rate = get_etc(t_dt, t.get("exchange", "NSE"))
+            etc_sum += (t["qty"] * t["wap"]) * rate
+        etc_val = round(etc_sum, 2)
+        etc_cont_var.set(f"{etc_val:.2f}")
+
+        # d. Clearing Charges: Keep 0.00
+        clearing_val = 0.0
+        clearing_var.set("0.00")
+
+        # h. SEBI: Default value as in add_trade (ICICI) (total_turnover * SEBI)
+        sebi_val = round(total_turnover * SEBI, 2)
+        sebi_var.set(f"{sebi_val:.2f}")
+
+        # e. GST: Default should be 18% (Taxable Value + ETC + SEBI + Clearing)
+        gst_base = taxable_val + etc_val + sebi_val + clearing_val
+        gst_val = round(gst_base * GST, 2)
+        gst_var.set(f"{gst_val:.2f}")
+
+        # f. IGST: Default 0.00
+        igst_var.set("0.00")
+
+        # g. STT: Default value as in add_trade (ICICI) (non-ETF turnover * STT, integer)
+        non_etf_turnover = sum(t["qty"] * t["wap"] for t in trades_list if not t.get("is_etf", False))
+        stt_val = int(round(non_etf_turnover * STT)) if non_etf_turnover > 0 else 0
+        stt_var.set(str(stt_val))
+
+        # i. Stamp Duty: Keep 0.00
+        stamp_var.set("0.00")
+
+        # j. Net Amount Receivable/Payable: Recalculated by _recalculate_net_contract_amount
+        _recalculate_net_contract_amount()
+
+    for v in (payin_payout_var, taxable_val_var, etc_cont_var, clearing_var, gst_var, igst_var, stt_var, sebi_var, stamp_var):
         v.trace_add("write", _recalculate_net_contract_amount)
+
+    _recalculate_default_levies()
 
     # ── 4. Main Action Buttons ─────────────────────────────────────────────
     btn_box = tk.Frame(win, bg=bg_win, relief="ridge", bd=2, pady=6)
@@ -698,8 +896,9 @@ def add_trade_zerodha(
     def _on_save_contract():
         # Validations
         cont_no = cont_no_var.get().strip().upper()
-        if not cont_no or cont_no == "CNT-":
-            show_colorful_error(win, "Validation Error", "Please enter a valid Zerodha Contract Note Number (e.g. CNT-26/27-96502367).")
+        prefix = get_current_fy_prefix(trd_dt_entry.get_date())
+        if not cont_no or cont_no in ("CNT-", prefix):
+            show_colorful_error(win, "Validation Error", f"Please enter a valid Zerodha Contract Note Number (e.g. {prefix}96502367).")
             cont_no_entry.focus_set()
             return
 
@@ -719,16 +918,16 @@ def add_trade_zerodha(
         # Prepare contract levies dictionary
         try:
             c_levies = {
-                "brok": float(brok_cont_var.get().strip() or "0.0"),
+                "brok": float(taxable_val_var.get().strip() or "0.0"),
+                "taxable_value": float(taxable_val_var.get().strip() or "0.0"),
                 "etc": float(etc_cont_var.get().strip() or "0.0"),
-                "clearing": 0.0,
-                "cgst": float(cgst_var.get().strip() or "0.0"),
-                "sgst": float(sgst_var.get().strip() or "0.0"),
+                "clearing": float(clearing_var.get().strip() or "0.0"),
+                "gst": float(gst_var.get().strip() or "0.0"),
                 "igst": float(igst_var.get().strip() or "0.0"),
                 "stt": int(round(float(stt_var.get().strip() or "0"))),
                 "sebi": float(sebi_var.get().strip() or "0.0"),
                 "stamp": float(stamp_var.get().strip() or "0.0"),
-                "sell_chrg": float(sell_chrg_cont_var.get().strip() or "0.0"),
+                "sell_chrg": sum(t.get("sell_chrg", 0.0) for t in trades_list),
             }
         except ValueError as e:
             show_colorful_error(win, "Input Error", f"One or more levy values are invalid numbers: {e}")
@@ -945,19 +1144,10 @@ def add_trade_zerodha(
                 # Reset form
                 trades_list.clear()
                 _render_trades_tree()
-                cont_no_var.set("CNT-")
+                cont_no_var.set(get_current_fy_prefix(datetime.now().date()))
                 settle_no_var.set("0")
-                brok_cont_var.set("0.00")
-                etc_cont_var.set("0.00")
-                clearing_var.set("0.00")
-                cgst_var.set("0.00")
-                sgst_var.set("0.00")
-                igst_var.set("0.00")
-                stt_var.set("0")
-                sebi_var.set("0.00")
-                stamp_var.set("0.00")
-                sell_chrg_cont_var.set("0.00")
                 note_cont_var.set("")
+                _recalculate_default_levies()
                 cont_no_entry.focus_set()
             else:
                 cleanup_and_close()

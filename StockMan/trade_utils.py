@@ -1734,7 +1734,12 @@ def bifurcate_zerodha_levies(
     largest_sell_idx = max(sell_indices, key=lambda i: normalized_trades[i]["price_lot_trd"]) if sell_indices else None
 
     # 3. Parse and aggregate contract-level levies
-    brok_cont = float(contract_levies.get("brok", 0.0) or contract_levies.get("brok_cont", 0.0) or 0.0)
+    brok_cont = float(
+        contract_levies.get("brok", 0.0)
+        or contract_levies.get("brok_cont", 0.0)
+        or contract_levies.get("taxable_value", 0.0)
+        or 0.0
+    )
     etc_raw = float(contract_levies.get("etc", 0.0) or contract_levies.get("etc_cont", 0.0) or 0.0)
     clearing_raw = float(contract_levies.get("clearing", 0.0) or 0.0)
     etc_cont = round(etc_raw + clearing_raw, 4)
@@ -1742,8 +1747,12 @@ def bifurcate_zerodha_levies(
     sebi_cont = float(contract_levies.get("sebi", 0.0) or contract_levies.get("sebi_cont", 0.0) or 0.0)
     cgst = float(contract_levies.get("cgst", 0.0) or 0.0)
     sgst = float(contract_levies.get("sgst", 0.0) or 0.0)
-    igst_cont = float(contract_levies.get("igst", 0.0) or contract_levies.get("igst_cont", 0.0) or 0.0)
+    gst_val = float(contract_levies.get("gst", 0.0) or contract_levies.get("gst_cont", 0.0) or 0.0)
+    if gst_val > 0 and (cgst + sgst == 0):
+        cgst = round(gst_val / 2.0, 4)
+        sgst = round(gst_val - cgst, 4)
     gst_cont = round(cgst + sgst, 4)
+    igst_cont = float(contract_levies.get("igst", 0.0) or contract_levies.get("igst_cont", 0.0) or 0.0)
 
     stt_cont = int(round(float(contract_levies.get("stt", 0) or contract_levies.get("stt_cont", 0) or 0)))
     stamp_cont = float(contract_levies.get("stamp", 0.0) or contract_levies.get("stamp_cont", 0.0) or 0.0)

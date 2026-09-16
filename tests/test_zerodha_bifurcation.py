@@ -148,10 +148,59 @@ def test_bifurcate_validation_errors():
         bifurcate_zerodha_levies([{"company_name": "ABC", "qty": 10, "wap": 100, "trade_type": "INVALID"}], {})
 
 
+def test_get_current_fy_prefix():
+    from datetime import date
+    from StockMan.trade_add_zerodha import get_current_fy_prefix
+
+    # FY 2026-2027 (Apr 2026 to Mar 2027)
+    assert get_current_fy_prefix(date(2026, 9, 16)) == "CNT-26/27-"
+    assert get_current_fy_prefix(date(2026, 4, 1)) == "CNT-26/27-"
+    assert get_current_fy_prefix(date(2027, 3, 31)) == "CNT-26/27-"
+    assert get_current_fy_prefix(date(2027, 1, 15)) == "CNT-26/27-"
+
+    # FY 2025-2026
+    assert get_current_fy_prefix(date(2025, 4, 1)) == "CNT-25/26-"
+    assert get_current_fy_prefix(date(2026, 3, 31)) == "CNT-25/26-"
+
+    # FY 2024-2025
+    assert get_current_fy_prefix(date(2025, 2, 10)) == "CNT-24/25-"
+
+
+def test_bifurcate_single_gst_key():
+    trades = [
+        {
+            "id_stk": 1,
+            "company_name": "Infosys Ltd",
+            "trade_type": "BUY",
+            "exchange": "NSE",
+            "qty": 10,
+            "wap": 1500.0,
+        }
+    ]
+    # Single GST key provided instead of separate cgst/sgst
+    contract_levies = {
+        "taxable_value": 0.01,
+        "etc": 0.50,
+        "clearing": 0.0,
+        "gst": 0.09,
+        "igst": 0.0,
+        "stt": 15,
+        "sebi": 0.02,
+        "stamp": 0.0,
+    }
+
+    res = bifurcate_zerodha_levies(trades, contract_levies, trd_dt="2026-09-16")
+    c_totals = res["contract_totals"]
+    assert c_totals["gst_cont"] == 0.09
+    assert c_totals["brok_cont"] == 0.01
+    assert c_totals["stt_cont"] == 15
+
+
 def test_zerodha_window_launch_and_close():
     import tkinter as tk
     from unittest.mock import patch
-    from StockMan.trade_add_zerodha import add_trade_zerodha
+    from StockMan.trade_add_zerodha import add_trade_zerodha, get_current_fy_prefix
+    from datetime import datetime
 
     root = tk.Tk()
     root.withdraw()
@@ -195,6 +244,22 @@ def test_zerodha_window_launch_and_close():
                 assert not txt.startswith("(p)")
                 assert not txt.startswith("(w)")
 
+            # Verify all 10 fields in lg_frame exist in order
+            expected_labels = [
+                "Pay in / Pay Out (₹):",
+                "Taxable Value (₹):",
+                "Exchange Trans. Charges (₹):",
+                "Clearing Charges (₹):",
+                "GST (18%) (₹):",
+                "IGST (₹):",
+                "Securities Trans. Tax (₹):",
+                "SEBI Turnover Fees (₹):",
+                "Stamp Duty (₹):",
+                "Net Amt Rec/Pay by Client (₹):",
+            ]
+            for el in expected_labels:
+                assert el in all_labels, f"Expected label '{el}' not found in GUI labels."
+
         with patch.object(root, "wait_window", side_effect=_check_win), \
              patch("Shared.modal_utils.disable_parent", return_value="modal_1"), \
              patch("Shared.window_manager.push_window"), \
@@ -202,4 +267,37 @@ def test_zerodha_window_launch_and_close():
             add_trade_zerodha(root)
     finally:
         root.destroy()
+
+
+def test_zerodha_window_prefill_and_default_calculations():
+    import tkinter as tk
+    from unittest.mock import patch
+    from StockMan.trade_add_zerodha import add_trade_zerodha, get_current_fy_prefix
+    from datetime import date
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        def _check_win(win):
+            # Check contract number entry prefill
+            entries = []
+            def _collect_entries(w):
+                for child in w.winfo_children():
+                    if isinstance(child, tk.Entry):
+                        entries.append(child)
+                    _collect_entries(child)
+            _collect_entries(win)
+
+            # Check that contract number entry starts with FY prefix
+            fy_prefix = get_current_fy_prefix(date.today())
+            assert any(e.get().startswith(fy_prefix) for e in entries)
+
+        with patch.object(root, "wait_window", side_effect=_check_win), \
+             patch("Shared.modal_utils.disable_parent", return_value="modal_1"), \
+             patch("Shared.window_manager.push_window"), \
+             patch("Shared.window_manager.safe_close_modal"):
+            add_trade_zerodha(root)
+    finally:
+        root.destroy()
+
 
