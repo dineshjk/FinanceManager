@@ -16,7 +16,7 @@ import tkinter as tk
 from tkinter import ttk
 import sqlite3
 
-from Shared.globals import get_db_connection, logger
+from Shared.globals import get_db_connection, logger, BROK, GST, SEBI, STT, get_etc
 from Shared.dialog_utils import show_colorful_info, show_colorful_error
 from Shared.gui_utils import universal_tree_sort
 
@@ -1627,3 +1627,343 @@ def select_stocks_for_sell_management(
 
     parent_win.wait_window(sel_win)
     return None if cancelled[0] else selected_ids
+
+
+def bifurcate_zerodha_levies(
+    trades: list[dict],
+    contract_levies: dict,
+    trd_dt: str = "",
+) -> dict:
+    """Proportionately bifurcate Zerodha contract note combined levies across individual trades.
+
+    Parameters
+    ----------
+    trades : list[dict]
+        List of trade dictionaries, each containing:
+            - id_stk (int): Stock ID
+            - company_name (str): Company name
+            - isin (str, optional): ISIN code
+            - trade_type (str): 'BUY' or 'SELL'
+            - exchange (str, optional): 'NSE' or 'BSE', defaults to 'NSE'
+            - qty (int): Quantity traded
+            - wap (float): Weighted average price per unit
+            - brok_unit (float, optional): Brokerage per unit, defaults to 0.0
+            - is_etf (bool, optional): Whether stock is an ETF, defaults to False
+            - sell_chrg (float, optional): Specific sell charge for this trade
+            - note_trd (str, optional): Note for transaction
+    contract_levies : dict
+        Consolidated levies from Zerodha contract note footer:
+            - brok / brok_cont (float): Taxable value of supply (Brokerage)
+            - etc / etc_cont (float): Exchange transaction charges
+            - clearing (float, optional): Clearing charges
+            - cgst (float, optional): CGST
+            - sgst (float, optional): SGST
+            - igst (float, optional): IGST
+            - stt / stt_cont (int or float): Securities Transaction Tax (integer)
+            - sebi / sebi_cont (float): SEBI turnover fees
+            - stamp / stamp_cont (float): Stamp duty (applies to BUYs only)
+            - sell_chrg (float, optional): Consolidated sell charges (DP charges)
+            - net_amt (float, optional): Contract net amount for verification
+    trd_dt : str, optional
+        Trade date in YYYY-MM-DD format (used for applicable theoretical rates)
+
+    Returns
+    -------
+    dict
+        {
+            "bifurcated_trades": list[dict],  # Trades with allocated levies
+            "contract_totals": dict,          # Contract-level totals matching schema
+        }
+    """
+    if not trades:
+        raise ValueError("At least one trade is required for bifurcation.")
+
+    # 1. Normalize trade values
+    normalized_trades = []
+    for idx, t in enumerate(trades):
+        qty = int(t.get("qty") or t.get("qty_trd") or 0)
+        if qty <= 0:
+            raise ValueError(f"Trade #{idx + 1} ({t.get('company_name', 'Unknown')}) has invalid quantity: {qty}")
+        wap = float(t.get("wap") or t.get("wap_unit_trd") or 0.0)
+        if wap < 0:
+            raise ValueError(f"Trade #{idx + 1} ({t.get('company_name', 'Unknown')}) has invalid WAP: {wap}")
+
+        price_lot = round(qty * wap, 4)
+        trade_type = str(t.get("trade_type") or t.get("trade_type_trd") or "BUY").strip().upper()
+        if trade_type not in ("BUY", "SELL"):
+            raise ValueError(f"Trade #{idx + 1} has invalid trade type: {trade_type}")
+
+        exchange = str(t.get("exchange") or "NSE").strip().upper()
+        if exchange not in ("NSE", "BSE"):
+            exchange = "NSE"
+
+        brok_unit = float(t.get("brok_unit") or t.get("brok_unit_trd") or 0.0)
+        sell_chrg = float(t.get("sell_chrg") or t.get("sell_chrg_trd") or 0.0)
+        is_etf = bool(t.get("is_etf", False))
+        company_name = str(t.get("company_name", "")).strip()
+        isin = str(t.get("isin", "")).strip()
+        id_stk = t.get("id_stk")
+        note_trd = str(t.get("note_trd", "")).strip()
+
+        normalized_trades.append({
+            "idx": idx,
+            "id_stk": id_stk,
+            "company_name": company_name,
+            "isin": isin,
+            "trade_type_trd": trade_type,
+            "exchange": exchange,
+            "qty_trd": qty,
+            "wap_unit_trd": wap,
+            "price_lot_trd": price_lot,
+            "brok_unit_trd": brok_unit,
+            "is_etf": is_etf,
+            "sell_chrg_trd": sell_chrg,
+            "note_trd": note_trd,
+        })
+
+    # 2. Turnover totals
+    total_turnover = sum(t["price_lot_trd"] for t in normalized_trades)
+    buy_turnover = sum(t["price_lot_trd"] for t in normalized_trades if t["trade_type_trd"] == "BUY")
+    sell_turnover = sum(t["price_lot_trd"] for t in normalized_trades if t["trade_type_trd"] == "SELL")
+
+    # Pick reference trade with largest turnover for rounding adjustments
+    largest_trade_idx = max(range(len(normalized_trades)), key=lambda i: normalized_trades[i]["price_lot_trd"])
+    buy_indices = [i for i, t in enumerate(normalized_trades) if t["trade_type_trd"] == "BUY"]
+    largest_buy_idx = max(buy_indices, key=lambda i: normalized_trades[i]["price_lot_trd"]) if buy_indices else None
+    sell_indices = [i for i, t in enumerate(normalized_trades) if t["trade_type_trd"] == "SELL"]
+    largest_sell_idx = max(sell_indices, key=lambda i: normalized_trades[i]["price_lot_trd"]) if sell_indices else None
+
+    # 3. Parse and aggregate contract-level levies
+    brok_cont = float(contract_levies.get("brok", 0.0) or contract_levies.get("brok_cont", 0.0) or 0.0)
+    etc_raw = float(contract_levies.get("etc", 0.0) or contract_levies.get("etc_cont", 0.0) or 0.0)
+    clearing_raw = float(contract_levies.get("clearing", 0.0) or 0.0)
+    etc_cont = round(etc_raw + clearing_raw, 4)
+
+    sebi_cont = float(contract_levies.get("sebi", 0.0) or contract_levies.get("sebi_cont", 0.0) or 0.0)
+    cgst = float(contract_levies.get("cgst", 0.0) or 0.0)
+    sgst = float(contract_levies.get("sgst", 0.0) or 0.0)
+    igst_cont = float(contract_levies.get("igst", 0.0) or contract_levies.get("igst_cont", 0.0) or 0.0)
+    gst_cont = round(cgst + sgst, 4)
+
+    stt_cont = int(round(float(contract_levies.get("stt", 0) or contract_levies.get("stt_cont", 0) or 0)))
+    stamp_cont = float(contract_levies.get("stamp", 0.0) or contract_levies.get("stamp_cont", 0.0) or 0.0)
+    sell_chrg_cont = float(contract_levies.get("sell_chrg", 0.0) or contract_levies.get("sell_chrg_cont", 0.0) or 0.0)
+
+    # 4. Bifurcate ETC & Clearing across all trades by turnover
+    etc_alloc = []
+    for t in normalized_trades:
+        share = (t["price_lot_trd"] / total_turnover) if total_turnover > 0 else (1.0 / len(normalized_trades))
+        etc_alloc.append(round(etc_cont * share, 4))
+    etc_diff = round(etc_cont - sum(etc_alloc), 4)
+    etc_alloc[largest_trade_idx] = round(etc_alloc[largest_trade_idx] + etc_diff, 4)
+
+    # 5. Bifurcate Brokerage
+    # If trades already have brok_unit > 0, compute brok_lot from that; otherwise pro-rate brok_cont
+    brok_lot_alloc = []
+    brok_unit_alloc = []
+    trades_have_brok = any(t["brok_unit_trd"] > 0 for t in normalized_trades)
+    if trades_have_brok:
+        for t in normalized_trades:
+            b_lot = round(t["qty_trd"] * t["brok_unit_trd"], 4)
+            brok_lot_alloc.append(b_lot)
+            brok_unit_alloc.append(t["brok_unit_trd"])
+        brok_cont = round(sum(brok_lot_alloc), 4)
+    else:
+        for t in normalized_trades:
+            share = (t["price_lot_trd"] / total_turnover) if total_turnover > 0 else (1.0 / len(normalized_trades))
+            b_lot = round(brok_cont * share, 4)
+            b_unit = round(b_lot / t["qty_trd"], 4) if t["qty_trd"] > 0 else 0.0
+            brok_lot_alloc.append(b_lot)
+            brok_unit_alloc.append(b_unit)
+        b_diff = round(brok_cont - sum(brok_lot_alloc), 4)
+        brok_lot_alloc[largest_trade_idx] = round(brok_lot_alloc[largest_trade_idx] + b_diff, 4)
+        if normalized_trades[largest_trade_idx]["qty_trd"] > 0:
+            brok_unit_alloc[largest_trade_idx] = round(
+                brok_lot_alloc[largest_trade_idx] / normalized_trades[largest_trade_idx]["qty_trd"], 4
+            )
+
+    # 6. Bifurcate SEBI Turnover fees across all trades by turnover
+    sebi_alloc = []
+    for t in normalized_trades:
+        share = (t["price_lot_trd"] / total_turnover) if total_turnover > 0 else (1.0 / len(normalized_trades))
+        sebi_alloc.append(round(sebi_cont * share, 4))
+    sebi_diff = round(sebi_cont - sum(sebi_alloc), 4)
+    sebi_alloc[largest_trade_idx] = round(sebi_alloc[largest_trade_idx] + sebi_diff, 4)
+
+    # 7. Bifurcate Stamp Duty strictly across BUY trades
+    stamp_alloc = [0.0] * len(normalized_trades)
+    if buy_turnover > 0 and stamp_cont > 0:
+        for i in buy_indices:
+            share = normalized_trades[i]["price_lot_trd"] / buy_turnover
+            stamp_alloc[i] = round(stamp_cont * share, 4)
+        stamp_diff = round(stamp_cont - sum(stamp_alloc), 4)
+        if largest_buy_idx is not None:
+            stamp_alloc[largest_buy_idx] = round(stamp_alloc[largest_buy_idx] + stamp_diff, 4)
+    elif stamp_cont > 0:
+        # Fallback if only SELL trades exist
+        stamp_alloc[largest_trade_idx] = stamp_cont
+
+    # 8. Bifurcate STT: MUST BE INTEGER FOR EVERY TRADE!
+    stt_alloc = []
+    for t in normalized_trades:
+        share = (t["price_lot_trd"] / total_turnover) if total_turnover > 0 else (1.0 / len(normalized_trades))
+        stt_alloc.append(int(round(stt_cont * share)))
+    stt_diff = stt_cont - sum(stt_alloc)
+    stt_alloc[largest_trade_idx] += stt_diff
+
+    # 9. Bifurcate GST and IGST based on taxable turnover base (Brok + ETC + SEBI)
+    taxable_bases = [
+        round(brok_lot_alloc[i] + etc_alloc[i] + sebi_alloc[i], 4)
+        for i in range(len(normalized_trades))
+    ]
+    total_taxable_base = sum(taxable_bases)
+
+    gst_alloc = []
+    igst_alloc = []
+    for i in range(len(normalized_trades)):
+        share = (taxable_bases[i] / total_taxable_base) if total_taxable_base > 0 else (
+            (normalized_trades[i]["price_lot_trd"] / total_turnover) if total_turnover > 0 else (1.0 / len(normalized_trades))
+        )
+        gst_alloc.append(round(gst_cont * share, 4))
+        igst_alloc.append(round(igst_cont * share, 4))
+
+    gst_diff = round(gst_cont - sum(gst_alloc), 4)
+    gst_alloc[largest_trade_idx] = round(gst_alloc[largest_trade_idx] + gst_diff, 4)
+
+    igst_diff = round(igst_cont - sum(igst_alloc), 4)
+    igst_alloc[largest_trade_idx] = round(igst_alloc[largest_trade_idx] + igst_diff, 4)
+
+    # 10. Bifurcate Sell charges
+    sell_chrg_alloc = [0.0] * len(normalized_trades)
+    trades_have_sell_chrg = any(t["sell_chrg_trd"] > 0 for t in normalized_trades)
+    if trades_have_sell_chrg:
+        for i, t in enumerate(normalized_trades):
+            sell_chrg_alloc[i] = t["sell_chrg_trd"]
+        sell_chrg_cont = round(sum(sell_chrg_alloc), 4)
+    elif sell_chrg_cont > 0 and sell_indices:
+        # Divide evenly or proportionally among sell trades
+        per_sell = round(sell_chrg_cont / len(sell_indices), 4)
+        for i in sell_indices:
+            sell_chrg_alloc[i] = per_sell
+        diff = round(sell_chrg_cont - sum(sell_chrg_alloc), 4)
+        if largest_sell_idx is not None:
+            sell_chrg_alloc[largest_sell_idx] = round(sell_chrg_alloc[largest_sell_idx] + diff, 4)
+
+    # 11. Parse Trade Date for Applicable Formulas
+    trade_date = _parse_iso_trade_date(trd_dt) or datetime.now().date()
+
+    # 12. Compute Final Net Amounts and Applicable Fields per Trade
+    bifurcated_trades = []
+    for i, t in enumerate(normalized_trades):
+        price_lot = t["price_lot_trd"]
+        trade_type = t["trade_type_trd"]
+        ex = t["exchange"]
+        is_etf = t["is_etf"]
+
+        b_lot = brok_lot_alloc[i]
+        b_unit = brok_unit_alloc[i]
+        etc_val = etc_alloc[i]
+        sebi_val = sebi_alloc[i]
+        stamp_val = stamp_alloc[i]
+        stt_val = stt_alloc[i]
+        gst_val = gst_alloc[i]
+        igst_val = igst_alloc[i]
+        sell_chrg_val = sell_chrg_alloc[i]
+
+        tax_trd = round(gst_val + stamp_val + stt_val + igst_val, 4)
+        chrg_trd = round(b_lot + etc_val + sebi_val + sell_chrg_val, 4)
+
+        if trade_type == "BUY":
+            net_amt_trd = round(price_lot + tax_trd + chrg_trd, 4)
+        else:
+            net_amt_trd = round(price_lot - tax_trd - chrg_trd, 4)
+
+        # Theoretical Applicable (Formulas)
+        etc_app = round(price_lot * get_etc(trade_date, ex), 4)
+        brok_app = round(price_lot * BROK, 4)
+        sebi_app = round(price_lot * SEBI, 4)
+        gst_app = round((brok_app + etc_app + sebi_app) * GST, 4)
+        stt_app = 0.0 if is_etf else float(int(round(price_lot * STT)))
+        levies_app = brok_app + etc_app + sebi_app + gst_app + stt_app + stamp_val + igst_val + sell_chrg_val
+
+        if trade_type == "BUY":
+            net_amt_app = round(price_lot + levies_app, 4)
+        else:
+            net_amt_app = round(price_lot - levies_app, 4)
+
+        diff_trd = round(net_amt_trd - net_amt_app, 4)
+
+        bifurcated_trades.append({
+            "id_stk": t["id_stk"],
+            "company_name": t["company_name"],
+            "isin": t["isin"],
+            "trade_type_trd": trade_type,
+            "exchange": ex,
+            "qty_trd": t["qty_trd"],
+            "wap_unit_trd": t["wap_unit_trd"],
+            "price_lot_trd": price_lot,
+            "brok_unit_trd": b_unit,
+            "brok_lot_trd": b_lot,
+            "etc_trd": etc_val,
+            "sebi_trd": sebi_val,
+            "sell_chrg_trd": sell_chrg_val,
+            "gst_trd": gst_val,
+            "stamp_trd": stamp_val,
+            "stt_trd": stt_val,
+            "igst_trd": igst_val,
+            "tax_trd": tax_trd,
+            "chrg_trd": chrg_trd,
+            "net_amt_trd": net_amt_trd,
+            "etc_trd_applicable": etc_app,
+            "gst_trd_applicable": gst_app,
+            "stt_trd_applicable": stt_app,
+            "net_amt_trd_applicable": net_amt_app,
+            "difference_trd": diff_trd,
+            "note_trd": t["note_trd"],
+        })
+
+    # 13. Contract-Level Totals
+    total_tax_cont = round(gst_cont + stamp_cont + stt_cont + igst_cont, 4)
+    total_chrg_cont = round(brok_cont + etc_cont + sebi_cont + sell_chrg_cont, 4)
+    net_amt_cont = round(sum(t["net_amt_trd"] for t in bifurcated_trades), 4)
+
+    etc_cont_app = round(sum(t["etc_trd_applicable"] for t in bifurcated_trades), 4)
+    gst_cont_app = round(sum(t["gst_trd_applicable"] for t in bifurcated_trades), 4)
+    stt_cont_app = round(sum(t["stt_trd_applicable"] for t in bifurcated_trades), 4)
+    net_amt_cont_app = round(sum(t["net_amt_trd_applicable"] for t in bifurcated_trades), 4)
+    diff_cont = round(net_amt_cont - net_amt_cont_app, 4)
+
+    # Net Bank Settlement Amount (Pay-in if > 0, Pay-out if < 0)
+    # BUY adds to outflow, SELL brings inflow, all levies add to outflow
+    total_levies = round(total_tax_cont + total_chrg_cont, 4)
+    net_bank_settlement = round(buy_turnover - sell_turnover + total_levies, 2)
+
+    contract_totals = {
+        "no_of_trades": len(bifurcated_trades),
+        "total_turnover": total_turnover,
+        "buy_turnover": buy_turnover,
+        "sell_turnover": sell_turnover,
+        "payin_payout_obligation": round(buy_turnover - sell_turnover, 2),
+        "brok_cont": brok_cont,
+        "etc_cont": etc_cont,
+        "sebi_cont": sebi_cont,
+        "gst_cont": gst_cont,
+        "igst_cont": igst_cont,
+        "stamp_cont": stamp_cont,
+        "stt_cont": stt_cont,
+        "sell_chrg_cont": sell_chrg_cont,
+        "tax_cont": total_tax_cont,
+        "chrg_cont": total_chrg_cont,
+        "net_amt_cont": net_amt_cont,
+        "net_bank_settlement": net_bank_settlement,
+        "etc_cont_applicable": etc_cont_app,
+        "gst_cont_applicable": gst_cont_app,
+        "stt_cont_applicable": stt_cont_app,
+        "net_amt_cont_applicable": net_amt_cont_app,
+        "difference_cont": diff_cont,
+    }
+
+    return {
+        "bifurcated_trades": bifurcated_trades,
+        "contract_totals": contract_totals,
+    }

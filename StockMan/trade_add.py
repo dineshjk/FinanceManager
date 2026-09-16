@@ -2041,6 +2041,48 @@ def add_trade(
     )
     title_label.pack(fill="x")
 
+    broker_bar = tk.Frame(header_frame, bg=headbg)
+    broker_bar.pack(fill="x", pady=(2, 6))
+
+    tk.Label(
+        broker_bar,
+        text="Broker Mode:",
+        font=("Helvetica", 11, "bold"),
+        bg=headbg,
+        fg="white",
+    ).pack(side="left", padx=(15, 8))
+
+    tk.Label(
+        broker_bar,
+        text="🔘 ICICI Securities (ISEC)",
+        font=("Helvetica", 11, "bold"),
+        bg=headbg,
+        fg="#60a5fa",
+    ).pack(side="left", padx=5)
+
+    def _switch_to_zerodha():
+        cleanup_and_close()
+        from .trade_add_zerodha import add_trade_zerodha
+        add_trade_zerodha(
+            parent,
+            calling_button=calling_button,
+            on_switch_to_icici=lambda: add_trade(parent, calling_button=calling_button),
+        )
+
+    switch_zerodha_btn = tk.Button(
+        broker_bar,
+        text="Switch to Zerodha (CNT) ➡️",
+        command=_switch_to_zerodha,
+        font=("Helvetica", 10, "bold"),
+        bg="#0f766e",
+        fg="white",
+        activebackground="#0d9488",
+        cursor="hand2",
+        padx=8,
+        pady=2,
+    )
+    switch_zerodha_btn.pack(side="left", padx=15)
+
     rat_frame = tk.Frame(
         rat_win, bg=ratframebg, padx=15, pady=0, relief="raised", bd=2
     )
@@ -2140,6 +2182,13 @@ def add_trade(
     widget_to_var[cont_no_entry] = cont_no_var
     cont_no_entry.focus_set()
     entries["cont_no"] = cont_no_entry
+
+    def _check_auto_zerodha_switch(_event=None):
+        val = cont_no_var.get().strip().upper()
+        if val.startswith("CNT"):
+            rat_win.after(100, _switch_to_zerodha)
+
+    cont_no_entry.bind("<KeyRelease>", _check_auto_zerodha_switch, add="+")
 
     # --- Trade Date field ---
     tk.Label(

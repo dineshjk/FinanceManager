@@ -10,6 +10,7 @@ from typing import Any
 import tkinter as tk
 from Shared.menu_factory import create_menu_window
 from .trade_add import add_trade
+from .trade_add_zerodha import add_trade_zerodha
 from .trade_manager import show_trade_manager
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
@@ -18,7 +19,7 @@ from .trade_from_file import trade_entry_from_file
 from .sell_management import show_sell_management_modal
 from Shared.globals import logger
 
-DEFAULT_GEOMETRY = "400x400"
+DEFAULT_GEOMETRY = "400x450"
 
 
 def show_trade_menu_modal(
@@ -38,16 +39,21 @@ def show_trade_menu_modal(
 
     menu_config = {
         "title": "Trade Menu",
-        "geometry": "400x400",
+        "geometry": "400x450",
         "style": "Menu.TButton",
         "parent": parent,
         "modal": True,
         "bg": "#ead2e4",
         "buttons": [
             {
-                "text": "Add Trade",
+                "text": "Add Trade (ICICI / Auto)",
                 "hotkey": "A",
                 "command": lambda: add_trade(modal_win),
+            },
+            {
+                "text": "Add Trade (Zerodha)",
+                "hotkey": "Z",
+                "command": lambda: add_trade_zerodha(modal_win),
             },
             {
                 "text": "Direct Trading (IPO/Rights)",

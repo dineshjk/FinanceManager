@@ -416,7 +416,7 @@ def latest_trade(
     tk.Label(
         idlt_label_frame,
         bg=idltbg,
-        text="Contract No (ISEC/)",
+        text="Contract No",
         font=("Helvetica", 14),
     ).pack(side="left", padx=(10, 0))
     cont_no_entry = tk.Entry(
