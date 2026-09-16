@@ -725,3 +725,6 @@ def add_account_main(
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 
     win.after(100, bank_combo.focus_set)
+
+    # ── Modal wait ────────────────────────────────────────────────────────
+    parent.wait_window(win)

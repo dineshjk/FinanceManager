@@ -28,6 +28,11 @@ try:  # <-- NEW
 except ImportError:
     yf = None
 
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+
 from Shared.globals import (
     logger,
     get_db_connection,
@@ -52,15 +57,14 @@ from .reporting_utils import (
     build_detail_header_fragments,
     build_live_market_snapshot,
     build_detail_corp_tree_rows,
-    build_detail_existing_action_keys,
     build_detail_ledger_display_rows,
     build_detail_ledger_tree_rows,
     build_detail_dividend_tree_rows,
-    build_detail_position_overview_fragments,
-    build_master_existing_action_keys,
     build_master_corp_tree_rows,
     build_master_dividend_tree_rows,
     build_master_ledger_display_rows,
+    build_scrip_wise_dividend_data,
+    build_performance_summary_rows,
     build_online_action_entries,
     build_online_corp_action_rows,
     build_pooled_cost_reality_summary,
@@ -100,14 +104,12 @@ from .reporting_utils import (
     fetch_db_corp_actions_for_matching,
     fetch_realized_detail_rows,
     fetch_report_stock_rows,
-    fetch_yearly_realized_amount,
     fetch_detail_split_rows,
     fetch_master_bonus_rows,
     fetch_master_dividend_source_rows,
     fetch_master_ledger_rows,
     fetch_master_split_rows,
     has_corporate_action_history,
-    format_dividend_value_with_yield,
     get_financial_years,
     initialize_stock_data_cache,
     resolve_optional_date_filters,
@@ -2032,11 +2034,134 @@ def p_and_l(
         "Portfolio-wide online corporate actions detected from external sources.",
     )
 
+    # Scrip-wise Dividend Tab
+    tab_master_scrip_dividend = ttk.Frame(master_notebook)
+    master_notebook.add(
+        tab_master_scrip_dividend, text="💵 Scrip-wise Dividend"
+    )
+    master_scrip_dividend_cols = (
+        "Stock",
+        "Invested Amount",
+        "Days",
+        "Dividend",
+        "Return in Percentage",
+    )
+    master_scrip_dividend_content = ttk.Frame(tab_master_scrip_dividend)
+    master_scrip_dividend_content.pack(fill="both", expand=True)
+    master_scrip_dividend_tree = ttk.Treeview(
+        master_scrip_dividend_content,
+        columns=master_scrip_dividend_cols,
+        show="headings",
+    )
+    msd_scroll = ttk.Scrollbar(
+        master_scrip_dividend_content,
+        orient="vertical",
+        command=master_scrip_dividend_tree.yview,
+    )
+    master_scrip_dividend_tree.configure(yscrollcommand=msd_scroll.set)
+    master_scrip_dividend_tree.pack(side="left", fill="both", expand=True)
+    msd_scroll.pack(side="right", fill="y")
+    configure_tree_columns(
+        master_scrip_dividend_tree,
+        master_scrip_dividend_cols,
+        widths={
+            "Stock": {"width": 180, "anchor": "w", "minwidth": 100},
+            "Invested Amount": {"width": 150, "anchor": "e"},
+            "Days": {"width": 110, "anchor": "e"},
+            "Dividend": {"width": 140, "anchor": "e"},
+            "Return in Percentage": {"width": 150, "anchor": "e"},
+        },
+    )
+    configure_summary_row(master_scrip_dividend_tree)
+    add_tree_heading_tooltips(
+        master_scrip_dividend_tree,
+        {
+            "Stock": "Stock ticker/symbol.",
+            "Invested Amount": "Weighted average invested cost when dividends were paid.",
+            "Days": "Weighted average holding days prior to dividend payment.",
+            "Dividend": "Total net dividend amount received.",
+            "Return in Percentage": "Total gross dividend return as a percentage of weighted average invested cost.",
+        },
+    )
+    add_widget_tooltip(
+        master_scrip_dividend_tree,
+        "Scrip-wise aggregated dividend payouts with return metrics.",
+    )
+
+    # Performance Summary Tab
+    tab_master_perf_summary = ttk.Frame(master_notebook)
+    master_notebook.add(
+        tab_master_perf_summary, text="📈 Performance Summary"
+    )
+    master_perf_summary_cols = (
+        "Stock",
+        "Invested Cost",
+        "Sold Cost",
+        "Dividend",
+        "Current Value",
+        "Profit/Loss",
+        "Simple Profit/Loss",
+    )
+    master_perf_summary_content = ttk.Frame(tab_master_perf_summary)
+    master_perf_summary_content.pack(fill="both", expand=True)
+    master_perf_summary_tree = ttk.Treeview(
+        master_perf_summary_content,
+        columns=master_perf_summary_cols,
+        show="headings",
+    )
+    mps_scroll = ttk.Scrollbar(
+        master_perf_summary_content,
+        orient="vertical",
+        command=master_perf_summary_tree.yview,
+    )
+    master_perf_summary_tree.configure(yscrollcommand=mps_scroll.set)
+    master_perf_summary_tree.pack(side="left", fill="both", expand=True)
+    mps_scroll.pack(side="right", fill="y")
+    
+    # Configure colors/fonts for performance summary tree
+    master_perf_summary_tree.tag_configure("profit", foreground="#27ae60", font=("Helvetica", 11))
+    master_perf_summary_tree.tag_configure("loss", foreground="#c0392b", font=("Helvetica", 11))
+    master_perf_summary_tree.tag_configure("neutral", foreground="#2c3e50", font=("Helvetica", 11))
+    master_perf_summary_tree.tag_configure("summary", background="#f1c40f", font=("Helvetica", 11, "bold"))
+    
+    configure_tree_columns(
+        master_perf_summary_tree,
+        master_perf_summary_cols,
+        widths={
+            "Stock": {"width": 180, "anchor": "w", "minwidth": 100},
+            "Invested Cost": {"width": 150, "anchor": "e"},
+            "Sold Cost": {"width": 150, "anchor": "e"},
+            "Dividend": {"width": 140, "anchor": "e"},
+            "Current Value": {"width": 150, "anchor": "e"},
+            "Profit/Loss": {"width": 150, "anchor": "e"},
+            "Simple Profit/Loss": {"width": 160, "anchor": "e"},
+        },
+    )
+    configure_summary_row(master_perf_summary_tree)
+    add_tree_heading_tooltips(
+        master_perf_summary_tree,
+        {
+            "Stock": "Stock ticker/symbol.",
+            "Invested Cost": "Total historical buy cost of all shares purchased.",
+            "Sold Cost": "Total historical sell proceeds.",
+            "Dividend": "Total net dividend amount received.",
+            "Current Value": "Current market value of active holdings.",
+            "Profit/Loss": "Unrealized gain/loss of current active holdings.",
+            "Simple Profit/Loss": "Total simple return computed as Sold Cost + Dividend + Current Value - Invested Cost.",
+        },
+    )
+    add_widget_tooltip(
+        master_perf_summary_tree,
+        "Portfolio-wide summary of cost, sales, dividends, and current holding profit/loss.",
+    )
+
     master_tooltips = {
         0: "Portfolio-wide ledger of all holding transactions.",
         1: "Portfolio-wide broker-backed corporate action history.",
         2: "Portfolio-wide dividend ledger with return metrics.",
         3: "Portfolio-wide online corporate actions from external sources.",
+        4: "Scrip-wise aggregated dividend payouts with return metrics.",
+        5: "Stock-wise overall investment cost, sales, dividends, and current holding P&L.",
     }
     NotebookTooltip(master_notebook, master_tooltips)
     add_widget_tooltip(
@@ -2134,6 +2259,18 @@ def p_and_l(
             0,
             lambda: master_online_corp_tree.delete(
                 *master_online_corp_tree.get_children()
+            ),
+        )
+        pnl_win.after(
+            0,
+            lambda: master_scrip_dividend_tree.delete(
+                *master_scrip_dividend_tree.get_children()
+            ),
+        )
+        pnl_win.after(
+            0,
+            lambda: master_perf_summary_tree.delete(
+                *master_perf_summary_tree.get_children()
             ),
         )
         stock_data_cache.clear()
@@ -2642,11 +2779,74 @@ def p_and_l(
                     ),
                 )
 
+            # Scrip-wise Dividend calculations and insertion
+            scrip_div_data = build_scrip_wise_dividend_data(
+                fetch_master_dividend_source_rows(
+                    m_cursor, *(m_params if is_yearly else ())
+                ),
+                cursor=m_cursor,
+            )
+            if scrip_div_data["summary_row"]:
+                pnl_win.after(
+                    0,
+                    lambda v=scrip_div_data["summary_row"]: (
+                        master_scrip_dividend_tree.insert(
+                            "",
+                            0,
+                            values=v,
+                            tags=("summary",),
+                        )
+                        if master_scrip_dividend_tree.winfo_exists()
+                        else None
+                    ),
+                )
+            for row in scrip_div_data["detail_rows"]:
+                pnl_win.after(
+                    0,
+                    lambda v=row: (
+                        master_scrip_dividend_tree.insert("", "end", values=v)
+                        if master_scrip_dividend_tree.winfo_exists()
+                        else None
+                    ),
+                )
+
+            # Performance Summary calculations and insertion
+            perf_data = build_performance_summary_rows(stock_data_cache)
+            if perf_data["summary_row"]:
+                pnl_win.after(
+                    0,
+                    lambda v=perf_data["summary_row"]: (
+                        master_perf_summary_tree.insert(
+                            "",
+                            0,
+                            values=v,
+                            tags=("summary",),
+                        )
+                        if master_perf_summary_tree.winfo_exists()
+                        else None
+                    ),
+                )
+            for row, tag in zip(perf_data["detail_rows"], perf_data["tags"]):
+                pnl_win.after(
+                    0,
+                    lambda v=row, t=tag: (
+                        master_perf_summary_tree.insert("", "end", values=v, tags=(t,))
+                        if master_perf_summary_tree.winfo_exists()
+                        else None
+                    ),
+                )
+
             pnl_win.after(
                 0, lambda: autosize_treeview_columns(master_corp_tree)
             )
             pnl_win.after(
                 0, lambda: autosize_treeview_columns(master_dividend_tree)
+            )
+            pnl_win.after(
+                0, lambda: autosize_treeview_columns(master_scrip_dividend_tree)
+            )
+            pnl_win.after(
+                0, lambda: autosize_treeview_columns(master_perf_summary_tree)
             )
 
         # --- YFINANCE MASTER RECONCILIATION THREAD ---

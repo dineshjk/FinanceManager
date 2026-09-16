@@ -13,12 +13,12 @@ from Shared.globals import BANK_DB_PATH, get_db_connection
 def get_all_banks():
     """Fetches all banks from the database.
 
-    Returns rows of (b_id, name, branch, IFSC, MICR) ordered by name.
+    Returns rows of (b_id, name, branch, IFSC, MICR, cust_id) ordered by name.
     """
     with get_db_connection(BANK_DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT b_id, name, branch, IFSC, MICR " "FROM banks ORDER BY name"
+            "SELECT b_id, name, branch, IFSC, MICR, cust_id " "FROM banks ORDER BY name"
         )
         return cursor.fetchall()
 
@@ -56,6 +56,7 @@ def db_add_bank(
     branch: str = "",
     ifsc: str = "",
     micr: str = "",
+    cust_id: str = "",
 ) -> None:
     """Insert a new bank record into the ``banks`` table.
 
@@ -69,19 +70,22 @@ def db_add_bank(
         11-character IFSC code assigned by the RBI; stored as TEXT.
     micr:
         9-digit MICR code from cheque leaves; stored as TEXT.
+    cust_id:
+        Customer ID or User ID for online banking; stored as TEXT.
     """
     with get_db_connection(BANK_DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO banks (name, branch, IFSC, MICR)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO banks (name, branch, IFSC, MICR, cust_id)
+            VALUES (?, ?, ?, ?, ?)
             """,
             (
                 name,
                 branch or None,
                 ifsc.strip() or None,
                 micr.strip() or None,
+                cust_id.strip() or None,
             ),
         )
         conn.commit()
@@ -93,6 +97,7 @@ def db_update_bank(
     branch: str | None,
     ifsc: str | None,
     micr: str | None,
+    cust_id: str | None = None,
 ) -> None:
     """Update an existing bank record in the ``banks`` table.
 
@@ -108,23 +113,27 @@ def db_update_bank(
         11-character IFSC code; ``None`` clears the existing value.
     micr:
         9-digit MICR code; ``None`` clears the existing value.
+    cust_id:
+        Customer ID or User ID; ``None`` clears the existing value.
     """
     with get_db_connection(BANK_DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
             UPDATE banks
-               SET name   = ?,
-                   branch = ?,
-                   IFSC   = ?,
-                   MICR   = ?
-             WHERE b_id   = ?
+               SET name    = ?,
+                   branch  = ?,
+                   IFSC    = ?,
+                   MICR    = ?,
+                   cust_id = ?
+             WHERE b_id    = ?
             """,
             (
                 name,
                 branch or None,
                 ifsc.strip() if ifsc else None,
                 micr.strip() if micr else None,
+                cust_id.strip() if cust_id else None,
                 b_id,
             ),
         )
@@ -681,6 +690,20 @@ def get_last_trans_date(account_id: int):
         cursor.execute(
             "SELECT MAX(trans_date) FROM bank_transactions WHERE account_id = ?",
             (account_id,),
+        )
+        row = cursor.fetchone()
+        if row and row[0]:
+            return date.fromisoformat(row[0])
+        return None
+
+
+def get_last_cc_trans_date(card_master_id: int):
+    """Return the latest cc_trans_dt (as a date object) for the card, or None."""
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT MAX(cc_trans_dt) FROM cc_transactions WHERE card_master_id = ?",
+            (card_master_id,),
         )
         row = cursor.fetchone()
         if row and row[0]:

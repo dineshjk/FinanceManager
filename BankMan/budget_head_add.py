@@ -671,3 +671,6 @@ def add_account_type_main(
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 
     win.after(100, desc_entry.focus_set)
+
+    # ── Modal wait ────────────────────────────────────────────────────────
+    parent.wait_window(win)

@@ -32,7 +32,7 @@ def show_corp_manager(parent: tk.Toplevel | tk.Tk) -> None:
     """
     mgr_win = tk.Toplevel(parent)
     mgr_win.title("Corporate Action History & Rollback")
-    mgr_win.geometry("950x600")
+    mgr_win.geometry("1070x600")
     mgr_win.configure(bg=UI_THEME["bg_input"])
     mgr_win.transient(parent)
     mgr_win.grab_set()
@@ -87,7 +87,7 @@ def show_corp_manager(parent: tk.Toplevel | tk.Tk) -> None:
     tree_scroll = ttk.Scrollbar(tree_frame)
     tree_scroll.pack(side="right", fill="y")
 
-    cols = ("ID", "Date", "Company", "Type", "Details", "Notes")
+    cols = ("ID", "Date", "Company", "Type", "Details", "Amount", "Notes")
     tree = ttk.Treeview(
         tree_frame,
         columns=cols,
@@ -103,6 +103,7 @@ def show_corp_manager(parent: tk.Toplevel | tk.Tk) -> None:
         ("Company", "Target Company"),
         ("Type", "Action Type"),
         ("Details", "Ratio / Details"),
+        ("Amount", "Amount"),
         ("Notes", "Remarks"),
     ]:
         tree.heading(col, text=text, command=lambda _c=col: universal_tree_sort(tree, _c, False))
@@ -113,6 +114,7 @@ def show_corp_manager(parent: tk.Toplevel | tk.Tk) -> None:
     tree.column("Company", width=220, anchor="w")
     tree.column("Type", width=100, anchor="center")
     tree.column("Details", width=180, anchor="w")
+    tree.column("Amount", width=120, anchor="e")
     tree.column("Notes", width=200, anchor="w")
 
     tree.pack(fill="both", expand=True)
@@ -125,21 +127,33 @@ def show_corp_manager(parent: tk.Toplevel | tk.Tk) -> None:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT c.id_act, c.act_dt, s.company_name, c.type_act, c.details_act, c.note_act
+                    SELECT c.id_act, c.act_dt, s.company_name, c.type_act, c.details_act, c.note_act, d.gross_amt
                     FROM corp_acts c
                     JOIN stocks s ON c.id_stk = s.id_stk
+                    LEFT JOIN dividends d ON c.id_act = d.id_act
                     ORDER BY c.act_dt DESC, c.id_act DESC
                 """)
                 for row in cursor.fetchall():
+                    amount_val = ""
+                    if row[3] == "DIVIDEND":
+                        amount_val = f"₹ {row[6]:.2f}" if row[6] is not None else "₹ 0.00"
+
+                    # Convert YYYY-MM-DD to DD-MM-YYYY for display
+                    disp_date = row[1]
+                    if row[1] and len(row[1]) == 10 and row[1][4] == "-" and row[1][7] == "-":
+                        parts = row[1].split("-")
+                        disp_date = f"{parts[2]}-{parts[1]}-{parts[0]}"
+
                     tree.insert(
                         "",
                         "end",
                         values=(
                             row[0],
-                            row[1],
+                            disp_date,
                             row[2],
                             row[3],
                             row[4],
+                            amount_val,
                             row[5] or "",
                         ),
                     )

@@ -408,18 +408,37 @@ CC_MASTER_ADD_UI_THEME = {
 }
 
 CC_TRANS_ADD_UI_THEME = {
-    "main_bg": "#001414",  # Near-black teal canvas
-    "header_bg": "#005f5f",  # Deep teal
-    "header_fg": "#FFD700",  # Gold
-    "label_fg": "#FFD700",  # Gold labels inside bands
-    "button_bg": "#007a7a",  # Teal buttons
+    "main_bg": "#FFF2F2",  # Light pinkish-rose canvas
+    "header_bg": "#7a1a1a",  # Deep rose/crimson header
+    "header_fg": "#FFD700",  # Gold text on header
+    "label_fg": "#661111",  # Dark red/maroon label text for readability on light bands
+    "button_bg": "#992222",  # Crimson buttons
     "button_fg": "#FFD700",  # Gold button text
-    # Band background colours (dark teal palette)
-    "band_master": "#001a1a",  # Near-black teal
-    "band_details": "#002020",  # Slightly lighter teal
-    "band_amounts": "#002a2a",  # Deepest teal
+    # Band background colours — light pastel rose/peach/lavender (NOT dark, and distinct from bank_transactions_add)
+    "band_master": "#FFE4E4",  # Soft rose-pink
+    "band_details": "#FFF0E0",  # Soft peach/coral
+    "band_amounts": "#FBE5FF",  # Soft lavender-rose
+    "band_budget": "#E5F5FF",  # Soft sky-rose/lavender-blue
     "submit_bg": "#22c55e",
     "submit_hover_bg": "#2563eb",
+    "cancel_bg": "#ef4444",
+    "cancel_hover_bg": "#991b1b",
+    "help_bg": "#fffafb",  # Floral rose-white help body
+    "help_text_fg": "#330000",  # Dark maroon text
+    "help_header_bg": "#7a1a1a",
+    "help_btn_bg": "#992222",
+    "help_btn_hover_bg": "#b33333",
+    "session_bg": "#fffafb",
+    "session_label_fg": "#7a1a1a",
+    "session_value_fg": "#005f5f",  # Deep teal for contrast
+    "session_alert_fg": "#ef4444",
+    "session_ok_fg": "#064e3b",
+    "session_btn_bg": "#992222",
+    "session_btn_hover_bg": "#b33333",
+    "radio_select": "white",
+    "hint_fg": "#661111",
+    "linked_acct_fg": "#005f5f",
+    "session_count_fg": "#661111",
 }
 
 REWARDS_ADD_UI_THEME = {
@@ -968,8 +987,7 @@ def universal_tree_sort(tree: ttk.Treeview, col: str, reverse: bool) -> None:
     def convert_type(val_tuple):
         val = str(val_tuple[0]).strip()
         # Handle empty/loading states
-        if val in ("N/A", "-", "", "TBD", "Fetching...", "Calculating...", "—"):
-            return float("-inf") if reverse else float("inf")
+        is_empty = val in ("N/A", "-", "", "TBD", "Fetching...", "Calculating...", "—")
 
         # Strip currency and formatting
         clean_val = (
@@ -981,20 +999,34 @@ def universal_tree_sort(tree: ttk.Treeview, col: str, reverse: bool) -> None:
         )
 
         # Check for date formats (length between 8 and 10 with 2 separators)
+        parsed_date_timestamp = None
         if 8 <= len(clean_val) <= 10 and (
             clean_val.count("-") == 2 or clean_val.count("/") == 2
         ):
             for fmt in ("%d-%m-%Y", "%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d"):
                 try:
-                    return datetime.strptime(clean_val, fmt).timestamp()
+                    parsed_date_timestamp = datetime.strptime(clean_val, fmt).timestamp()
+                    break
                 except ValueError:
                     continue
 
-        # Try numeric, fallback to string
-        try:
-            return float(clean_val)
-        except ValueError:
-            return val.lower()
+        if is_empty:
+            # Empty values should always sort to the end.
+            # If reverse=False (ascending): group 2 (highest), sorts last.
+            # If reverse=True (descending): group 0 (lowest), sorts last.
+            priority = 2 if not reverse else 0
+            return (priority, "")
+        elif parsed_date_timestamp is not None:
+            priority = 0 if not reverse else 2
+            return (priority, parsed_date_timestamp)
+        else:
+            try:
+                num_val = float(clean_val)
+                priority = 0 if not reverse else 2
+                return (priority, num_val)
+            except ValueError:
+                priority = 1
+                return (priority, val.lower())
 
     data_list.sort(key=convert_type, reverse=reverse)
 

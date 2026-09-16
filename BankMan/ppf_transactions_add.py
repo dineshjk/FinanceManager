@@ -1027,3 +1027,6 @@ def add_ppf_transaction_main(
 
     # ── Initial focus ─────────────────────────────────────────────────────
     win.after(120, ppf_combo.focus_set)
+
+    # ── Modal wait ────────────────────────────────────────────────────────
+    parent.wait_window(win)

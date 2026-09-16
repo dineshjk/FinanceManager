@@ -285,7 +285,9 @@ def create_bankman_database(_parent=None) -> Tuple[bool, str]:
                 -- MICR (Magnetic Ink Character Recognition) code — 9-digit code
                 -- printed at the bottom of cheque leaves; stored as TEXT to
                 -- preserve any leading zeros.
-                MICR   TEXT
+                MICR   TEXT,
+                -- Customer ID or User ID for online banking (optional).
+                cust_id TEXT
             );
         """)
 
@@ -1162,6 +1164,15 @@ def run_bank_schema_migrations(db_path: str | None = None) -> dict:
             migrations_applied.append("rewards_points table created")
         else:
             _skip("rewards_points table")
+ 
+        # ── banks.cust_id column ──────────────────────────────────────────
+        if not _column_exists(cursor, "banks", "cust_id"):
+            _apply(
+                "banks.cust_id column added",
+                "ALTER TABLE banks ADD COLUMN cust_id TEXT;",
+            )
+        else:
+            _skip("banks.cust_id column")
 
         conn.commit()
 

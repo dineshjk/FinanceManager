@@ -765,3 +765,6 @@ def add_ppf_master_main(
 
     # ── Initial focus ─────────────────────────────────────────────────────
     win.after(100, ppf_acct_no_entry.focus_set)
+
+    # ── Modal wait ────────────────────────────────────────────────────────
+    parent.wait_window(win)

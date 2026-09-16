@@ -13,6 +13,7 @@ Structural pattern from bank_transactions_add.py / ppf_transactions_add.py:
 """
 
 from typing import Union
+from datetime import date, timedelta
 import tkinter as tk
 from tkinter import ttk
 import tkinter.font as tkfont
@@ -38,6 +39,7 @@ from .bank_db_utils import (
     get_all_card_masters,
     get_all_budget_heads,
     db_add_cc_transaction as _db_add_cc_transaction,
+    get_last_cc_trans_date,
 )
 from Shared.globals import logger
 from Shared.gui_progressive import progressive_selection
@@ -198,7 +200,7 @@ def _show_help(win: tk.Toplevel, on_escape) -> None:
     apply_button_animations(
         help_close_btn,
         _T.get("help_btn_bg", _T["button_bg"]),
-        _T.get("help_btn_hover_bg", "#115e59"),
+        _T.get("help_btn_hover_bg", "#008b8b"),
     )
 
 
@@ -252,22 +254,49 @@ def _show_session_viewer(
     content = tk.Frame(viewer, bg=_T["header_bg"])
     content.pack(fill="both", expand=True, padx=10, pady=6)
 
+    nav_frame = tk.Frame(content, bg=_T["header_bg"])
+    nav_frame.pack(fill="x")
+
     left_btn = tk.Button(
-        content,
+        nav_frame,
         text="\u25c4",
         width=3,
-        bg=_T["button_bg"],
-        fg=_T["button_fg"],
+        bg=_T.get("session_btn_bg", _T["button_bg"]),
+        fg=_T.get("button_fg", "white"),
+        activeforeground=_T.get("button_fg", "white"),
+        cursor="hand2",
     )
-    left_btn.pack(side="left", padx=(6, 4), pady=6)
+    left_btn.pack(side="left", padx=(6, 4), pady=4)
+    apply_button_animations(
+        left_btn,
+        _T.get("session_btn_bg", _T["button_bg"]),
+        _T.get("session_btn_hover_bg", "#008b8b"),
+    )
+
     right_btn = tk.Button(
-        content,
+        nav_frame,
         text="\u25ba",
         width=3,
-        bg=_T["button_bg"],
-        fg=_T["button_fg"],
+        bg=_T.get("session_btn_bg", _T["button_bg"]),
+        fg=_T.get("button_fg", "white"),
+        activeforeground=_T.get("button_fg", "white"),
+        cursor="hand2",
     )
-    right_btn.pack(side="right", padx=(4, 6), pady=6)
+    right_btn.pack(side="right", padx=(4, 6), pady=4)
+    apply_button_animations(
+        right_btn,
+        _T.get("session_btn_bg", _T["button_bg"]),
+        _T.get("session_btn_hover_bg", "#008b8b"),
+    )
+
+    status_label = tk.Label(
+        nav_frame,
+        text="",
+        font=("Helvetica", 10, "bold"),
+        bg=_T.get("session_bg", _T["header_bg"]),
+        fg=_T.get("session_ok_fg", _T["header_fg"]),
+    )
+    status_label.pack(side="left", padx=10)
 
     info_text = tk.Text(
         content,
@@ -292,15 +321,6 @@ def _show_session_viewer(
         foreground=_T.get("session_value_fg", "#5eead4"),
     )
     info_text.config(state="disabled")
-
-    status_label = tk.Label(
-        content,
-        text="",
-        font=("Helvetica", 10, "bold"),
-        bg=_T.get("session_bg", _T["header_bg"]),
-        fg=_T.get("session_ok_fg", _T["header_fg"]),
-    )
-    status_label.pack(side="bottom", pady=(0, 4))
 
     def _update_view():
         i = idx["i"]
@@ -372,7 +392,7 @@ def _show_session_viewer(
     apply_button_animations(
         ok_btn,
         _T.get("session_btn_bg", _T["button_bg"]),
-        _T.get("session_btn_hover_bg", "#115e59"),
+        _T.get("session_btn_hover_bg", "#008b8b"),
     )
     try:
         ok_btn.focus_set()
@@ -403,7 +423,7 @@ def add_cc_transaction_main(
     bh_rows = sorted(get_all_budget_heads(), key=lambda r: r[1])
     budget_map: dict[str, int] = {r[1]: r[0] for r in bh_rows}
     bh_type_map: dict[str, str] = {r[1]: r[2] for r in bh_rows}
-    bh_values: list[str] = ["(none)"] + [r[1] for r in bh_rows]
+    bh_values: list[str] = []
 
     # Running state: selected card
     _state: dict = {"card_master_id": None, "account_id": None}
@@ -459,16 +479,7 @@ def add_cc_transaction_main(
         pady=8,
     ).pack(fill="x")
 
-    hint_frame = tk.Frame(win, bg=_T["main_bg"])
-    hint_frame.pack(fill="x", padx=10, pady=(2, 0))
-    for hint in ("F1: Help", "F2: Session Viewer", "Esc: Close"):
-        tk.Label(
-            hint_frame,
-            text=hint,
-            font=("Helvetica", 10, "italic"),
-            bg=_T["main_bg"],
-            fg="#5eead4",  # soft teal hint text
-        ).pack(side="left", padx=12)
+
 
     # ── Form body ─────────────────────────────────────────────────────────
     _F = ("Helvetica", 14)
@@ -551,7 +562,7 @@ def add_cc_transaction_main(
         textvariable=linked_acct_var,
         font=_F,
         bg=_C_MASTER,
-        fg="#5eead4",
+        fg=_T.get("linked_acct_fg", "#005f5f"),
         width=30,
         anchor="w",
     )
@@ -584,6 +595,7 @@ def add_cc_transaction_main(
 
     type_frame = tk.Frame(det_erow, bg=_C_DETAIL)
     type_frame.pack(side="left", padx=(18, 0))
+    radio_buttons = []
     for ttype in _TRANS_TYPES:
         rb = tk.Radiobutton(
             type_frame,
@@ -593,11 +605,12 @@ def add_cc_transaction_main(
             font=("Helvetica", 12),
             bg=_C_DETAIL,
             fg=_T["label_fg"],
-            selectcolor="#003333",
+            selectcolor=_T.get("radio_select", "white"),
             activebackground=_C_DETAIL,
             activeforeground=_T["label_fg"],
         )
         rb.pack(side="left", padx=4)
+        radio_buttons.append(rb)
 
     # ── Band 3: Amounts + Points ──────────────────────────────────────────
     amt_band, amt_lrow, amt_erow = _make_band(form_body, _C_AMT)
@@ -628,7 +641,7 @@ def add_cc_transaction_main(
     )
 
     # ── Band 4: Budget Head ───────────────────────────────────────────────
-    _C_BH = "#003333"
+    _C_BH = _T.get("band_budget", "#003333")
     bh_band, bh_lrow, bh_erow = _make_band(form_body, _C_BH)
     bh_band.pack(fill="x", pady=(0, 5))
 
@@ -646,15 +659,13 @@ def add_cc_transaction_main(
     )
 
     def _refresh_budget_head_combo():
-        new_bh = sorted(get_all_budget_heads(), key=lambda r: r[1])
+        nonlocal bh_rows
+        bh_rows = sorted(get_all_budget_heads(), key=lambda r: r[1])
         budget_map.clear()
-        budget_map.update({r[1]: r[0] for r in new_bh})
+        budget_map.update({r[1]: r[0] for r in bh_rows})
         bh_type_map.clear()
-        bh_type_map.update({r[1]: r[2] for r in new_bh})
-        bh_values.clear()
-        bh_values.extend(["(none)"] + [r[1] for r in new_bh])
-        budget_head_combo["values"] = list(bh_values)
-        progressive_selection(budget_head_combo, list(bh_values))
+        bh_type_map.update({r[1]: r[2] for r in bh_rows})
+        _update_bh_dropdown()
 
     def on_budget_head_focus_out(_event=None):
         try:
@@ -717,6 +728,19 @@ def add_cc_transaction_main(
 
     budget_head_combo.configure(postcommand=_set_bh_dropdown_font)
 
+    def _update_default_date():
+        label = card_combo.get()
+        if label in card_map:
+            cm_id, _ = card_map[label]
+            try:
+                last_dt = get_last_cc_trans_date(cm_id)
+                if last_dt:
+                    trans_dt.set_date(last_dt + timedelta(days=1))
+                else:
+                    trans_dt.set_date(date.today())
+            except Exception as exc:
+                logger.debug("Failed to set default date: %s", exc)
+
     # ── Auto-logic: card selection changes ────────────────────────────────
     def _on_card_selected(_event=None):
         label = card_combo.get()
@@ -726,18 +750,35 @@ def add_cc_transaction_main(
         _state["card_master_id"] = cm_id
         _state["account_id"] = ac_id
         linked_acct_var.set(f"Account ID = {ac_id}")
+        _update_default_date()
 
     card_combo.bind("<<ComboboxSelected>>", _on_card_selected)
 
     # ── Auto-logic: trans type fills default party + enables fields ───────
+    def _update_bh_dropdown():
+        current_type = trans_type_var.get()
+        target_bh_type = "EXPENSE" if current_type == "EXPENSE" else "INCOME"
+        filtered = ["(none)"] + [
+            r[1] for r in bh_rows if r[2] == target_bh_type
+        ]
+        bh_values.clear()
+        bh_values.extend(filtered)
+        budget_head_combo["values"] = list(bh_values)
+        current_sel = budget_head_combo.get()
+        if current_sel not in bh_values:
+            budget_head_combo.set("(none)")
+        progressive_selection(budget_head_combo, list(bh_values))
+
     def _on_type_change(*_args):
         ttype = trans_type_var.get()
         default = _DEFAULT_PARTY.get(ttype, "")
         if party_entry.get().strip() in ("", *_DEFAULT_PARTY.values()):
             party_entry.delete(0, "end")
             party_entry.insert(0, default)
+        _update_bh_dropdown()
 
     trans_type_var.trace_add("write", _on_type_change)
+    _update_bh_dropdown()
 
     # Initialise from first card (must be after _compute_points_balance is defined)
     if card_map:
@@ -750,7 +791,7 @@ def add_cc_transaction_main(
         textvariable=session_count_var,
         font=("Helvetica", 11, "italic"),
         bg=_T["main_bg"],
-        fg="#5eead4",
+        fg=_T.get("session_count_fg", _T["label_fg"]),
     ).pack(anchor="e", padx=16)
 
     # ── Buttons row ───────────────────────────────────────────────────────
@@ -758,7 +799,7 @@ def add_cc_transaction_main(
     btn_frame.pack(pady=8)
 
     def _reset_form():
-        trans_dt.set_date(__import__("datetime").date.today())
+        _update_default_date()
         party_entry.delete(0, "end")
         trans_type_var.set("EXPENSE")
         expense_entry.delete(0, "end")
@@ -766,7 +807,7 @@ def add_cc_transaction_main(
         cc_credit_entry.delete(0, "end")
         cc_credit_entry.insert(0, "0.00")
         budget_head_combo.set("(none)")
-        party_entry.focus_set()
+        trans_dt.focus_set()
 
     def _validate_and_save():
         # Card selected?
@@ -932,6 +973,20 @@ def add_cc_transaction_main(
         _T.get("cancel_hover_bg", "#991b1b"),
     )
 
+    # ── Hotkey hint ───────────────────────────────────────────────────────
+    hint_frame = tk.Frame(win, bg=_T["main_bg"])
+    hint_frame.pack(fill="x", padx=10, pady=(4, 0))
+    hints_container = tk.Frame(hint_frame, bg=_T["main_bg"])
+    hints_container.pack(anchor="center")
+    for hint in ("F1: Help", "F2: Session Viewer", "Esc: Close"):
+        tk.Label(
+            hints_container,
+            text=hint,
+            font=("Helvetica", 14, "italic"),
+            bg=_T["main_bg"],
+            fg=_T.get("hint_fg", _T["label_fg"]),
+        ).pack(side="left", padx=16)
+
     # ── Return-key navigation ─────────────────────────────────────────────
     def _focus_next(next_widget):
         def _handler(_event=None):
@@ -942,6 +997,8 @@ def add_cc_transaction_main(
 
     trans_dt.bind("<Return>", _focus_next(party_entry))
     party_entry.bind("<Return>", _focus_next(expense_entry))
+    for rb in radio_buttons:
+        rb.bind("<Return>", _focus_next(expense_entry))
     expense_entry.bind("<Return>", _focus_next(cc_credit_entry))
     cc_credit_entry.bind("<Return>", _focus_next(budget_head_combo))
     budget_head_combo.bind("<Return>", lambda _e: _validate_and_save())
@@ -956,9 +1013,6 @@ def add_cc_transaction_main(
     )
 
     # ── Modal wait ────────────────────────────────────────────────────────
-    if card_map:
-        party_entry.focus_set()
-    else:
-        card_combo.focus_set()
+    card_combo.focus_set()
 
     parent.wait_window(win)

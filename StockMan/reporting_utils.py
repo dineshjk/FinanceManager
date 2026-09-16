@@ -2,7 +2,6 @@
 # StockMan/reporting_utils.py
 from datetime import date, datetime, time
 import math
-from .date_utils import format_date_for_display
 
 
 def _financial_year_label(date_str: str) -> str:
@@ -301,13 +300,13 @@ def fetch_report_stock_rows(cursor, valid_ids=None):
     if valid_ids:
         placeholders = ",".join("?" * len(valid_ids))
         cursor.execute(
-            f"SELECT id_stk, short_name, company_name, ticker, current_qty, rpnl_amt, curr_investment_amt, sector FROM stocks WHERE id_stk IN ({placeholders})",
+            f"SELECT id_stk, short_name, company_name, ticker, current_qty, rpnl_amt, curr_investment_amt, sector, total_investment_amt, sell_amt, div_amt FROM stocks WHERE id_stk IN ({placeholders})",
             valid_ids,
         )
         return cursor.fetchall()
 
     cursor.execute(
-        """SELECT id_stk, short_name, company_name, ticker, current_qty, rpnl_amt, curr_investment_amt, sector
+        """SELECT id_stk, short_name, company_name, ticker, current_qty, rpnl_amt, curr_investment_amt, sector, total_investment_amt, sell_amt, div_amt
            FROM stocks"""
     )
     return cursor.fetchall()
@@ -1552,6 +1551,9 @@ def initialize_stock_data_cache(
             rpnl,
             inv_amt,
             sector,
+            db_total_inv_amt,
+            db_sell_amt,
+            db_div_amt,
         ) = row
         realized = 0.0
         if is_yearly:
@@ -1561,8 +1563,44 @@ def initialize_stock_data_cache(
                 start_date,
                 end_date,
             )
+            # Query yearly dynamic totals
+            cursor.execute(
+                "SELECT SUM(net_amt_trd) FROM transactions WHERE id_stk = ? AND trade_type_trd = 'BUY' AND trd_dt BETWEEN ? AND ?",
+                (id_stk, start_date, end_date),
+            )
+            total_inv_amt = cursor.fetchone()[0] or 0.0
+
+            cursor.execute(
+                "SELECT SUM(net_amt_trd) FROM transactions WHERE id_stk = ? AND trade_type_trd = 'SELL' AND trd_dt BETWEEN ? AND ?",
+                (id_stk, start_date, end_date),
+            )
+            sell_amt = cursor.fetchone()[0] or 0.0
+
+            cursor.execute(
+                "SELECT SUM(net_amt) FROM dividends WHERE id_stk = ? AND credit_dt BETWEEN ? AND ?",
+                (id_stk, start_date, end_date),
+            )
+            div_amt = cursor.fetchone()[0] or 0.0
         else:
             realized = rpnl or 0.0
+            # Query overall dynamic totals
+            cursor.execute(
+                "SELECT SUM(net_amt_trd) FROM transactions WHERE id_stk = ? AND trade_type_trd = 'BUY'",
+                (id_stk,),
+            )
+            total_inv_amt = cursor.fetchone()[0] or 0.0
+
+            cursor.execute(
+                "SELECT SUM(net_amt_trd) FROM transactions WHERE id_stk = ? AND trade_type_trd = 'SELL'",
+                (id_stk,),
+            )
+            sell_amt = cursor.fetchone()[0] or 0.0
+
+            cursor.execute(
+                "SELECT SUM(net_amt) FROM dividends WHERE id_stk = ?",
+                (id_stk,),
+            )
+            div_amt = cursor.fetchone()[0] or 0.0
         grand_realized += realized
 
         # Fetch STT specifically for this stock's buy transactions
@@ -1585,6 +1623,9 @@ def initialize_stock_data_cache(
             "high52": 0.0,
             "low52": 0.0,
             "xirr": None,
+            "total_inv_amt": total_inv_amt,
+            "sell_amt": sell_amt,
+            "div_amt": div_amt,
         }
     return stock_data_cache, grand_realized
 
@@ -2359,3 +2400,192 @@ def build_allocation_tree_rows(stock_data_cache: dict, total_value: float):
     ]
 
     return {"sector_rows": sector_rows, "stock_rows": stock_rows}
+
+
+def build_scrip_wise_dividend_data(dividend_source_rows, cursor):
+    import math
+    from .trade_utils import (
+        compute_dividend_holding_days,
+        compute_dividend_return_percent,
+    )
+
+    stock_data = {}
+    for row in dividend_source_rows:
+        (
+            display_name,
+            stock_id,
+            record_dt,
+            credit_dt,
+            div_type,
+            entitled_qty,
+            per_share_amt,
+            gross_amt,
+            net_amt,
+            tds_amt,
+        ) = row
+        if credit_dt == "1900-01-01":
+            continue
+
+        return_percent = compute_dividend_return_percent(
+            id_stk=stock_id,
+            record_dt=record_dt,
+            entitled_qty=entitled_qty,
+            gross_dividend_amount=gross_amt,
+            cursor=cursor,
+        )
+        holding_days = compute_dividend_holding_days(
+            id_stk=stock_id,
+            record_dt=record_dt,
+            credit_dt=credit_dt,
+            entitled_qty=entitled_qty,
+            cursor=cursor,
+        )
+
+        invested_amount = None
+        if (
+            return_percent is not None
+            and math.isfinite(return_percent)
+            and return_percent != 0
+        ):
+            invested_amount = gross_amt * 100.0 / return_percent
+
+        if display_name not in stock_data:
+            stock_data[display_name] = {
+                "gross_div": 0.0,
+                "net_div": 0.0,
+                "weighted_days_sum": 0.0,
+                "qty_for_days": 0.0,
+                "weighted_invested_sum": 0.0,
+                "qty_for_invested": 0.0,
+            }
+
+        d = stock_data[display_name]
+        d["gross_div"] += gross_amt or 0.0
+        d["net_div"] += net_amt or 0.0
+
+        qty = entitled_qty or 0.0
+        if holding_days is not None and math.isfinite(holding_days):
+            d["weighted_days_sum"] += holding_days * qty
+            d["qty_for_days"] += qty
+
+        if invested_amount is not None:
+            d["weighted_invested_sum"] += invested_amount * qty
+            d["qty_for_invested"] += qty
+
+    detail_rows = []
+    total_invested = 0.0
+    total_net_div = 0.0
+    total_gross_div = 0.0
+
+    for name in sorted(stock_data.keys()):
+        d = stock_data[name]
+        
+        avg_invested = None
+        if d["qty_for_invested"] > 0:
+            avg_invested = d["weighted_invested_sum"] / d["qty_for_invested"]
+
+        avg_days = None
+        if d["qty_for_days"] > 0:
+            avg_days = d["weighted_days_sum"] / d["qty_for_days"]
+
+        ret_percent = None
+        if avg_invested is not None and avg_invested > 0:
+            ret_percent = d["gross_div"] * 100.0 / avg_invested
+
+        # Format values for display
+        invested_str = f"₹{avg_invested:,.2f}" if avg_invested is not None else "Unavailable"
+        days_str = f"{avg_days:.1f}" if avg_days is not None else "Unavailable"
+        div_str = f"₹{d['net_div']:,.2f}"
+        ret_str = f"{ret_percent:.2f}%" if ret_percent is not None else "Unavailable"
+
+        detail_rows.append((
+            name,
+            invested_str,
+            days_str,
+            div_str,
+            ret_str,
+        ))
+
+        if avg_invested is not None:
+            total_invested += avg_invested
+        total_net_div += d["net_div"]
+        total_gross_div += d["gross_div"]
+
+    summary_row = None
+    if detail_rows:
+        overall_ret = (total_gross_div * 100.0 / total_invested) if total_invested > 0 else 0.0
+        summary_row = (
+            "TOTAL",
+            f"₹{total_invested:,.2f}",
+            "-",
+            f"₹{total_net_div:,.2f}",
+            f"{overall_ret:.2f}%" if total_invested > 0 else "-",
+        )
+
+    return {
+        "detail_rows": detail_rows,
+        "summary_row": summary_row,
+    }
+
+
+def build_performance_summary_rows(stock_data_cache):
+    detail_rows = []
+    total_invested = 0.0
+    total_sold = 0.0
+    total_div = 0.0
+    total_current_value = 0.0
+    total_unrealized = 0.0
+    total_simple_pnl = 0.0
+
+    for id_stk, data in stock_data_cache.items():
+        disp_name = data["ticker"] if data["ticker"] else data["short_name"]
+        invested = data.get("total_inv_amt", 0.0)
+        sold = data.get("sell_amt", 0.0)
+        div = data.get("div_amt", 0.0)
+        qty = data.get("qty", 0.0)
+        price = data.get("price", 0.0)
+        current_value = qty * price if qty > 0 and price > 0 else 0.0
+        unrealized = data.get("unrealized", 0.0)
+        simple_pnl = sold + div + current_value - invested
+
+        detail_rows.append({
+            "values": (
+                disp_name,
+                f"₹{invested:,.2f}",
+                f"₹{sold:,.2f}",
+                f"₹{div:,.2f}",
+                f"₹{current_value:,.2f}",
+                f"₹{unrealized:,.2f}",
+                f"₹{simple_pnl:,.2f}",
+            ),
+            "tag": "profit" if simple_pnl > 0 else "loss" if simple_pnl < 0 else "neutral",
+            "sort_key": disp_name,
+        })
+
+        total_invested += invested
+        total_sold += sold
+        total_div += div
+        total_current_value += current_value
+        total_unrealized += unrealized
+        total_simple_pnl += simple_pnl
+
+    # Sort detail rows by stock name
+    detail_rows.sort(key=lambda r: r["sort_key"])
+
+    summary_row = None
+    if detail_rows:
+        summary_row = (
+            "TOTAL",
+            f"₹{total_invested:,.2f}",
+            f"₹{total_sold:,.2f}",
+            f"₹{total_div:,.2f}",
+            f"₹{total_current_value:,.2f}",
+            f"₹{total_unrealized:,.2f}",
+            f"₹{total_simple_pnl:,.2f}",
+        )
+
+    return {
+        "detail_rows": [r["values"] for r in detail_rows],
+        "tags": [r["tag"] for r in detail_rows],
+        "summary_row": summary_row,
+    }

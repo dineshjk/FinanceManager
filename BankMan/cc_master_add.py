@@ -728,3 +728,6 @@ def add_cc_master_main(
 
     # ── Initial focus ─────────────────────────────────────────────────────
     win.after(50, account_combo.focus_set)
+
+    # ── Modal wait ────────────────────────────────────────────────────────
+    parent.wait_window(win)

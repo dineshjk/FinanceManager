@@ -34,10 +34,10 @@ def show_bank_manager(
     parent: Union[tk.Toplevel, tk.Tk],
     calling_button: tk.Widget | None = None,
 ) -> None:
-    """Open a modal window showing all bank transactions.
+    """Open a modal window showing all banks (master records).
 
-    Provides sortable columns, colour-coded entry types, and a Delete
-    action that also removes the linked sub-ledger row when present.
+    Provides sortable columns and a Delete action that checks if any accounts
+    are linked to the bank before allowing removal.
     """
     # ------------------------------------------------------------------
     # Modal setup — disable parent so the user cannot interact behind us
@@ -45,8 +45,8 @@ def show_bank_manager(
     disable_parent(parent, calling_button=calling_button)
 
     mgr_win = tk.Toplevel(parent)
-    mgr_win.title("Bank Manager — Manage / View / Remove")
-    mgr_win.geometry("1150x640")
+    mgr_win.title("Bank Master Manager — Manage / View / Remove")
+    mgr_win.geometry("1000x560")
     mgr_win.configure(bg=UI_THEME["bg_input"])
     mgr_win.transient(parent)
     mgr_win.grab_set()
@@ -58,7 +58,7 @@ def show_bank_manager(
     # ------------------------------------------------------------------
     tk.Label(
         mgr_win,
-        text="🏦  BANK MANAGER — MANAGE / VIEW / REMOVE",
+        text="🏦  BANK MASTER MANAGER — MANAGE / VIEW / REMOVE",
         font=UI_THEME.get("font_bold", ("Helvetica", 14, "bold")),
         bg=UI_THEME.get("bg_header", "#1e293b"),
         fg=UI_THEME.get("fg_header", "#ffffff"),
@@ -66,10 +66,7 @@ def show_bank_manager(
     ).pack(fill="x")
 
     # ------------------------------------------------------------------
-    # Treeview style — reuse the same high-contrast dark palette as
-    # trade_manager.py, but under a distinct style name ("BankMgr.*")
-    # so the two managers can co-exist without stomping each other's
-    # style settings.
+    # Treeview style — distinct name so it won't clash with other managers
     # ------------------------------------------------------------------
     style = ttk.Style()
     try:
@@ -93,8 +90,6 @@ def show_bank_manager(
         font=UI_THEME.get("font_bold", ("Helvetica", 12, "bold")),
     )
 
-
-
     # ------------------------------------------------------------------
     # Treeview and scrollbar
     # ------------------------------------------------------------------
@@ -106,13 +101,11 @@ def show_bank_manager(
 
     cols = (
         "ID",
-        "Date",
-        "Account",
-        "Description",
-        "DR",
-        "CR",
-        "Balance",
-        "Type",
+        "Name",
+        "Branch",
+        "IFSC",
+        "MICR",
+        "Cust ID",
     )
     tree = ttk.Treeview(
         tree_frame,
@@ -125,13 +118,11 @@ def show_bank_manager(
 
     columns_setup = {
         "ID": "ID",
-        "Date": "Trans Date",
-        "Account": "Account",
-        "Description": "Description",
-        "DR": "Withdrawal (DR)",
-        "CR": "Deposit (CR)",
-        "Balance": "Balance After",
-        "Type": "Type",
+        "Name": "Bank Name",
+        "Branch": "Branch",
+        "IFSC": "IFSC",
+        "MICR": "MICR",
+        "Cust ID": "Cust ID",
     }
     for col, heading_text in columns_setup.items():
         tree.heading(
@@ -140,20 +131,13 @@ def show_bank_manager(
             command=lambda c=col: universal_tree_sort(tree, c, False),
         )
 
-    # Row colour tags
-    tree.tag_configure("income_row", foreground="#4ade80")  # Soft green
-    tree.tag_configure("expense_row", foreground="#f87171")  # Soft red
-    tree.tag_configure("transfer_row", foreground="#fbbf24")  # Amber
-
     # Column layout — ID is hidden (zero width)
     tree.column("ID", width=0, stretch=tk.NO)
-    tree.column("Date", width=110, anchor="center")
-    tree.column("Account", width=240, anchor="w")
-    tree.column("Description", width=255, anchor="w")
-    tree.column("DR", width=130, anchor="e")
-    tree.column("CR", width=130, anchor="e")
-    tree.column("Balance", width=130, anchor="e")
-    tree.column("Type", width=90, anchor="center")
+    tree.column("Name", width=250, anchor="w")
+    tree.column("Branch", width=250, anchor="w")
+    tree.column("IFSC", width=150, anchor="center")
+    tree.column("MICR", width=150, anchor="center")
+    tree.column("Cust ID", width=150, anchor="center")
 
     tree.pack(fill="both", expand=True)
 
@@ -161,56 +145,37 @@ def show_bank_manager(
     # Data loading
     # ------------------------------------------------------------------
     def load_data() -> None:
-        """Clear the treeview and repopulate from the database."""
+        """Clear the treeview and repopulate from banks table."""
         for item in tree.get_children():
             tree.delete(item)
         try:
             with get_db_connection(BANK_DB_PATH) as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT  bt.trans_id,
-                            bt.trans_date,
-                            b.name || '  —  ' || a.ac_number,
-                            COALESCE(bt.bank_desc, bt.user_desc, ''),
-                            bt.withdrawal_amount,
-                            bt.deposit_amount,
-                            bt.balance_after,
-                            bt.entry_type
-                    FROM    bank_transactions bt
-                    JOIN    accounts a ON bt.account_id = a.ac_id
-                    JOIN    banks    b ON a.b_id = b.b_id
-                    ORDER BY bt.trans_date DESC, bt.trans_id DESC
+                    SELECT  b_id,
+                            name,
+                            COALESCE(branch, ''),
+                            COALESCE(IFSC, ''),
+                            COALESCE(MICR, ''),
+                            COALESCE(cust_id, '')
+                    FROM    banks
+                    ORDER BY name
                 """)
                 for row in cursor.fetchall():
-                    entry_type = row[7]
-                    if entry_type == "INCOME":
-                        row_tag = "income_row"
-                    elif entry_type == "EXPENSE":
-                        row_tag = "expense_row"
-                    else:
-                        row_tag = "transfer_row"
-
-                    dr = row[4] or 0.0
-                    cr = row[5] or 0.0
-                    bal = row[6] or 0.0
-
                     tree.insert(
                         "",
                         "end",
                         values=(
-                            row[0],  # trans_id (hidden)
-                            row[1],  # trans_date
-                            row[2],  # account label
-                            row[3],  # description
-                            f"₹ {dr:,.2f}" if dr else "",  # DR (blank when 0)
-                            f"₹ {cr:,.2f}" if cr else "",  # CR (blank when 0)
-                            f"₹ {bal:,.2f}",  # running balance
-                            entry_type,
+                            row[0],  # b_id
+                            row[1],  # name
+                            row[2],  # branch
+                            row[3],  # IFSC
+                            row[4],  # MICR
+                            row[5],  # cust_id
                         ),
-                        tags=(row_tag,),
                     )
         except sqlite3.Error as e:
-            logger.error("Failed to load bank transactions: %s", e)
+            logger.error("Failed to load banks: %s", e)
 
     load_data()
 
@@ -218,55 +183,66 @@ def show_bank_manager(
     # Selection helper
     # ------------------------------------------------------------------
     def _get_selected() -> tuple:
-        """Return (trans_id, account_label, entry_type) or (None, None, None)."""
+        """Return (b_id, bank_name) or (None, None)."""
         selected = tree.selection()
         if not selected:
             show_colorful_error(
                 mgr_win,
                 "Selection Error",
-                "Please select a transaction from the list first.",
+                "Please select a bank from the list first.",
             )
-            return None, None, None
+            return None, None
         values = tree.item(selected[0])["values"]
-        return values[0], values[2], values[7]
+        return values[0], values[1]
 
     # ------------------------------------------------------------------
     # Edit action — opens the bank master editor
     # ------------------------------------------------------------------
     def _on_edit() -> None:
         edit_bank(mgr_win)
+        load_data()
 
     # ------------------------------------------------------------------
     # Delete action
     # ------------------------------------------------------------------
     def _on_delete() -> None:
-        trans_id, account_label, entry_type = _get_selected()
-        if trans_id is None:
+        b_id, bank_name = _get_selected()
+        if b_id is None:
             return
 
-        # Fetch module linkage before asking the user to confirm — this
-        # lets us cascade the delete to the sub-ledger row in one atomic
-        # transaction if the user says Yes.
-        module_type = module_ref_id = None
+        # Count linked accounts so we can warn/block the user up-front.
+        ac_count = 0
         try:
             with get_db_connection(BANK_DB_PATH) as conn:
                 cur = conn.cursor()
                 cur.execute(
-                    "SELECT module_type, module_ref_id "
-                    "FROM bank_transactions WHERE trans_id = ?",
-                    (trans_id,),
+                    "SELECT COUNT(*) FROM accounts WHERE b_id = ?",
+                    (b_id,),
                 )
                 row = cur.fetchone()
                 if row:
-                    module_type, module_ref_id = row
-        except sqlite3.Error:
-            pass
+                    ac_count = row[0]
+        except sqlite3.Error as e:
+            show_colorful_error(
+                mgr_win, "Error", f"Could not check linked accounts: {e}"
+            )
+            return
+
+        if ac_count > 0:
+            show_colorful_error(
+                mgr_win,
+                "Cannot Delete",
+                f"Bank '{bank_name}' has {ac_count} linked account(s).\n\n"
+                f"Delete or reassign all accounts for this bank "
+                f"before removing the bank record.",
+            )
+            return
 
         confirm = show_colorful_yesno(
             mgr_win,
             "Confirm Delete",
-            f"Are you sure you want to permanently delete this "
-            f"{entry_type} transaction for:\n\n{account_label}?\n\n"
+            f"Are you sure you want to permanently delete the bank record:\n\n"
+            f"  {bank_name}\n\n"
             f"This action cannot be undone.",
         )
         if not confirm:
@@ -275,38 +251,27 @@ def show_bank_manager(
         try:
             with get_db_connection(BANK_DB_PATH) as conn:
                 cur = conn.cursor()
-
-                # Remove the sub-ledger row first (foreign-key cascade is
-                # not relied upon here — we do it explicitly so the intent
-                # is clear).
-                _SUB_LEDGER = {
-                    "FD": ("fd_transactions", "fd_trans_id"),
-                    "CC": ("cc_transactions", "cc_trans_id"),
-                    "LOAN": ("loan_transactions", "loan_trans_id"),
-                    "PPF": ("ppf_transactions", "ppf_trans_id"),
-                }
-                if module_type in _SUB_LEDGER and module_ref_id:
-                    tbl, pk = _SUB_LEDGER[module_type]
-                    cur.execute(
-                        f"DELETE FROM {tbl} WHERE {pk} = ?",
-                        (module_ref_id,),
-                    )
-
-                # Remove the main transaction row.
+                cur.execute("PRAGMA foreign_keys = ON;")
                 cur.execute(
-                    "DELETE FROM bank_transactions WHERE trans_id = ?",
-                    (trans_id,),
+                    "DELETE FROM banks WHERE b_id = ?",
+                    (b_id,),
                 )
                 conn.commit()
 
             show_colorful_info(
                 mgr_win,
                 "Delete Successful",
-                f"The {entry_type} transaction for\n{account_label}\n"
-                f"has been permanently deleted.",
+                f"The bank '{bank_name}' has been permanently deleted.",
             )
             load_data()
 
+        except sqlite3.IntegrityError as e:
+            show_colorful_error(
+                mgr_win,
+                "Delete Blocked",
+                f"Could not delete '{bank_name}' — it is still referenced in the database.\n\n"
+                f"Detail: {e}",
+            )
         except sqlite3.Error as e:
             show_colorful_error(mgr_win, "Delete Failed", f"Database error: {e}")
 
@@ -324,7 +289,7 @@ def show_bank_manager(
 
     edit_btn = tk.Button(
         btn_frame,
-        text="✏️ Edit Bank",
+        text="✏️ Edit Selected",
         command=_on_edit,
         bg=UI_THEME.get("bg_header", "#1e293b"),
         fg="#60a5fa",

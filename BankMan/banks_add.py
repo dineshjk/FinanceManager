@@ -83,6 +83,7 @@ def show_help(ba_win: tk.Toplevel, on_escape) -> None:
         "  Branch (optional): Branch name or location.",
         "  IFSC (optional): 11-character RBI code, e.g. SBIN0001234.",
         "  MICR (optional): 9-digit code printed on cheque leaves.",
+        "  Cust ID (optional): Customer ID / User ID for online banking.",
         "",
         "Hotkeys:",
         "  F1: This screen (Help)",
@@ -212,6 +213,8 @@ def show_session_banks(
         info_text.insert("end", f"{t.get('IFSC') or '—'}\n", "value")
         info_text.insert("end", "MICR: ", "label")
         info_text.insert("end", f"{t.get('MICR') or '—'}\n", "value")
+        info_text.insert("end", "Cust ID: ", "label")
+        info_text.insert("end", f"{t.get('Cust ID') or '—'}\n", "value")
         info_text.config(state="disabled")
 
         left_btn.config(state="disabled" if i == 0 else "normal")
@@ -266,6 +269,7 @@ def on_submit(
     branch_entry: tk.Entry,
     ifsc_entry: tk.Entry,
     micr_entry: tk.Entry,
+    cust_id_entry: tk.Entry,
     ba_win: tk.Toplevel,
     current_session_banks: dict,
 ) -> None:
@@ -274,6 +278,7 @@ def on_submit(
     branch = branch_entry.get().strip() or None
     ifsc = ifsc_entry.get().strip() or None
     micr = micr_entry.get().strip() or None
+    cust_id = cust_id_entry.get().strip() or None
 
     if not name:
         show_colorful_error(ba_win, "Validation Error", "Bank Name is required.")
@@ -281,19 +286,21 @@ def on_submit(
         return
 
     try:
-        _db_add_bank(name, branch, ifsc, micr)
+        _db_add_bank(name, branch, ifsc, micr, cust_id)
         sr_no = len(current_session_banks) + 1
         current_session_banks[sr_no] = {
             "Bank": name,
             "Branch": branch,
             "IFSC": ifsc,
             "MICR": micr,
+            "Cust ID": cust_id,
         }
         show_colorful_info(ba_win, "Success", f"Bank '{name}' added successfully.")
         bank_name_entry.delete(0, tk.END)
         branch_entry.delete(0, tk.END)
         ifsc_entry.delete(0, tk.END)
         micr_entry.delete(0, tk.END)
+        cust_id_entry.delete(0, tk.END)
         bank_name_entry.focus_set()
     except Exception as e:  # noqa: BLE001
         show_colorful_error(ba_win, "Error", f"Failed to add bank: {e}")
@@ -315,7 +322,7 @@ def add_bank(
     current_session_banks: dict = {}
     ba_win = tk.Toplevel(parent)
     ba_win.title("🏧 Bank Entry 🏧")
-    ba_win.geometry("750x440")
+    ba_win.geometry("750x485")
     ba_win.resizable(False, False)
     ba_win.configure(bg=BANK_ADD_UI_THEME["main_bg"])
     ba_win.transient(parent)
@@ -392,10 +399,20 @@ def add_bank(
     micr_entry = tk.Entry(ba_frame, width=70)
     micr_entry.grid(row=3, column=1, padx=5, pady=5)
 
+    ttk.Label(
+        ba_frame,
+        text="Cust ID:",
+        font=("Helvetica", 14),
+        background=BANK_ADD_UI_THEME["label_bg"],
+    ).grid(row=4, column=0, sticky="w", padx=5, pady=5)
+    cust_id_entry = tk.Entry(ba_frame, width=70)
+    cust_id_entry.grid(row=4, column=1, padx=5, pady=5)
+
     apply_entry_theme(bank_name_entry)
     apply_entry_theme(branch_entry)
     apply_entry_theme(ifsc_entry)
     apply_entry_theme(micr_entry)
+    apply_entry_theme(cust_id_entry)
 
     bind_tooltip(
         bank_name_entry,
@@ -416,6 +433,11 @@ def add_bank(
         micr_entry,
         tooltip_var,
         "Enter the 9-digit MICR code from cheque leaves (optional).",
+    )
+    bind_tooltip(
+        cust_id_entry,
+        tooltip_var,
+        "Enter the Customer ID / User ID for online banking (optional).",
     )
 
     # --- Button frame ---
@@ -441,6 +463,7 @@ def add_bank(
             branch_entry,
             ifsc_entry,
             micr_entry,
+            cust_id_entry,
             ba_win,
             current_session_banks,
         ),
@@ -489,7 +512,8 @@ def add_bank(
     bank_name_entry.bind("<Return>", lambda e: branch_entry.focus_set())
     branch_entry.bind("<Return>", lambda e: ifsc_entry.focus_set())
     ifsc_entry.bind("<Return>", lambda e: micr_entry.focus_set())
-    micr_entry.bind("<Return>", lambda e: submit_button.focus_set())
+    micr_entry.bind("<Return>", lambda e: cust_id_entry.focus_set())
+    cust_id_entry.bind("<Return>", lambda e: submit_button.focus_set())
     submit_button.bind(
         "<Return>",
         lambda e: on_submit(
@@ -497,6 +521,7 @@ def add_bank(
             branch_entry,
             ifsc_entry,
             micr_entry,
+            cust_id_entry,
             ba_win,
             current_session_banks,
         ),
@@ -511,3 +536,6 @@ def add_bank(
     ba_win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 
     ba_win.after(100, bank_name_entry.focus_set)
+
+    # ── Modal wait ────────────────────────────────────────────────────────
+    parent.wait_window(ba_win)

@@ -10,8 +10,8 @@ import tkinter as tk
 from Shared.menu_factory import create_menu_window
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
-from .manage_cc import show_cc_manager
-from .manage_bank import show_bank_manager
+from .cc_master_edit import edit_cc_master
+from .bank_edit import edit_bank
 from .manage_fd import show_fd_manager
 from .manage_loan import show_loan_manager
 from .manage_ppf import show_ppf_manager
@@ -39,12 +39,12 @@ def show_manage_master_menu(parent, come_back_index=None):
             {
                 "text": "Bank",
                 "hotkey": "B",
-                "command": lambda: show_bank_manager(menu_window),
+                "command": lambda: edit_bank(menu_window),
             },
             {
                 "text": "Credit Card",
                 "hotkey": "C",
-                "command": lambda: show_cc_manager(menu_window),
+                "command": lambda: edit_cc_master(menu_window),
             },
             {
                 "text": "Fixed Deposit",

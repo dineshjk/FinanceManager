@@ -44,9 +44,16 @@ def dict_factory(cursor, row):
     return d
 
 
+_table_cols_cache = {}
+
 def insert_dict(cursor, table: str, d: dict, exclude_keys: list):
-    """Dynamically builds and executes an INSERT statement, ignoring generated columns."""
-    keys = [k for k in d.keys() if k not in exclude_keys]
+    """Dynamically builds and executes an INSERT statement, keeping only columns that exist in the target table schema and ignoring excluded keys."""
+    if table not in _table_cols_cache:
+        cursor.execute(f"PRAGMA table_info({table})")
+        _table_cols_cache[table] = {row[1] for row in cursor.fetchall()}
+    target_cols = _table_cols_cache[table]
+
+    keys = [k for k in d.keys() if k in target_cols and k not in exclude_keys]
     vals = [d[k] for k in keys]
     qs = ",".join(["?"] * len(keys))
     cols = ",".join(keys)
@@ -1038,6 +1045,8 @@ def trade_entry_from_file(
         def import_next(idx_ptr=0):
             if idx_ptr >= len(selected_indices):
                 if imported_stock_ids:
+                    from StockMan.stock_database_setup import repair_existing_links
+                    repair_existing_links()
                     fifo_result = rebuild_sell_allocations(
                         sorted(imported_stock_ids)
                     )
@@ -1057,6 +1066,7 @@ def trade_entry_from_file(
                     f"{added_count[0]} records added.\n{skipped_count[0]} existing records skipped.",
                 )
                 cleanup()
+                watchlist_entry_from_file(parent, src_db_path)
                 return
 
             try:
@@ -1151,3 +1161,292 @@ def trade_entry_from_file(
 
     win.bind("<Escape>", cleanup)
     win.protocol("WM_DELETE_WINDOW", cleanup)
+
+
+def watchlist_entry_from_file(
+    parent: Union[tk.Toplevel, tk.Tk], src_db_path: str = SRC_LEGACY_DB
+) -> None:
+    """Displays the mass watchlist importer checklist UI."""
+    src_db_path = SRC_LEGACY_DB
+    if not os.path.exists(src_db_path):
+        return
+
+    # --- Fetch legacy watchlist ---
+    try:
+        old_conn = sqlite3.connect(src_db_path)
+        old_cur = old_conn.cursor()
+        old_cur.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='watchlist'"
+        )
+        if not old_cur.fetchone():
+            old_conn.close()
+            return
+
+        old_cur.execute("""
+            SELECT w.target_buy_price, w.target_sell_price, w.notes, s.company_name
+            FROM watchlist w
+            JOIN stocks s ON w.id_stk = s.id_stk
+        """)
+        watchlist_items = old_cur.fetchall()
+        old_conn.close()
+    except sqlite3.Error as e:
+        logger.error("Failed to fetch legacy watchlist: %s", e, exc_info=True)
+        return
+
+    if not watchlist_items:
+        # No watchlist to import, return silently
+        return
+
+    modal_id = disable_parent(parent)
+    win = tk.Toplevel(parent)
+    win.title("Bulk Watchlist Importer")
+    win.geometry("950x550")
+    win.configure(bg="#f8fafc")
+    win.transient(parent)
+    win.grab_set()
+    win.focus_set()
+    push_window(win, parent)
+
+    # --- Styling: Increase Font Size ---
+    style = ttk.Style()
+    style.configure("Treeview", font=("Helvetica", 11), rowheight=28)
+    style.configure("Treeview.Heading", font=("Helvetica", 11, "bold"))
+
+    # --- Treeview Checklist ---
+    tree_frame = ttk.Frame(win, padding=10)
+    tree_frame.pack(fill="both", expand=True)
+
+    cols = ("Select", "Company", "Target Buy Price", "Target Sell Price", "Notes", "Status")
+    tree = ttk.Treeview(tree_frame, columns=cols, show="headings", height=15)
+
+    for col in cols:
+        tree.heading(
+            col,
+            text=col,
+            command=lambda _col=col: universal_tree_sort(tree, _col, False),
+        )
+
+    tree.column("Select", width=60, anchor="center")
+    tree.column("Company", width=250, anchor="w")
+    tree.column("Target Buy Price", width=120, anchor="e")
+    tree.column("Target Sell Price", width=120, anchor="e")
+    tree.column("Notes", width=250, anchor="w")
+    tree.column("Status", width=130, anchor="w")
+
+    # Populate Data
+    for i, item in enumerate(watchlist_items):
+        t_buy, t_sell, notes, company_name = item
+        disp_buy = f"{t_buy:.2f}" if t_buy is not None else ""
+        disp_sell = f"{t_sell:.2f}" if t_sell is not None else ""
+
+        values = (
+            "[ ]",
+            company_name,
+            disp_buy,
+            disp_sell,
+            notes or "",
+            "Ready",
+        )
+        tree.insert("", "end", iid=str(i), values=values)
+
+    if tree.get_children():
+        first_item = tree.get_children()[0]
+        tree.focus(first_item)
+        tree.selection_set(first_item)
+
+    scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=scroll.set)
+    tree.pack(side="left", fill="both", expand=True)
+    scroll.pack(side="right", fill="y")
+
+    # --- Interactivity ---
+    def toggle_row(event):
+        region = tree.identify_region(event.x, event.y)
+        if region == "cell":
+            col = tree.identify_column(event.x)
+            if col == "#1":  # The Select Column
+                iid = tree.identify_row(event.y)
+                vals = list(tree.item(iid, "values"))
+                vals[0] = "[X]" if vals[0] == "[ ]" else "[ ]"
+                tree.item(iid, values=vals)
+
+    def toggle_space(event):
+        focused_item = tree.focus()
+        if focused_item:
+            vals = list(tree.item(focused_item, "values"))
+            vals[0] = "[X]" if vals[0] == "[ ]" else "[ ]"
+            tree.item(focused_item, values=vals)
+        return "break"
+
+    tree.bind("<Button-1>", toggle_row)
+    tree.bind("<space>", toggle_space)
+
+    # --- Bottom Buttons ---
+    btn_frame = tk.Frame(win, bg="#f8fafc")
+    btn_frame.pack(side="bottom", fill="x", padx=10, pady=10)
+
+    is_all_selected = [False]
+
+    def on_toggle_all():
+        new_val = "[X]" if not is_all_selected[0] else "[ ]"
+        for child in tree.get_children():
+            vals = list(tree.item(child, "values"))
+            vals[0] = new_val
+            tree.item(child, values=vals)
+
+        is_all_selected[0] = not is_all_selected[0]
+        toggle_all_btn.config(
+            text="Deselect All" if is_all_selected[0] else "Select All"
+        )
+
+    def cleanup_wl(_event=None):
+        enable_parent(modal_id)
+        safe_close_modal(win, parent)
+
+    def process_imports():
+        selected_indices = []
+        for child in tree.get_children():
+            if tree.item(child, "values")[0] == "[X]":
+                selected_indices.append(int(child))
+
+        if not selected_indices:
+            show_colorful_error(
+                win,
+                "No Selection",
+                "Please select at least one row to import.",
+            )
+            return
+
+        import_btn.config(state="disabled")
+        toggle_all_btn.config(state="disabled")
+        cancel_btn.config(state="disabled")
+
+        progress_var = tk.DoubleVar()
+        progress = ttk.Progressbar(
+            btn_frame, variable=progress_var, maximum=len(selected_indices)
+        )
+        progress.pack(side="left", fill="x", expand=True, padx=20)
+
+        status_lbl = tk.Label(
+            btn_frame,
+            text="Starting import...",
+            bg="#f8fafc",
+            fg="blue",
+            font=("Helvetica", 10, "bold"),
+        )
+        status_lbl.pack(side="left", padx=10)
+
+        added_count = [0]
+        skipped_count = [0]
+
+        def import_next_wl(idx_ptr=0):
+            if idx_ptr >= len(selected_indices):
+                status_lbl.config(text="Watchlist Import Complete!", fg="green")
+                show_colorful_info(
+                    win,
+                    "Watchlist Import Complete",
+                    f"{added_count[0]} records added/updated.\n{skipped_count[0]} skipped (stock not found in new database).",
+                )
+                cleanup_wl()
+                return
+
+            try:
+                item_idx = selected_indices[idx_ptr]
+                t_buy, t_sell, notes, company_name = watchlist_items[item_idx]
+
+                status_lbl.config(text=f"Importing {company_name}...")
+
+                with get_db_connection() as new_conn:
+                    new_cur = new_conn.cursor()
+                    new_cur.execute("PRAGMA foreign_keys = ON")
+
+                    new_cur.execute(
+                        "SELECT id_stk FROM stocks WHERE company_name = ?",
+                        (company_name,),
+                    )
+                    stock_res = new_cur.fetchone()
+
+                    if stock_res:
+                        new_id_stk = stock_res[0]
+                        new_cur.execute(
+                            """
+                            INSERT INTO watchlist (id_stk, target_buy_price, target_sell_price, notes)
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT(id_stk) DO UPDATE SET
+                                target_buy_price = excluded.target_buy_price,
+                                target_sell_price = excluded.target_sell_price,
+                                notes = excluded.notes;
+                        """,
+                            (new_id_stk, t_buy, t_sell, notes),
+                        )
+                        added_count[0] += 1
+                        status = "[Imported]"
+                    else:
+                        skipped_count[0] += 1
+                        status = "[Stock Not Found]"
+
+                vals = list(tree.item(str(item_idx), "values"))
+                vals[0] = "[DONE]"
+                vals[5] = status
+                tree.item(str(item_idx), values=vals)
+
+                progress_var.set(idx_ptr + 1)
+                win.after(20, import_next_wl, idx_ptr + 1)
+
+            except Exception as e:
+                logger.error("Watchlist import failed at index %s: %s", idx_ptr, e, exc_info=True)
+                show_colorful_error(
+                    win,
+                    "Watchlist Import Error",
+                    f"Failed on {company_name}: {e}",
+                )
+                import_btn.config(state="normal")
+                toggle_all_btn.config(state="normal")
+                cancel_btn.config(state="normal")
+
+        win.after(100, import_next_wl, 0)
+
+    toggle_all_btn = tk.Button(
+        btn_frame,
+        text="Select All",
+        width=15,
+        font=("Helvetica", 12, "bold"),
+        bg="#e2e8f0",
+        command=on_toggle_all,
+        padx=10,
+        pady=8,
+    )
+    toggle_all_btn.pack(side="left", padx=5, pady=10)
+
+    cancel_btn = tk.Button(
+        btn_frame,
+        text="Cancel",
+        width=12,
+        font=("Helvetica", 12, "bold"),
+        bg="#ef4444",
+        fg="white",
+        command=cleanup_wl,
+        padx=10,
+        pady=8,
+    )
+    cancel_btn.pack(side="right", padx=5, pady=10)
+
+    import_btn = tk.Button(
+        btn_frame,
+        text="Import Selected",
+        width=18,
+        font=("Helvetica", 12, "bold"),
+        bg="#22c55e",
+        fg="white",
+        command=process_imports,
+        padx=10,
+        pady=8,
+    )
+    import_btn.pack(side="right", padx=5, pady=10)
+
+    apply_button_animations(toggle_all_btn, "#e2e8f0", "#cbd5e1")
+    apply_button_animations(cancel_btn, "#ef4444", "#dc2626")
+    apply_button_animations(import_btn, "#22c55e", "#16a34a")
+
+    win.bind("<Escape>", cleanup_wl)
+    win.protocol("WM_DELETE_WINDOW", cleanup_wl)

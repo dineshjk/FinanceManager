@@ -144,9 +144,11 @@ logger = logging.getLogger("StockMan")
 
 @contextmanager
 def get_db_connection(
-    db_path: str = STOCK_DB_PATH,
+    db_path: str | None = None,
 ) -> Generator[sqlite3.Connection, None, None]:
     """Context manager for database connections."""
+    if db_path is None:
+        db_path = STOCK_DB_PATH
     conn = None
     try:
         conn = sqlite3.connect(db_path)

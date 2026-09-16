@@ -84,7 +84,7 @@ def edit_account(
         The button that opened this modal (disabled while open).
     """
     # ── Lookup data fetched once at open ─────────────────────────────────
-    banks = get_all_banks()  # [(b_id, name, branch, IFSC, MICR)]
+    banks = get_all_banks()  # [(b_id, name, branch, IFSC, MICR, cust_id)]
     bank_name_to_id = {b[1]: b[0] for b in banks}
     bank_names = [b[1] for b in banks]
 

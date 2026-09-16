@@ -492,3 +492,6 @@ def add_rewards_points_main(
     # Start focus on the Credit Card dropdown.
     if card_map:
         card_combo.focus_set()
+
+    # ── Modal wait ────────────────────────────────────────────────────────
+    parent.wait_window(win)

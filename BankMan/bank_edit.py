@@ -38,11 +38,11 @@ from Shared.gui_utils import (
     setup_footer_tooltip,
     universal_tree_sort,
 )
-from Shared.dialog_utils import show_colorful_error, show_colorful_info
+from Shared.dialog_utils import show_colorful_error, show_colorful_info, show_colorful_yesno
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
 from .bank_db_utils import db_update_bank, get_all_banks
-from Shared.globals import logger
+from Shared.globals import logger, get_db_connection, BANK_DB_PATH
 
 _T = BANK_EDIT_UI_THEME
 
@@ -70,7 +70,7 @@ def edit_bank(
 
     eb_win = tk.Toplevel(parent)
     eb_win.title("✏️  Edit Bank  ✏️")
-    eb_win.geometry("780x585")
+    eb_win.geometry("780x625")
     eb_win.resizable(False, False)
     eb_win.configure(bg=_T["main_bg"])
     eb_win.transient(parent)
@@ -155,7 +155,7 @@ def edit_bank(
         foreground=[("selected", "white")],
     )
 
-    cols = ("ID", "Name", "Branch", "IFSC", "MICR")
+    cols = ("ID", "Name", "Branch", "IFSC", "MICR", "Cust ID")
     tree = ttk.Treeview(
         tree_frame,
         columns=cols,
@@ -168,10 +168,11 @@ def edit_bank(
 
     col_setup = {
         "ID": (0, tk.NO, "center"),
-        "Name": (250, tk.YES, "w"),
-        "Branch": (200, tk.YES, "w"),
-        "IFSC": (130, tk.NO, "center"),
-        "MICR": (120, tk.NO, "center"),
+        "Name": (200, tk.YES, "w"),
+        "Branch": (180, tk.YES, "w"),
+        "IFSC": (120, tk.NO, "center"),
+        "MICR": (110, tk.NO, "center"),
+        "Cust ID": (120, tk.NO, "center"),
     }
     for col, (width, stretch, anchor) in col_setup.items():
         tree.heading(
@@ -192,7 +193,7 @@ def edit_bank(
             tree.delete(item)
         try:
             for row in get_all_banks():
-                # row = (b_id, name, branch, IFSC, MICR)
+                # row = (b_id, name, branch, IFSC, MICR, cust_id)
                 tree.insert("", "end", values=row)
         except sqlite3.Error as exc:
             logger.error("edit_bank: failed to load banks: %s", exc)
@@ -230,6 +231,7 @@ def edit_bank(
     branch_var = tk.StringVar()
     ifsc_var = tk.StringVar()
     micr_var = tk.StringVar()
+    cust_id_var = tk.StringVar()
 
     def _make_field(
         row: int,
@@ -261,8 +263,11 @@ def edit_bank(
     micr_entry = _make_field(
         3, "MICR:", micr_var, "9-digit MICR code from cheque leaves (optional)."
     )
+    cust_id_entry = _make_field(
+        4, "Cust ID:", cust_id_var, "Customer ID or User ID for online banking (optional)."
+    )
 
-    all_entries = (name_entry, branch_entry, ifsc_entry, micr_entry)
+    all_entries = (name_entry, branch_entry, ifsc_entry, micr_entry, cust_id_entry)
     for e in all_entries:
         e.config(state="disabled")
 
@@ -274,17 +279,19 @@ def edit_bank(
         if not sel:
             return
         vals = tree.item(sel[0])["values"]
-        b_id, name, branch, ifsc, micr = (vals + [None] * 5)[:5]
+        b_id, name, branch, ifsc, micr, cust_id = (vals + [None] * 6)[:6]
 
         selected_id["b_id"] = b_id
         name_var.set(name or "")
         branch_var.set(branch or "")
         ifsc_var.set(ifsc or "")
         micr_var.set(micr or "")
+        cust_id_var.set(cust_id or "")
 
         for e in all_entries:
             e.config(state="normal")
         save_btn.config(state="normal")
+        delete_btn.config(state="normal")
         sel_status_var.set(f"Editing:  {name}")
         name_entry.focus_set()
 
@@ -297,7 +304,8 @@ def edit_bank(
     name_entry.bind("<Return>", lambda _e: branch_entry.focus_set())
     branch_entry.bind("<Return>", lambda _e: ifsc_entry.focus_set())
     ifsc_entry.bind("<Return>", lambda _e: micr_entry.focus_set())
-    micr_entry.bind("<Return>", lambda _e: save_btn.focus_set())
+    micr_entry.bind("<Return>", lambda _e: cust_id_entry.focus_set())
+    cust_id_entry.bind("<Return>", lambda _e: save_btn.focus_set())
 
     # ------------------------------------------------------------------
     # Save handler
@@ -315,6 +323,7 @@ def edit_bank(
         branch = branch_var.get().strip() or None
         ifsc = ifsc_var.get().strip() or None
         micr = micr_var.get().strip() or None
+        cust_id = cust_id_var.get().strip() or None
 
         if not name:
             show_colorful_error(
@@ -326,7 +335,7 @@ def edit_bank(
             return
 
         try:
-            db_update_bank(selected_id["b_id"], name, branch, ifsc, micr)
+            db_update_bank(selected_id["b_id"], name, branch, ifsc, micr, cust_id)
         except Exception as exc:
             show_colorful_error(
                 eb_win,
@@ -346,20 +355,128 @@ def edit_bank(
         # Refresh list and reset form
         load_banks()
         selected_id["b_id"] = None
-        for var in (name_var, branch_var, ifsc_var, micr_var):
+        for var in (name_var, branch_var, ifsc_var, micr_var, cust_id_var):
             var.set("")
         for e in all_entries:
             e.config(state="disabled")
         save_btn.config(state="disabled")
+        delete_btn.config(state="disabled")
         sel_status_var.set("Saved — select another bank or close.")
 
+    # ------------------------------------------------------------------
+    # Delete handler
+    # ------------------------------------------------------------------
+    def on_delete(_event=None) -> None:
+        b_id = selected_id["b_id"]
+        if b_id is None:
+            show_colorful_error(
+                eb_win,
+                "No Selection",
+                "Please select a bank from the list first.",
+            )
+            return
+
+        name = name_var.get().strip()
+
+        # Count linked accounts so we can warn/block the user up-front.
+        ac_count = 0
+        try:
+            with get_db_connection(BANK_DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT COUNT(*) FROM accounts WHERE b_id = ?",
+                    (b_id,),
+                )
+                row = cur.fetchone()
+                if row:
+                    ac_count = row[0]
+        except sqlite3.Error as e:
+            show_colorful_error(
+                eb_win, "Error", f"Could not check linked accounts: {e}"
+            )
+            return
+
+        if ac_count > 0:
+            show_colorful_error(
+                eb_win,
+                "Cannot Delete",
+                f"Bank '{name}' has {ac_count} linked account(s).\n\n"
+                f"Delete or reassign all accounts for this bank "
+                f"before removing the bank record.",
+            )
+            return
+
+        confirm = show_colorful_yesno(
+            eb_win,
+            "Confirm Delete",
+            f"Are you sure you want to permanently delete the bank record:\n\n"
+            f"  {name}\n\n"
+            f"This action cannot be undone.",
+        )
+        if not confirm:
+            return
+
+        try:
+            with get_db_connection(BANK_DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("PRAGMA foreign_keys = ON;")
+                cur.execute(
+                    "DELETE FROM banks WHERE b_id = ?",
+                    (b_id,),
+                )
+                conn.commit()
+
+            show_colorful_info(
+                eb_win,
+                "Success",
+                f"Bank '{name}' deleted successfully.",
+            )
+            # Refresh list and reset form
+            load_banks()
+            selected_id["b_id"] = None
+            for var in (name_var, branch_var, ifsc_var, micr_var, cust_id_var):
+                var.set("")
+            for e in all_entries:
+                e.config(state="disabled")
+            save_btn.config(state="disabled")
+            delete_btn.config(state="disabled")
+            sel_status_var.set("Deleted — select another bank or close.")
+
+        except sqlite3.IntegrityError as e:
+            show_colorful_error(
+                eb_win,
+                "Delete Blocked",
+                f"Could not delete '{name}' — it is still referenced in the database.\n\n"
+                f"Detail: {e}",
+            )
+        except sqlite3.Error as e:
+            show_colorful_error(eb_win, "Delete Failed", f"Database error: {e}")
+
     save_btn: tk.Button  # forward declaration for on_tree_select closure
+    delete_btn: tk.Button  # forward declaration for on_tree_select closure
 
     # ------------------------------------------------------------------
     # Button frame
     # ------------------------------------------------------------------
     btn_frame = tk.Frame(eb_win, bg=_T["main_bg"], relief="ridge", bd=2, pady=6)
     btn_frame.pack(fill="x", padx=10, pady=(4, 6))
+
+    delete_btn = tk.Button(
+        btn_frame,
+        text="🗑️  DELETE SELECTED  🗑️",
+        command=on_delete,
+        font=("Comic Sans MS", 12, "bold"),
+        bg=_T["cancel_bg"],
+        fg="white",
+        activeforeground="white",
+        relief="raised",
+        bd=3,
+        padx=8,
+        pady=4,
+        cursor="hand2",
+        state="disabled",
+    )
+    delete_btn.pack(side="left", padx=8)
 
     save_btn = tk.Button(
         btn_frame,
@@ -394,6 +511,7 @@ def edit_bank(
     )
     cancel_btn.pack(side="right", padx=4)
 
+    apply_button_animations(delete_btn, _T["cancel_bg"], _T["cancel_hover_bg"])
     apply_button_animations(save_btn, _T["submit_bg"], _T["submit_hover_bg"])
     apply_button_animations(cancel_btn, _T["cancel_bg"], _T["cancel_hover_bg"])
 

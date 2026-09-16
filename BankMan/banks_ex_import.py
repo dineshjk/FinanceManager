@@ -161,7 +161,8 @@ def export_banks(
             # ── Bank rows ─────────────────────────────────────────────────
             fh.write("# banks\n")
             cursor.execute(
-                "SELECT b_id, name, branch, IFSC, MICR" " FROM banks ORDER BY b_id"
+                "SELECT b_id, name, branch, IFSC, MICR, cust_id"
+                " FROM banks ORDER BY b_id"
             )
             bank_rows = cursor.fetchall()
 
@@ -169,8 +170,8 @@ def export_banks(
                 show_colorful_info(parent, "No Data", "No banks found to export.")
                 return
 
-            for _b_id, name, branch, ifsc, micr in bank_rows:
-                fh.write(repr(("B", name, branch, ifsc, micr)) + "\n")
+            for _b_id, name, branch, ifsc, micr, cust_id in bank_rows:
+                fh.write(repr(("B", name, branch, ifsc, micr, cust_id)) + "\n")
                 banks_count += 1
 
             # ── Account rows ──────────────────────────────────────────────
@@ -322,7 +323,11 @@ def import_banks(
                         malformed += 1
                         continue
 
-                    _, name, branch, ifsc, micr = value[:5]
+                    name = value[1]
+                    branch = value[2]
+                    ifsc = value[3]
+                    micr = value[4]
+                    cust_id = value[5] if len(value) > 5 else None
 
                     if not name:
                         msg = "import_banks: empty bank name on line %d"
@@ -353,9 +358,9 @@ def import_banks(
                             continue
 
                         cursor.execute(
-                            "INSERT INTO banks (name, branch, IFSC, MICR)"
-                            " VALUES (?, ?, ?, ?)",
-                            (name, branch, ifsc, micr),
+                            "INSERT INTO banks (name, branch, IFSC, MICR, cust_id)"
+                            " VALUES (?, ?, ?, ?, ?)",
+                            (name, branch, ifsc, micr, cust_id),
                         )
                         new_id = cursor.lastrowid
                         key_to_id[_bank_key(name, ifsc)] = new_id

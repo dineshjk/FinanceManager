@@ -26,6 +26,8 @@ from StockMan.reporting_utils import (
     build_master_corp_tree_rows,
     build_master_dividend_tree_rows,
     build_master_ledger_display_rows,
+    build_scrip_wise_dividend_data,
+    build_performance_summary_rows,
     build_online_action_entries,
     build_pooled_cost_reality_summary,
     build_online_corp_action_rows,
@@ -93,6 +95,8 @@ def _create_reporting_source_schema(conn):
             curr_investment_amt REAL DEFAULT 0,
             total_investment_amt REAL DEFAULT 0,
             disinvestment_amt REAL DEFAULT 0,
+            sell_amt REAL DEFAULT 0,
+            div_amt REAL DEFAULT 0,
             sector TEXT DEFAULT NULL
         );
         CREATE TABLE transactions (
@@ -1628,3 +1632,78 @@ def test_build_realized_pnl_report_fragments_handles_empty_rows():
     assert build_realized_pnl_report_fragments([]) == [
         ("  No realized gain/loss details available.\n", "normal")
     ]
+
+
+def test_build_scrip_wise_dividend_data():
+    mock_rows = [
+        ("AAA", 1, "2024-01-01", "2024-01-10", "FINAL", 100, 2.0, 200.0, 200.0, 0.0),
+        ("AAA", 1, "2024-06-01", "2024-06-10", "INTERIM", 150, 3.0, 450.0, 450.0, 0.0),
+    ]
+    conn = sqlite3.connect(":memory:")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE transactions (
+            id_trd INTEGER PRIMARY KEY,
+            id_stk INTEGER,
+            trd_dt TEXT,
+            trade_type_trd TEXT,
+            qty_trd REAL,
+            net_amt_trd REAL
+        )
+    """)
+    cur.execute("INSERT INTO transactions (id_stk, trd_dt, trade_type_trd, qty_trd, net_amt_trd) VALUES (1, '2023-01-01', 'BUY', 200, 2000.0)")
+    conn.commit()
+
+    res = build_scrip_wise_dividend_data(mock_rows, cur)
+    assert "detail_rows" in res
+    assert "summary_row" in res
+    assert len(res["detail_rows"]) == 1
+    assert res["detail_rows"][0][0] == "AAA"
+    assert res["detail_rows"][0][3] == "₹650.00"
+    conn.close()
+
+
+def test_build_performance_summary_rows():
+    mock_cache = {
+        1: {
+            "ticker": "AAA",
+            "short_name": "Alpha",
+            "total_inv_amt": 10000.0,
+            "sell_amt": 5000.0,
+            "div_amt": 300.0,
+            "qty": 100.0,
+            "price": 50.0,
+            "unrealized": 2000.0,
+        },
+        2: {
+            "ticker": "",
+            "short_name": "Beta",
+            "total_inv_amt": 8000.0,
+            "sell_amt": 0.0,
+            "div_amt": 100.0,
+            "qty": 50.0,
+            "price": 100.0,
+            "unrealized": -500.0,
+        }
+    }
+    res = build_performance_summary_rows(mock_cache)
+    assert len(res["detail_rows"]) == 2
+    assert res["detail_rows"][0][0] == "AAA"
+    assert res["detail_rows"][0][1] == "₹10,000.00"
+    assert res["detail_rows"][0][2] == "₹5,000.00"
+    assert res["detail_rows"][0][3] == "₹300.00"
+    assert res["detail_rows"][0][4] == "₹5,000.00"
+    assert res["detail_rows"][0][5] == "₹2,000.00"
+    assert res["detail_rows"][0][6] == "₹300.00"
+    assert res["tags"][0] == "profit"
+
+    assert res["detail_rows"][1][0] == "Beta"
+    assert res["detail_rows"][1][1] == "₹8,000.00"
+    assert res["detail_rows"][1][2] == "₹0.00"
+    assert res["detail_rows"][1][3] == "₹100.00"
+    assert res["detail_rows"][1][4] == "₹5,000.00"
+    assert res["detail_rows"][1][5] == "₹-500.00"
+    assert res["detail_rows"][1][6] == "₹-2,900.00"
+    assert res["tags"][1] == "loss"
+
+    assert res["summary_row"] == ("TOTAL", "₹18,000.00", "₹5,000.00", "₹400.00", "₹10,000.00", "₹1,500.00", "₹-2,600.00")

@@ -1704,3 +1704,6 @@ def create_stockman_database(_parent) -> Tuple[bool, str]:
     except sqlite3.Error as e:
         logger.error("Database creation failed: %s", e, exc_info=True)
         return False, f"Database creation failed: {str(e)}"
+
+
+create_database = create_stockman_database

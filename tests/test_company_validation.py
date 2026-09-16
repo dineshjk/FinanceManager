@@ -13,12 +13,14 @@ if str(project_root) not in sys.path:
 
 company_add = importlib.import_module("StockMan.company_add")
 db_setup = importlib.import_module("StockMan.stock_database_setup")
+shared_globals = importlib.import_module("Shared.globals")
 
 
-def test_add_company_db_duplicate_raises_validation_error(tmp_path):
+def test_add_company_db_duplicate_raises_validation_error(tmp_path, monkeypatch):
     db_path = tmp_path / "test_db.sqlite"
     # Ensure create_database uses our tmp path
     db_setup.STOCK_DB_PATH = str(db_path)  # type: ignore[attr-defined]
+    monkeypatch.setattr(shared_globals, "STOCK_DB_PATH", str(db_path))
     db_setup.create_database(None)
 
     # First insertion should succeed

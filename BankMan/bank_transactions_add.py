@@ -47,7 +47,7 @@ from .bank_db_utils import (
     get_all_card_masters as _db_get_all_card_masters,
     get_all_user_descriptions,
 )
-from Shared.globals import logger
+from Shared.globals import logger, UI_THEME
 from Shared.gui_progressive import progressive_selection
 from .accounts_add import add_account_main as _add_account
 from .budget_head_add import add_account_type_main as _add_budget_head
@@ -107,7 +107,11 @@ def _band_label(parent, text, bg, font=("Helvetica", 14), padx=0):
     )
 
 
-def show_master_help(win: tk.Toplevel, on_escape) -> None:
+def show_master_help(
+    win: tk.Toplevel,
+    on_escape,
+    focus_back_widget: tk.Widget | None = None,
+) -> None:
     """Launch a tabbed help window.
 
     Contains General Help, Budget Heads, and FAQ tabs.
@@ -459,6 +463,11 @@ def show_master_help(win: tk.Toplevel, on_escape) -> None:
         style.theme_use(original_theme)
         safe_close_modal(help_win, win)
         win.bind("<Escape>", on_escape)
+        if focus_back_widget:
+            try:
+                focus_back_widget.focus_set()
+            except Exception:
+                pass
         return "break"
 
     help_win.bind("<Escape>", close_help)
@@ -487,6 +496,7 @@ def show_session_transactions(
     win: tk.Toplevel,
     current_session_txns: dict,
     on_escape,
+    focus_back_widget: tk.Widget | None = None,
 ) -> None:
     """Launch the session transactions viewer sub-window."""
     if not current_session_txns:
@@ -621,6 +631,11 @@ def show_session_transactions(
     def close_viewer(_event=None):
         safe_close_modal(viewer, win)
         win.bind("<Escape>", on_escape)
+        if focus_back_widget:
+            try:
+                focus_back_widget.focus_set()
+            except Exception:
+                pass
         return "break"
 
     viewer.bind("<Escape>", close_viewer)
@@ -1104,12 +1119,12 @@ def _update_balance_default(
     balance_entry.delete(0, tk.END)
     balance_entry.insert(0, f"{computed:.2f}")
     if computed < 0:
-        show_colorful_error(
-            win,
-            "Balance Warning",
-            f"Computed balance is negative (\u20b9{computed:,.2f}). "
-            "Please verify the amounts.",
-        )
+        balance_entry.config(foreground="red")
+    else:
+        try:
+            balance_entry.config(foreground=UI_THEME["fg_input"])
+        except (NameError, KeyError, tk.TclError):
+            balance_entry.config(foreground="yellow")
 
 
 def _fmt_amount_on_focus_out(entry: tk.Entry, _event=None) -> None:
@@ -1496,6 +1511,38 @@ def add_bank_transaction_main(
         budget_head_combo, tooltip_var, "Budget category for analysis reports."
     )
 
+    def _filter_budget_heads(_event=None):
+        try:
+            w_val = float(withdrawal_entry.get().strip().replace(",", "") or "0")
+        except ValueError:
+            w_val = 0.0
+        try:
+            d_val = float(deposit_entry.get().strip().replace(",", "") or "0")
+        except ValueError:
+            d_val = 0.0
+
+        filtered = ["(none)"]
+        for name in bh_values:
+            if name == "(none)":
+                continue
+            btype = bh_type_map.get(name)
+            if w_val > 0.0 and d_val == 0.0:
+                if btype == "EXPENSE":
+                    filtered.append(name)
+            elif d_val > 0.0 and w_val == 0.0:
+                if btype == "INCOME":
+                    filtered.append(name)
+            else:
+                filtered.append(name)
+
+        budget_head_combo["values"] = filtered
+        progressive_selection(budget_head_combo, filtered)
+
+        curr = budget_head_combo.get().strip()
+        if curr and curr not in filtered:
+            budget_head_combo.set("(none)")
+            entry_type_var.set("TRANSFER")
+
     def _refresh_budget_head_combo():
         new_bh = sorted(get_all_budget_heads(), key=lambda r: r[1])
         budget_map.clear()
@@ -1504,8 +1551,7 @@ def add_bank_transaction_main(
         bh_type_map.update({r[1]: r[2] for r in new_bh})
         bh_values.clear()
         bh_values.extend(["(none)"] + [r[1] for r in new_bh])
-        budget_head_combo["values"] = list(bh_values)
-        progressive_selection(budget_head_combo, list(bh_values))
+        _filter_budget_heads()
 
     def on_budget_head_focus_out(_event=None):
         try:
@@ -1845,6 +1891,11 @@ def add_bank_transaction_main(
     deposit_entry.bind("<FocusOut>", _bal_updater, add="+")
     withdrawal_entry.bind("<KeyRelease>", _bal_updater, add="+")
     deposit_entry.bind("<KeyRelease>", _bal_updater, add="+")
+
+    withdrawal_entry.bind("<FocusOut>", _filter_budget_heads, add="+")
+    deposit_entry.bind("<FocusOut>", _filter_budget_heads, add="+")
+    withdrawal_entry.bind("<KeyRelease>", _filter_budget_heads, add="+")
+    deposit_entry.bind("<KeyRelease>", _filter_budget_heads, add="+")
 
     # Normalize all three amount fields to 2 d.p. on focus-out
     withdrawal_entry.bind(
@@ -2411,8 +2462,11 @@ def add_bank_transaction_main(
             _rb.bind("<Key>", _on_key)
 
     def _mt_next_focus():
-        if module_type_var.get() == "FD":
+        mt = module_type_var.get()
+        if mt == "FD":
             fd_combo.focus_set()
+        elif mt == "CC":
+            cc_combo.focus_set()
         else:
             module_ref_entry.focus_set()
 
@@ -2439,13 +2493,14 @@ def add_bank_transaction_main(
     user_desc_combo.bind("<Return>", lambda e: et_radios[0].focus_set())
     module_ref_entry.bind("<Return>", lambda e: submit_button.focus_set())
     fd_combo.bind("<Return>", lambda e: submit_button.focus_set())
+    cc_combo.bind("<Return>", lambda e: submit_button.focus_set())
     submit_button.bind("<Return>", lambda e: on_submit())
 
     # ── Global hotkeys ────────────────────────────────────────────────────
-    win.bind("<F1>", lambda e: show_master_help(win, on_escape))
+    win.bind("<F1>", lambda e: show_master_help(win, on_escape, win.focus_get()))
     win.bind(
         "<F2>",
-        lambda e: show_session_transactions(win, current_session_txns, on_escape),
+        lambda e: show_session_transactions(win, current_session_txns, on_escape, win.focus_get()),
     )
     # F3 is now obsolete since Budget Heads are inside the F1 notebook
     win.bind("<F3>", lambda e: "break")
@@ -2498,3 +2553,6 @@ def add_bank_transaction_main(
 
     # ── Initial focus ─────────────────────────────────────────────────────
     win.after(100, account_combo.focus_set)
+
+    # ── Modal wait ────────────────────────────────────────────────────────
+    parent.wait_window(win)

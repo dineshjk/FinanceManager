@@ -22,6 +22,7 @@ from Shared.dialog_utils import (
     show_colorful_yesno,
 )
 from .company_add import add_company
+from .company_ex_import import export_company
 from .trade_utils import compute_avg_price
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window, safe_close_modal
@@ -108,14 +109,43 @@ def add_demerger(
         except sqlite3.Error:
             pass
 
-    def _invoke_add_company():
-        add_company(dem_win)
+    def _invoke_add_company(
+        initial_name: str = "", target_row: dict | None = None
+    ) -> str | None:
+        initial_added = list(getattr(dem_win, "company_added_list", []))
+        add_company(dem_win, initial_company_name=initial_name)
+        try:
+            export_company(dem_win)
+        except Exception as exc:
+            logger.debug("export_company failed: %s", exc)
         _refresh_company_data()
-        parent_combo["values"] = companies
-        progressive_selection(parent_combo, companies)
-        for row in child_rows:
-            row["combo"]["values"] = companies
-            progressive_selection(row["combo"], companies)
+        try:
+            parent_combo["values"] = companies
+            progressive_selection(parent_combo, companies)
+        except NameError:
+            pass
+        for r in child_rows:
+            r["combo"]["values"] = companies
+            progressive_selection(r["combo"], companies)
+
+        curr_added = getattr(dem_win, "company_added_list", [])
+        new_additions = [c for c in curr_added if c not in initial_added]
+        matched = None
+        if initial_name:
+            for name in new_additions:
+                if name.strip().lower() == initial_name.strip().lower():
+                    matched = name
+                    break
+        if not matched and new_additions:
+            matched = new_additions[-1]
+        elif not matched and initial_name and initial_name in company_to_data:
+            matched = initial_name
+
+        if matched and matched in company_to_data:
+            if target_row is not None:
+                target_row["name_var"].set(matched)
+            return matched
+        return None
 
     _refresh_company_data()
 
@@ -182,17 +212,36 @@ def add_demerger(
         }
 
         # Company Select
+        comp_cell = tk.Frame(children_container, bg=childfrbg)
+        comp_cell.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
+
         combo = ttk.Combobox(
-            children_container,
+            comp_cell,
             textvariable=row_vars["name_var"],
             values=companies,
             width=20,
             font=("Helvetica", 11),
         )
-        combo.grid(row=row_idx, column=0, padx=5, pady=5)
+        combo.pack(side="left")
         progressive_selection(combo, companies)
         row_vars["combo"] = combo
         apply_entry_theme(combo)
+
+        add_btn = tk.Button(
+            comp_cell,
+            text="➕",
+            font=("Helvetica", 9, "bold"),
+            bg=submitusualbg,
+            fg="white",
+            cursor="hand2",
+            padx=4,
+            pady=0,
+            command=lambda r=row_vars: _invoke_add_company(
+                initial_name=r["name_var"].get().strip(), target_row=r
+            ),
+        )
+        add_btn.pack(side="left", padx=(3, 0))
+        bind_tooltip(add_btn, tooltip_var, "Add a new child company to database.")
 
         # Ratios
         p_ratio_entry = tk.Entry(
@@ -327,22 +376,52 @@ def add_demerger(
             )
             return
 
+        _calculate_all_children()
+
         total_coa = 0.0
         total_deduction = 0.0
         allotment_data = []
 
         for row in child_rows:
             c_comp = row["name_var"].get().strip()
-            if not c_comp or c_comp not in company_to_data:
+            if not c_comp:
                 show_colorful_error(
-                    dem_win, "Error", "Ensure all Child companies are valid."
+                    dem_win, "Error", "Please enter or select a Child company."
                 )
                 return
+
+            if c_comp not in company_to_data:
+                resp = show_colorful_yesno(
+                    dem_win,
+                    "Company Not Found",
+                    f"Child company '{c_comp}' does not exist in the database.\n\n"
+                    f"Would you like to add this company now?",
+                )
+                if resp:
+                    _invoke_add_company(initial_name=c_comp, target_row=row)
+                    c_comp = row["name_var"].get().strip()
+
+                if not c_comp or c_comp not in company_to_data:
+                    show_colorful_error(
+                        dem_win,
+                        "Error",
+                        f"Child company '{c_comp}' is not valid or was not added.",
+                    )
+                    return
+
             if c_comp == p_comp:
                 show_colorful_error(
                     dem_win,
                     "Error",
                     "Child company cannot be the same as the Parent.",
+                )
+                return
+
+            if any(d["c_comp_name"] == c_comp for d in allotment_data):
+                show_colorful_error(
+                    dem_win,
+                    "Duplicate Company",
+                    f"Child company '{c_comp}' is added more than once.",
                 )
                 return
 
@@ -650,9 +729,9 @@ def add_demerger(
                 conn.commit()
 
             # Recalculate Averages
-            compute_avg_price(id_parent)
+            compute_avg_price(id_parent, poke=False)
             for data in allotment_data:
-                compute_avg_price(data["id_child"])
+                compute_avg_price(data["id_child"], poke=False)
 
             resp = show_colorful_yesno(
                 dem_win,
@@ -836,6 +915,14 @@ def add_demerger(
         text="➕ Add Child Row",
         command=_add_child_row,
         bg="#059669",
+        fg="white",
+        font=("Helvetica", 10, "bold"),
+    ).pack(side="right", padx=5)
+    tk.Button(
+        header,
+        text="➕ New Co.",
+        command=lambda: _invoke_add_company(),
+        bg=submitusualbg,
         fg="white",
         font=("Helvetica", 10, "bold"),
     ).pack(side="right", padx=5)

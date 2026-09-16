@@ -102,6 +102,7 @@ def add_company_db(
 def add_company(
     parent: Union[tk.Tk, tk.Toplevel],
     calling_button: Optional[tk.Widget] = None,
+    initial_company_name: str = "",
 ) -> None:
     """
     Enhanced GUI form for adding a company to the stocks table.
@@ -186,8 +187,10 @@ def add_company(
     form_frame.grid_columnconfigure(3, weight=1)  # Variables for form fields
     stk_code_var = tk.StringVar()
     isin_var = tk.StringVar()
-    company_name_var = tk.StringVar()
-    short_name_var = tk.StringVar()
+    company_name_var = tk.StringVar(value=initial_company_name.strip())
+    short_name_var = tk.StringVar(
+        value=initial_company_name.strip()[:20] if initial_company_name else ""
+    )
     sector_var = tk.StringVar()
     ticker_var = tk.StringVar()  # <-- NEW FIELD
     face_value_var = tk.StringVar()

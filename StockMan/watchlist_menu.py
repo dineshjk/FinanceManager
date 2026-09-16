@@ -758,11 +758,12 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     except Exception as e:
                         logger.error(f"Failed to lookup stock ID for {scrip}: {e}")
 
-                    row_values = ("➕",) + tuple(parts[:4])
                     if id_stk is not None:
-                        advice_tree.insert("", "end", iid=str(id_stk), values=row_values)
+                        row_values = ("➕",) + tuple(parts[:4])
+                        advice_tree.insert("", "end", values=row_values, tags=(str(id_stk),))
                     else:
-                        advice_tree.insert("", "end", values=("",) + tuple(parts[:4]))
+                        row_values = ("",) + tuple(parts[:4])
+                        advice_tree.insert("", "end", values=row_values)
 
                 def on_advice_double_click(event):
                     region = advice_tree.identify("region", event.x, event.y)
@@ -774,9 +775,32 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                         if not sel:
                             return
                         item_id = sel[0]
-                        try:
-                            id_stk = int(item_id)
-                        except ValueError:
+                        tags = advice_tree.item(item_id, "tags")
+                        id_stk = None
+                        if tags:
+                            try:
+                                id_stk = int(tags[0])
+                            except (ValueError, TypeError, IndexError):
+                                pass
+
+                        if id_stk is None:
+                            values = advice_tree.item(item_id, "values")
+                            if len(values) > 1:
+                                scrip = values[1]
+                                try:
+                                    with get_db_connection() as conn:
+                                        cursor = conn.cursor()
+                                        cursor.execute(
+                                            "SELECT id_stk FROM stocks WHERE ticker = ? OR company_name = ?",
+                                            (scrip, scrip),
+                                        )
+                                        row = cursor.fetchone()
+                                        if row:
+                                            id_stk = row[0]
+                                except Exception as e:
+                                    logger.error(f"Failed to lookup stock ID for {scrip}: {e}")
+
+                        if id_stk is None:
                             return
                         
                         try:
@@ -992,11 +1016,12 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     except Exception as e:
                         logger.error(f"Failed to lookup stock ID for {scrip}: {e}")
 
-                    row_values = ("➕",) + tuple(parts[:6])
                     if id_stk is not None:
-                        advice_tree.insert("", "end", iid=str(id_stk), values=row_values)
+                        row_values = ("➕",) + tuple(parts[:6])
+                        advice_tree.insert("", "end", values=row_values, tags=(str(id_stk),))
                     else:
-                        advice_tree.insert("", "end", values=("",) + tuple(parts[:6]))
+                        row_values = ("",) + tuple(parts[:6])
+                        advice_tree.insert("", "end", values=row_values)
 
                 def on_advice_double_click(event):
                     region = advice_tree.identify("region", event.x, event.y)
@@ -1008,9 +1033,32 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                         if not sel:
                             return
                         item_id = sel[0]
-                        try:
-                            id_stk = int(item_id)
-                        except ValueError:
+                        tags = advice_tree.item(item_id, "tags")
+                        id_stk = None
+                        if tags:
+                            try:
+                                id_stk = int(tags[0])
+                            except (ValueError, TypeError, IndexError):
+                                pass
+
+                        if id_stk is None:
+                            values = advice_tree.item(item_id, "values")
+                            if len(values) > 1:
+                                scrip = values[1]
+                                try:
+                                    with get_db_connection() as conn:
+                                        cursor = conn.cursor()
+                                        cursor.execute(
+                                            "SELECT id_stk FROM stocks WHERE ticker = ? OR company_name = ?",
+                                            (scrip, scrip),
+                                        )
+                                        row = cursor.fetchone()
+                                        if row:
+                                            id_stk = row[0]
+                                except Exception as e:
+                                    logger.error(f"Failed to lookup stock ID for {scrip}: {e}")
+
+                        if id_stk is None:
                             return
                         
                         try:
