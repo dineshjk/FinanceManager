@@ -158,19 +158,42 @@ def test_zerodha_window_launch_and_close():
     try:
         def _check_win(win):
             assert win.minsize() == (1080, 720)
-            canvases = [w for w in win.winfo_children() if isinstance(w, tk.Canvas)]
-            assert len(canvases) == 1
-            canvas = canvases[0]
+            
+            # Find main_frame
+            frames = [w for w in win.winfo_children() if isinstance(w, tk.Frame)]
+            assert len(frames) >= 2
 
-            # Simulate configure event with width 1180
-            canvas.event_generate("<Configure>", width=1180, height=800)
-            root.update_idletasks()
+            # Find all LabelFrames across the window
+            label_frames = []
+            for f in win.winfo_children():
+                for cf in f.winfo_children():
+                    if isinstance(cf, tk.LabelFrame):
+                        label_frames.append(cf)
+            
+            assert len(label_frames) == 3
+            titles = [lf["text"].strip() for lf in label_frames]
+            assert "Contract Note Header" in titles
+            assert "Trades in this Contract (One row per ISIN)" in titles
+            assert "Statutory Levies & Charges (Contract Note Footer)" in titles
 
-            items = canvas.find_all()
-            assert len(items) >= 1
-            win_item_id = items[0]
-            # Width should have updated to event.width (1180)
-            assert canvas.itemcget(win_item_id, "width") == "1180"
+            for lf in label_frames:
+                assert lf.pack_info()["fill"] == "x"
+
+            # Verify no (m), (n), (o) enumerations in any label
+            all_labels = []
+            def _collect_labels(widget):
+                for child in widget.winfo_children():
+                    if isinstance(child, tk.Label):
+                        all_labels.append(child.cget("text"))
+                    _collect_labels(child)
+            _collect_labels(win)
+
+            for txt in all_labels:
+                assert not txt.startswith("(m)")
+                assert not txt.startswith("(n)")
+                assert not txt.startswith("(o)")
+                assert not txt.startswith("(p)")
+                assert not txt.startswith("(w)")
 
         with patch.object(root, "wait_window", side_effect=_check_win), \
              patch("Shared.modal_utils.disable_parent", return_value="modal_1"), \
