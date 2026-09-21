@@ -83,18 +83,35 @@ def export_trades(parent: Any) -> None:
                     for col in df.columns:
                         if col.endswith("_dt"):
                             df[col] = pd.to_datetime(df[col], errors="coerce")
-
-                    # Convert potential large number ID columns to strings to prevent
-                    # scientific notation in Excel.
-                    for col in ["ord_no", "trd_no", "settle_no"]:
-                        if col in df.columns:
-                            # Format as integer string if not null, else empty string.
-                            df[col] = df[col].apply(
-                                lambda x: f"{int(x)}" if pd.notna(x) else ""
-                            )
+                        elif df[col].dtype == 'object':
+                            try:
+                                df[col] = pd.to_numeric(df[col])
+                            except (ValueError, TypeError):
+                                pass
 
                     sheet_name = table_name[:31]
                     df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+                    # Apply formatting: freeze header row and auto-fit column widths
+                    worksheet = writer.sheets[sheet_name]
+                    worksheet.freeze_panes = 'A2'
+                    
+                    for col in worksheet.columns:
+                        max_length = 0
+                        column_letter = col[0].column_letter
+                        for cell in col:
+                            try:
+                                if cell.value is not None:
+                                    cell_len = len(str(cell.value))
+                                    if cell_len > max_length:
+                                        max_length = cell_len
+                            except Exception:
+                                pass
+                        
+                        adjusted_width = max_length + 2
+                        if adjusted_width > 50:
+                            adjusted_width = 50
+                        worksheet.column_dimensions[column_letter].width = adjusted_width
 
         logger.info(f"Successfully exported all tables to {output_path}")
         if show_colorful_yesno(

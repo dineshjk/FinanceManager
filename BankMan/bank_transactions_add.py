@@ -451,8 +451,24 @@ def show_master_help(
         "   - User Desc: A personal note (e.g., 'Life Insurance').",
         "   - Entry Type: Select the 'EXPENSE' radio button. (Crucial for correct "
         "math!)",
-        "   - Module Type: Leave blank. (It is an external expense, not an internal "
+        "   - Module Type: Leave blank. (It is an external expense, not an internal ",
         "transfer).",
+        "",
+        "Q: How do I map a bank fee that was incorrectly charged and later reversed/refunded?",
+        "A: Since the system strictly uses Expense heads for withdrawals and Income ",
+        "heads for deposits, mapping them directly will inflate your Income and Expense.",
+        "Instead, use the same 'TRANSFER' trick you use for cash withdrawals:",
+        "   1. Create a new Bank Account in your Master list called 'Suspense Account' ",
+        "      (or use your existing Petty Cash account).",
+        "   2. For the Initial Charge (₹56 out): Record a Withdrawal of 56, select ",
+        "      Budget Head '(none)', and Entry Type 'TRANSFER'. Pair it to a Deposit ",
+        "      in the Suspense Account.",
+        "   3. For the Refund (₹56 in): Record a Deposit of 56, select Budget Head ",
+        "      '(none)', and Entry Type 'TRANSFER'. Pair it to a Withdrawal in the ",
+        "      Suspense Account.",
+        "Because both entries are TRANSFERS, they completely bypass your Income and ",
+        "Expense reports, keeping your layout perfectly clean!",
+        "",
         "More FAQs will be added here over time...",
     ]
     faq_text.insert("1.0", "\n".join(faq_lines))
