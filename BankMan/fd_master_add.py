@@ -167,9 +167,11 @@ def _show_help(win: tk.Toplevel, on_escape) -> None:
 
     def close_help(_e=None):
         safe_close_modal(help_win, win)
+        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
         win.bind("<Escape>", on_escape)
         return "break"
 
+    help_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
     help_win.bind("<Escape>", close_help)
     help_win.protocol("WM_DELETE_WINDOW", close_help)
 
@@ -351,9 +353,11 @@ def _show_session_viewer(
 
     def _close_viewer(_e=None):
         safe_close_modal(viewer, win)
+        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
         win.bind("<Escape>", on_escape)
         return "break"
 
+    viewer.bind("<Control-Return>", lambda e: submit_btn.invoke())
     viewer.bind("<Escape>", _close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", _close_viewer)
     viewer.bind("<Return>", _close_viewer)
@@ -432,6 +436,7 @@ def add_fd_master_main(
         "<F2>",
         lambda e: _show_session_viewer(win, session_records, on_escape),
     )
+    win.bind("<Control-Return>", lambda e: submit_btn.invoke())
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", on_escape)
 

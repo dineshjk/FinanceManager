@@ -537,6 +537,7 @@ def edit_account(
     apply_button_animations(cancel_btn, _THEME["cancel_bg"], _THEME["cancel_hover_bg"])
 
     # ── Keyboard bindings ─────────────────────────────────────────────────
+    win.bind("<Control-Return>", lambda e: save_btn.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 

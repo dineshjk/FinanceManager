@@ -1907,6 +1907,7 @@ def update_trade(
     rat_win.bind("<Return>", on_enter)
     submit_btn.config(command=on_submit_eo)
     ok_btn.config(command=on_update_trade)
+    rat_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
     rat_win.bind("<Escape>", on_escape)
     rat_win.bind("<F1>", show_help)
 

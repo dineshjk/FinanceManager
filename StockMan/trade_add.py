@@ -1280,9 +1280,11 @@ def add_trade(
 
         def close_help(e=None):
             safe_close_modal(help_win, rat_win)
+            rat_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
             rat_win.bind("<Escape>", on_escape)
             return "break"
 
+        help_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
         help_win.bind("<Escape>", close_help)
         help_win.protocol("WM_DELETE_WINDOW", close_help)
 
@@ -1414,9 +1416,11 @@ def add_trade(
 
         def close_viewer(_event=None):
             safe_close_modal(viewer, rat_win)
+            rat_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
             rat_win.bind("<Escape>", on_escape)
             return "break"
 
+        viewer.bind("<Control-Return>", lambda e: submit_btn.invoke())
         viewer.bind("<Escape>", close_viewer)
         viewer.protocol("WM_DELETE_WINDOW", close_viewer)
         viewer.bind("<Return>", close_viewer)
@@ -3463,6 +3467,7 @@ def add_trade(
         _w.bind("<FocusIn>", _select_all_on_focus, add="+")
 
     rat_win.bind("<Return>", on_enter)
+    rat_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
     rat_win.bind("<Escape>", on_escape)
     rat_win.bind("<F1>", show_help)
     rat_win.bind("<F2>", show_session_trades)

@@ -629,9 +629,11 @@ def add_dividend(
 
         def close_help(e=None):
             safe_close_modal(help_win, div_win)
+            div_win.bind("<Control-Return>", lambda e: save_btn.invoke())
             div_win.bind("<Escape>", _close_div)
             return "break"
 
+        help_win.bind("<Control-Return>", lambda e: save_btn.invoke())
         help_win.bind("<Escape>", close_help)
         help_win.protocol("WM_DELETE_WINDOW", close_help)
 
@@ -770,9 +772,11 @@ def add_dividend(
 
         def close_viewer(_event=None):
             safe_close_modal(viewer, div_win)
+            div_win.bind("<Control-Return>", lambda e: save_btn.invoke())
             div_win.bind("<Escape>", _close_div)
             return "break"
 
+        viewer.bind("<Control-Return>", lambda e: save_btn.invoke())
         viewer.bind("<Escape>", close_viewer)
         viewer.protocol("WM_DELETE_WINDOW", close_viewer)
         viewer.bind("<Return>", close_viewer)
@@ -1203,6 +1207,7 @@ def add_dividend(
         "<Return>",
         lambda e: on_enter_focus_next(e, div_win, save_btn, cancel_btn),
     )
+    div_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     div_win.bind("<Escape>", _close_div)
     div_win.bind("<F1>", show_help)
     div_win.bind("<F2>", show_session_dividends)

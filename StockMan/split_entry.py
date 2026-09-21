@@ -698,6 +698,7 @@ def add_split_share(
         "<Return>",
         lambda e: on_enter_focus_next(e, split_win, save_btn, cancel_btn),
     )
+    split_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     split_win.bind("<Escape>", close_split)
     split_win.protocol("WM_DELETE_WINDOW", close_split)
     company_combo.focus_set()

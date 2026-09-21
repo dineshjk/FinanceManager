@@ -880,6 +880,7 @@ def edit_bank_transaction(
     apply_button_animations(cancel_btn, _THEME["cancel_bg"], _THEME["cancel_hover_bg"])
 
     # ── Keyboard and traversal bindings ───────────────────────────────────
+    win.bind("<Control-Return>", lambda e: submit_button.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 

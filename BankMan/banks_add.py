@@ -96,9 +96,11 @@ def show_help(ba_win: tk.Toplevel, on_escape) -> None:
 
     def close_help(_e=None):
         safe_close_modal(help_win, ba_win)
+        ba_win.bind("<Control-Return>", lambda e: submit_button.invoke())
         ba_win.bind("<Escape>", on_escape)
         return "break"
 
+    help_win.bind("<Control-Return>", lambda e: submit_button.invoke())
     help_win.bind("<Escape>", close_help)
     help_win.protocol("WM_DELETE_WINDOW", close_help)
 
@@ -248,9 +250,11 @@ def show_session_banks(
 
     def close_viewer(_event=None):
         safe_close_modal(viewer, ba_win)
+        ba_win.bind("<Control-Return>", lambda e: submit_button.invoke())
         ba_win.bind("<Escape>", on_escape)
         return "break"
 
+    viewer.bind("<Control-Return>", lambda e: submit_button.invoke())
     viewer.bind("<Escape>", close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", close_viewer)
     viewer.bind("<Return>", close_viewer)
@@ -532,6 +536,7 @@ def add_bank(
         "<F2>",
         lambda e: show_session_banks(ba_win, current_session_banks, on_escape),
     )
+    ba_win.bind("<Control-Return>", lambda e: submit_button.invoke())
     ba_win.bind("<Escape>", on_escape)
     ba_win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 

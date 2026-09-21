@@ -292,6 +292,7 @@ def remove_primary_offer(
 
     # Double click to remove
     tree.bind("<Double-1>", _on_remove)
+    rm_win.bind("<Control-Return>", lambda e: _on_remove())
     rm_win.bind("<Escape>", _close_window)
     rm_win.protocol("WM_DELETE_WINDOW", _close_window)
 

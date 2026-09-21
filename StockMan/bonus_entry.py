@@ -288,9 +288,11 @@ def bonus_shares(
 
         def close_viewer(_event=None):
             safe_close_modal(viewer, bonus_win)
+            bonus_win.bind("<Control-Return>", lambda e: save_btn.invoke())
             bonus_win.bind("<Escape>", close_bonus)
             return "break"
 
+        viewer.bind("<Control-Return>", lambda e: save_btn.invoke())
         viewer.bind("<Escape>", close_viewer)
         viewer.protocol("WM_DELETE_WINDOW", close_viewer)
         viewer.bind("<Return>", close_viewer)
@@ -401,6 +403,7 @@ def bonus_shares(
         )
         btn.pack(side="bottom", pady=10)
 
+        help_win.bind("<Control-Return>", lambda e: save_btn.invoke())
         help_win.bind("<Escape>", close_help)
         help_win.bind("<Return>", close_help)
         btn.focus_set()
@@ -1013,6 +1016,7 @@ def bonus_shares(
     )
 
     # Global Hotkeys
+    bonus_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     bonus_win.bind("<Escape>", close_bonus)
     bonus_win.bind("<F1>", show_help)
     bonus_win.bind("<F2>", show_session_bonus)

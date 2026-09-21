@@ -634,6 +634,7 @@ def edit_loan_master(
     apply_button_animations(cancel_btn, _T["cancel_bg"], _T["cancel_hover_bg"])
 
     # ── Keyboard bindings ─────────────────────────────────────────────────
+    win.bind("<Control-Return>", lambda e: save_btn.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 

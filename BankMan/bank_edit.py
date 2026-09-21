@@ -518,6 +518,7 @@ def edit_bank(
     # ------------------------------------------------------------------
     # Window-level bindings
     # ------------------------------------------------------------------
+    eb_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     eb_win.bind("<Escape>", cleanup_and_close)
     eb_win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 

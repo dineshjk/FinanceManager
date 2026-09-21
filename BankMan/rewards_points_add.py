@@ -53,6 +53,7 @@ def show_master_help(parent_win, escape_callback):
     def _close(_e=None):
         safe_close_modal(help_win, parent_win)
 
+    help_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     help_win.bind("<Escape>", _close)
     help_win.bind("<F1>", _close)
     help_win.protocol("WM_DELETE_WINDOW", _close)
@@ -109,6 +110,7 @@ def show_session_transactions(parent_win, records, escape_callback):
     def _close(_e=None):
         safe_close_modal(view_win, parent_win)
 
+    view_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     view_win.bind("<Escape>", _close)
     view_win.bind("<F2>", _close)
     view_win.protocol("WM_DELETE_WINDOW", _close)
@@ -194,6 +196,7 @@ def add_rewards_points_main(
             calling_button.focus_set()
 
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
+    win.bind("<Control-Return>", lambda e: save_btn.invoke())
     win.bind("<Escape>", cleanup_and_close)
 
     # ── Header ──

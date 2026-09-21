@@ -680,6 +680,7 @@ def edit_cc_master(
     # ------------------------------------------------------------------
     # Window-level bindings
     # ------------------------------------------------------------------
+    win.bind("<Control-Return>", lambda e: save_btn.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 

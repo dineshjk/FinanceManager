@@ -478,6 +478,7 @@ def show_master_help(
     def close_help(_e=None):
         style.theme_use(original_theme)
         safe_close_modal(help_win, win)
+        win.bind("<Control-Return>", lambda e: submit_button.invoke())
         win.bind("<Escape>", on_escape)
         if focus_back_widget:
             try:
@@ -486,6 +487,7 @@ def show_master_help(
                 pass
         return "break"
 
+    help_win.bind("<Control-Return>", lambda e: submit_button.invoke())
     help_win.bind("<Escape>", close_help)
     help_win.protocol("WM_DELETE_WINDOW", close_help)
 
@@ -646,6 +648,7 @@ def show_session_transactions(
 
     def close_viewer(_event=None):
         safe_close_modal(viewer, win)
+        win.bind("<Control-Return>", lambda e: submit_button.invoke())
         win.bind("<Escape>", on_escape)
         if focus_back_widget:
             try:
@@ -654,6 +657,7 @@ def show_session_transactions(
                 pass
         return "break"
 
+    viewer.bind("<Control-Return>", lambda e: submit_button.invoke())
     viewer.bind("<Escape>", close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", close_viewer)
     viewer.bind("<Return>", close_viewer)
@@ -764,6 +768,7 @@ def show_pair_select_modal(
 
     def _close(_e=None):
         safe_close_modal(modal, win)
+        win.bind("<Control-Return>", lambda e: submit_button.invoke())
         win.bind("<Escape>", on_escape)
         return "break"
 
@@ -796,6 +801,7 @@ def show_pair_select_modal(
     cancel_button.pack(side="left", padx=5)
     apply_button_animations(cancel_button, "#ef4444", "#b91c1c")
 
+    modal.bind("<Control-Return>", lambda e: submit_button.invoke())
     modal.bind("<Escape>", _close)
     modal.protocol("WM_DELETE_WINDOW", _close)
 
@@ -935,6 +941,7 @@ def show_fd_new_modal(
 
     def _close(_e=None):
         safe_close_modal(modal, win)
+        win.bind("<Control-Return>", lambda e: submit_button.invoke())
         win.bind("<Escape>", on_escape)
         return "break"
 
@@ -963,6 +970,7 @@ def show_fd_new_modal(
     )
     cancel_button.pack(side="left", padx=5)
     apply_button_animations(cancel_button, "#ef4444", "#b91c1c")
+    modal.bind("<Control-Return>", lambda e: submit_button.invoke())
     modal.bind("<Escape>", _close)
     modal.protocol("WM_DELETE_WINDOW", _close)
     _widgets["fd_number"].focus_set()
@@ -1074,6 +1082,7 @@ def show_fd_partial_modal(
 
     def _close(_e=None):
         safe_close_modal(modal, win)
+        win.bind("<Control-Return>", lambda e: submit_button.invoke())
         win.bind("<Escape>", on_escape)
         return "break"
 
@@ -2520,6 +2529,7 @@ def add_bank_transaction_main(
     )
     # F3 is now obsolete since Budget Heads are inside the F1 notebook
     win.bind("<F3>", lambda e: "break")
+    win.bind("<Control-Return>", lambda e: submit_button.invoke())
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 

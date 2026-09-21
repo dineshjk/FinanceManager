@@ -794,6 +794,7 @@ def add_merger(
         "<Return>",
         lambda e: on_enter_focus_next(e, merg_win, save_btn, cancel_btn),
     )
+    merg_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     merg_win.bind("<Escape>", close_merger)
     merg_win.protocol("WM_DELETE_WINDOW", close_merger)
     merger_name_entry.focus_set()

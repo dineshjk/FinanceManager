@@ -1195,6 +1195,7 @@ def add_trade_zerodha(
     apply_button_animations(save_btn, "#22c55e", "#16a34a")
     apply_button_animations(cancel_btn, "#ef4444", "#b91c1c")
 
+    win.bind("<Control-Return>", lambda e: save_btn.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 

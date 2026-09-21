@@ -1031,6 +1031,7 @@ def add_demerger(
             return "break"
 
     dem_win.bind("<Return>", _focus_next)
+    dem_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     dem_win.bind("<Escape>", _close_demerger)
     dem_win.protocol("WM_DELETE_WINDOW", _close_demerger)
     parent_combo.focus_set()
