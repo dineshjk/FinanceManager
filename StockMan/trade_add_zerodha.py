@@ -83,8 +83,8 @@ def add_trade_zerodha(
 
     # Colors
     bg_win = "#f0f8ff"
-    bg_header = "#0f172a"
-    fg_title = "#38bdf8"
+    bg_header = "#1e3a8a"
+    fg_title = "#ffd700"
     bg_section = "#e0f2fe"
     bg_sub_sec = "#f8fafc"
     bg_table = "#ffffff"
@@ -168,6 +168,7 @@ def add_trade_zerodha(
         pady=2,
     )
     switch_icici_btn.pack(side="left", padx=5)
+    apply_button_animations(switch_icici_btn, "#1e3a8a", "#2563eb")
 
     available_shares_var = tk.StringVar(value="")
     tk.Label(
@@ -601,6 +602,7 @@ def add_trade_zerodha(
         pady=3,
     )
     add_tr_btn.pack(side="left", padx=5)
+    apply_button_animations(add_tr_btn, "#22c55e", "#16a34a")
 
     def _on_delete_trade():
         sel = tr_tree.selection()
@@ -625,6 +627,7 @@ def add_trade_zerodha(
         pady=3,
     )
     del_tr_btn.pack(side="left", padx=5)
+    apply_button_animations(del_tr_btn, "#ef4444", "#dc2626")
 
     clear_tr_btn = tk.Button(
         tr_btn_bar,
@@ -637,6 +640,7 @@ def add_trade_zerodha(
         pady=3,
     )
     clear_tr_btn.pack(side="left", padx=5)
+    apply_button_animations(clear_tr_btn, "#e2e8f0", "#cbd5e1")
 
     # Treeview for Trades in this Contract
     tree_frame = tk.Frame(trades_box, bg=bg_table, bd=1, relief="ridge")
@@ -1268,29 +1272,27 @@ def add_trade_zerodha(
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 
-    def _apply_theme_to_all(w):
-        if not isinstance(w, tk.Widget):
-            return
-        w_class = w.winfo_class()
-        type_name = w.__class__.__name__
-        is_input = False
-        if "Entry" in w_class or "Spinbox" in w_class or "Combobox" in w_class:
-            is_input = True
-        if "DateEntry" in type_name or "Combobox" in type_name or "Entry" in type_name or "Spinbox" in type_name:
-            is_input = True
-            
-        if is_input:
+    # Explicitly apply theme to all entries, just like trade_add.py
+    entries = [
+        cont_no_entry, trd_dt_entry, settle_no_entry, settle_dt_entry, note_cont_entry,
+        company_combo, isin_entry, type_combo, exchange_combo,
+        qty_entry, wap_entry, brok_unit_entry, sell_chrg_entry,
+        payin_payout_entry, taxable_val_entry, etc_cont_entry, clearing_entry,
+        gst_entry, igst_entry, stt_entry, sebi_entry, stamp_entry, net_client_amt_entry
+    ]
+    
+    def apply_themes():
+        for widget in entries:
+            if not isinstance(widget, tk.Widget):
+                continue
             is_ro = False
             try:
-                if str(w.cget("state")) in ("readonly", "disabled"):
+                if str(widget.cget("state")) in ("readonly", "disabled"):
                     is_ro = True
             except (tk.TclError, AttributeError):
                 pass
-            apply_entry_theme(w, is_readonly=is_ro)
+            apply_entry_theme(widget, is_readonly=is_ro)
             
-        for child in w.winfo_children():
-            _apply_theme_to_all(child)
-            
-    _apply_theme_to_all(win)
+    apply_themes()
 
     parent.wait_window(win)
