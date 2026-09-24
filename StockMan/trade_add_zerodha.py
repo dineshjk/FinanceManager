@@ -1268,4 +1268,29 @@ def add_trade_zerodha(
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 
+    def _apply_theme_to_all(w):
+        if not isinstance(w, tk.Widget):
+            return
+        w_class = w.winfo_class()
+        type_name = w.__class__.__name__
+        is_input = False
+        if "Entry" in w_class or "Spinbox" in w_class or "Combobox" in w_class:
+            is_input = True
+        if "DateEntry" in type_name or "Combobox" in type_name or "Entry" in type_name or "Spinbox" in type_name:
+            is_input = True
+            
+        if is_input:
+            is_ro = False
+            try:
+                if str(w.cget("state")) in ("readonly", "disabled"):
+                    is_ro = True
+            except (tk.TclError, AttributeError):
+                pass
+            apply_entry_theme(w, is_readonly=is_ro)
+            
+        for child in w.winfo_children():
+            _apply_theme_to_all(child)
+            
+    _apply_theme_to_all(win)
+
     parent.wait_window(win)
