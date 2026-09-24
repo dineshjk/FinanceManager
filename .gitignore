@@ -31,3 +31,6 @@ Backup B S and S/
 Screenshot for CLI/
 aaa.txt
 scratch/
+
+# Test Queries and Scratch Scripts
+test_query*.py
