@@ -688,10 +688,10 @@ def bind_entry_hover(widget: tk.Widget, theme: dict = UI_THEME):
         except (tk.TclError, AttributeError):
             pass
 
-    widget.bind("<Enter>", _on_enter)
-    widget.bind("<Leave>", _on_leave)
-    widget.bind("<FocusIn>", _on_focus_in)
-    widget.bind("<FocusOut>", _on_focus_out)
+    widget.bind("<Enter>", _on_enter, add="+")
+    widget.bind("<Leave>", _on_leave, add="+")
+    widget.bind("<FocusIn>", _on_focus_in, add="+")
+    widget.bind("<FocusOut>", _on_focus_out, add="+")
 
 
 def flash_error(widget: tk.Widget, cycles: int = 5, interval_ms: int = 100):

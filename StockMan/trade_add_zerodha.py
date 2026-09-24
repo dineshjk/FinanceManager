@@ -39,7 +39,6 @@ from Shared.gui_utils import (
     bind_tooltip,
     apply_entry_theme,
     bind_date_spin,
-    setup_footer_tooltip,
     universal_tree_sort,
     apply_button_animations,
 )
@@ -268,14 +267,14 @@ def add_trade_zerodha(
                 with get_db_connection() as conn:
                     cursor = conn.cursor()
                     cursor.execute('''
-                        SELECT trd_dt, settle_no 
-                        FROM contracts 
+                        SELECT trd_dt, settle_no
+                        FROM contracts
                         WHERE trd_dt <= ? AND settle_no IS NOT NULL AND settle_no > 0
-                        ORDER BY trd_dt DESC 
+                        ORDER BY trd_dt DESC
                         LIMIT 1
                     ''', (t_dt.strftime("%Y-%m-%d"),))
                     row = cursor.fetchone()
-                
+
                 if row:
                     last_dt_str, last_settle_no = row
                     last_dt = datetime.strptime(last_dt_str, "%Y-%m-%d").date()
@@ -289,7 +288,7 @@ def add_trade_zerodha(
                         est_settle_no = int(last_settle_no) + working_days
                     else:
                         row = None # Fallback to Jan 1st logic
-                
+
                 if not row:
                     jan1 = date(t_dt.year, 1, 1)
                     working_days = 0
@@ -311,7 +310,7 @@ def add_trade_zerodha(
     trd_dt_entry.bind("<FocusOut>", _on_trd_dt_change, add="+")
     trd_dt_entry.bind("<KeyRelease-Up>", _on_trd_dt_change, add="+")
     trd_dt_entry.bind("<KeyRelease-Down>", _on_trd_dt_change, add="+")
-    
+
     # Initialize values
     _on_trd_dt_change()
 
@@ -836,16 +835,16 @@ def add_trade_zerodha(
     # Bottom summary of levies & Actions
     levies_summary_bar = tk.Frame(levies_box, bg="#ddd6fe", bd=1, relief="ridge", padx=10, pady=6)
     levies_summary_bar.pack(fill="x", pady=(8, 4))
-    
+
     left_summary = tk.Frame(levies_summary_bar, bg="#ddd6fe")
     left_summary.pack(side="left", fill="both", expand=True)
-    
+
     btn_box = tk.Frame(levies_summary_bar, bg="#ddd6fe")
     btn_box.pack(side="right", padx=10)
-    
+
     r1 = tk.Frame(left_summary, bg="#ddd6fe")
     r1.pack(fill="x", pady=(0, 2))
-    
+
     r2 = tk.Frame(left_summary, bg="#ddd6fe")
     r2.pack(fill="x", pady=(2, 0))
 
@@ -1245,7 +1244,7 @@ def add_trade_zerodha(
 
     save_btn = tk.Button(
         btn_box,
-        text="💾  EXECUTE & SAVE ZERODHA CONTRACT  💾",
+        text="💾  EXECUTE & SAVE  💾",
         command=_on_save_contract,
         font=("Comic Sans MS", 12, "bold"),
         bg="#22c55e",
@@ -1262,7 +1261,7 @@ def add_trade_zerodha(
 
     cancel_btn = tk.Button(
         btn_box,
-        text="❌  Cancel / Close  ❌",
+        text="❌  Cancel  ❌",
         command=cleanup_and_close,
         font=("Comic Sans MS", 12, "bold"),
         bg="#ef4444",
@@ -1304,7 +1303,7 @@ def add_trade_zerodha(
         payin_payout_entry, taxable_val_entry, etc_cont_entry, clearing_entry,
         gst_entry, igst_entry, stt_entry, sebi_entry, stamp_entry, net_client_amt_entry
     ]
-    
+
     def apply_themes():
         for widget in entries:
             if not isinstance(widget, tk.Widget):
@@ -1316,7 +1315,7 @@ def add_trade_zerodha(
             except (tk.TclError, AttributeError):
                 pass
             apply_entry_theme(widget, is_readonly=is_ro)
-            
+
     apply_themes()
 
     def _set_initial_focus():
