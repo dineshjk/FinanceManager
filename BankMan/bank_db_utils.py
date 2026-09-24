@@ -672,11 +672,16 @@ def get_transactions_for_pairing(account_id: int, limit: int = 100) -> list:
     with get_db_connection(BANK_DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT trans_id, serial_no, trans_date, bank_desc, "
-            "withdrawal_amount, deposit_amount "
-            "FROM bank_transactions "
-            "WHERE account_id = ? AND pair_id IS NULL "
-            "ORDER BY trans_date DESC, trans_id DESC "
+            "SELECT t.trans_id, t.serial_no, t.trans_date, "
+            "(CASE WHEN t.bank_desc IS NULL OR t.bank_desc = '' "
+            "THEN (b.name || ' [' || a.ac_number || ']') "
+            "ELSE (b.name || ' [' || a.ac_number || '] - ' || t.bank_desc) END) as bank_desc, "
+            "t.withdrawal_amount, t.deposit_amount "
+            "FROM bank_transactions t "
+            "JOIN accounts a ON t.account_id = a.ac_id "
+            "JOIN banks b ON a.b_id = b.b_id "
+            "WHERE t.account_id != ? AND t.pair_id IS NULL AND t.entry_type = 'TRANSFER' "
+            "ORDER BY t.trans_date DESC, t.trans_id DESC "
             "LIMIT ?",
             (account_id, limit),
         )

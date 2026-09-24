@@ -52,7 +52,7 @@ from Shared.window_manager import push_window, pop_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 from .company_add import add_company
 from .company_ex_import import export_company
-from .trade_utils import compute_avg_price, enforce_no_oversell_for_stock
+from .trade_utils import compute_avg_price, enforce_no_oversell_for_stock, fetch_holding_on_date
 from .validation_utils import (
     ValidationError,
     show_validation_error,
@@ -2087,6 +2087,15 @@ def add_trade(
     )
     switch_zerodha_btn.pack(side="left", padx=15)
 
+    available_shares_var = tk.StringVar(value="")
+    tk.Label(
+        broker_bar,
+        textvariable=available_shares_var,
+        font=("Helvetica", 11, "bold"),
+        bg=headbg,
+        fg="#ffcc00",
+    ).pack(side="left", padx=(15, 5))
+
     rat_frame = tk.Frame(
         rat_win, bg=ratframebg, padx=15, pady=0, relief="raised", bd=2
     )
@@ -2321,6 +2330,7 @@ def add_trade(
     companies = []
     company_to_isin = {}
     company_to_etf = {}
+    company_to_id = {}
 
     company_entry = ttk.Combobox(
         company_isin_frame,
@@ -2331,16 +2341,17 @@ def add_trade(
     )
 
     def _refresh_company_data():
-        nonlocal companies, company_to_isin, company_to_etf
+        nonlocal companies, company_to_isin, company_to_etf, company_to_id
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT company_name, isin, is_etf FROM stocks ORDER BY company_name ASC"
+                "SELECT company_name, isin, is_etf, id_stk FROM stocks ORDER BY company_name ASC"
             )
             rows = cursor.fetchall()
             companies = [row[0] for row in rows]
             company_to_isin = {row[0]: (row[1] or "") for row in rows}
             company_to_etf = {row[0]: row[2] for row in rows}
+            company_to_id = {row[0]: row[3] for row in rows}
             cursor.close()
         company_entry["values"] = companies
         progressive_selection(company_entry, companies)
@@ -2765,6 +2776,21 @@ def add_trade(
     entries["sell_charge"] = sell_charge_entry
     buy_sell_var.trace_add("write", lambda *a: update_sell_charge_state())
     update_sell_charge_state()
+
+    def _update_available_shares(*args):
+        if buy_sell_var.get() == "SELL":
+            name = company_name_var.get().strip()
+            id_stk = company_to_id.get(name)
+            if id_stk is not None:
+                qty = fetch_holding_on_date(id_stk, "2099-12-31")
+                available_shares_var.set(f"Available for Selling: {qty}")
+            else:
+                available_shares_var.set("")
+        else:
+            available_shares_var.set("")
+
+    buy_sell_var.trace_add("write", _update_available_shares)
+    company_name_var.trace_add("write", _update_available_shares)
 
     # --- GST field ---
     tk.Label(

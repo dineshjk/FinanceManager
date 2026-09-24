@@ -1164,7 +1164,7 @@ def run_bank_schema_migrations(db_path: str | None = None) -> dict:
             migrations_applied.append("rewards_points table created")
         else:
             _skip("rewards_points table")
- 
+
         # ── banks.cust_id column ──────────────────────────────────────────
         if not _column_exists(cursor, "banks", "cust_id"):
             _apply(

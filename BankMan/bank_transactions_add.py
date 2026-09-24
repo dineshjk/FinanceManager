@@ -469,6 +469,12 @@ def show_master_help(
         "Because both entries are TRANSFERS, they completely bypass your Income and ",
         "Expense reports, keeping your layout perfectly clean!",
         "",
+        "Q: My Petty Cash or Reverse/Suspense account is showing a negative balance. Is this allowed?",
+        "A: Yes. Suspense accounts (like ReverseEntry) or cash accounts often dip into the negative temporarily if you record the outgoing side of a transaction before the incoming replenishment or refund. The software will warn you when a balance goes negative, but you can choose to proceed and allow it.",
+        "",
+        "Q: I transferred money from my minor child's account to my savings account. How do I classify this?",
+        "A: Money moving within the family corpus is not an Income. To prevent it from inflating your Income reports, map it as a TRANSFER. Create a placeholder account for your child in your Master list (e.g., Bank: 'My Home', Account: 'Daughter Savings'). Record a Withdrawal from her account and a Deposit into yours, linking them via the 'Select' Pair ID button with Budget Head set to '(none)'.",
+        "",
         "More FAQs will be added here over time...",
     ]
     faq_text.insert("1.0", "\n".join(faq_lines))
@@ -2120,14 +2126,17 @@ def add_bank_transaction_main(
             return
 
         if balance_after < 0:
-            show_colorful_error(
+            proceed = show_colorful_yesno(
                 win,
-                "Validation Error",
-                f"Balance cannot be negative (\u20b9{balance_after:,.2f}). "
-                "Please verify the amounts.",
+                "Negative Balance Warning",
+                f"The resulting balance is negative (\u20b9{balance_after:,.2f}).\n\n"
+                "Normally, standard bank accounts cannot go below zero unless it is an overdraft, "
+                "cash, or suspense account.\n\n"
+                "Do you want to proceed and allow this negative balance?",
             )
-            flash_error(balance_entry)
-            return
+            if not proceed:
+                flash_error(balance_entry)
+                return
 
         pair_id_raw = pair_id_var.get().strip()
         pair_id: int | None = None
