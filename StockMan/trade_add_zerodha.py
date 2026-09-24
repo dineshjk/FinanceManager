@@ -94,7 +94,7 @@ def add_trade_zerodha(
 
     win = tk.Toplevel(parent)
     win.title("✨ Data Entry - Trade (Zerodha Contract) ✨")
-    win.geometry("1180x880")
+    win.geometry("1180x910")
     win.minsize(1080, 720)
     win.resizable(True, True)
     win.configure(bg=bg_win)
@@ -833,15 +833,21 @@ def add_trade_zerodha(
     # Bottom summary of levies
     levies_summary_bar = tk.Frame(levies_box, bg="#ddd6fe", bd=1, relief="ridge", padx=10, pady=6)
     levies_summary_bar.pack(fill="x", pady=(8, 4))
+    
+    r1 = tk.Frame(levies_summary_bar, bg="#ddd6fe")
+    r1.pack(fill="x", pady=(0, 2))
+    
+    r2 = tk.Frame(levies_summary_bar, bg="#ddd6fe")
+    r2.pack(fill="x", pady=(2, 0))
 
-    tk.Label(levies_summary_bar, text="Pay in / Pay Out Obligation:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#1e3a8a").pack(side="left", padx=(6, 4))
-    tk.Label(levies_summary_bar, textvariable=gross_obligation_display_var, font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#1e3a8a").pack(side="left", padx=(0, 20))
+    tk.Label(r1, text="Pay in / Pay Out Obligation:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#1e3a8a").pack(side="left", padx=(6, 4))
+    tk.Label(r1, textvariable=gross_obligation_display_var, font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#1e3a8a").pack(side="left", padx=(0, 20))
 
-    tk.Label(levies_summary_bar, text="Total Taxes & Charges:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#5b21b6").pack(side="left", padx=(6, 4))
-    tk.Label(levies_summary_bar, textvariable=total_levies_display_var, font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#5b21b6").pack(side="left", padx=(0, 20))
+    tk.Label(r1, text="Total Taxes & Charges:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#5b21b6").pack(side="left", padx=(6, 4))
+    tk.Label(r1, textvariable=total_levies_display_var, font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#5b21b6").pack(side="left", padx=(0, 20))
 
-    tk.Label(levies_summary_bar, text="Net Settlement:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(6, 4))
-    tk.Label(levies_summary_bar, textvariable=net_settlement_status_var, font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(0, 6))
+    tk.Label(r2, text="Net Settlement:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(6, 4))
+    tk.Label(r2, textvariable=net_settlement_status_var, font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#b91c1c").pack(side="left", padx=(0, 6))
 
     def _recalculate_net_contract_amount(*_args):
         try:
