@@ -1295,4 +1295,12 @@ def add_trade_zerodha(
             
     apply_themes()
 
+    def _set_initial_focus():
+        try:
+            cont_no_entry.focus_set()
+            cont_no_entry.icursor("end")
+        except tk.TclError:
+            pass
+    win.after(100, _set_initial_focus)
+
     parent.wait_window(win)
