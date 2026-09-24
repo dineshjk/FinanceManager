@@ -107,7 +107,7 @@ def add_trade_zerodha(
     except (RuntimeError, tk.TclError) as exc:
         logger.debug("push_window failed: %s", exc)
 
-    tooltip_var = setup_footer_tooltip(win)
+    tooltip_var = tk.StringVar(value="💡 Hover over fields to view helpful tips here.")
 
     def cleanup_and_close(_event=None):
         return safe_close_modal(win, parent, calling_button)
@@ -833,14 +833,20 @@ def add_trade_zerodha(
         is_bold=True,
     )
 
-    # Bottom summary of levies
+    # Bottom summary of levies & Actions
     levies_summary_bar = tk.Frame(levies_box, bg="#ddd6fe", bd=1, relief="ridge", padx=10, pady=6)
     levies_summary_bar.pack(fill="x", pady=(8, 4))
     
-    r1 = tk.Frame(levies_summary_bar, bg="#ddd6fe")
+    left_summary = tk.Frame(levies_summary_bar, bg="#ddd6fe")
+    left_summary.pack(side="left", fill="both", expand=True)
+    
+    btn_box = tk.Frame(levies_summary_bar, bg="#ddd6fe")
+    btn_box.pack(side="right", padx=10)
+    
+    r1 = tk.Frame(left_summary, bg="#ddd6fe")
     r1.pack(fill="x", pady=(0, 2))
     
-    r2 = tk.Frame(levies_summary_bar, bg="#ddd6fe")
+    r2 = tk.Frame(left_summary, bg="#ddd6fe")
     r2.pack(fill="x", pady=(2, 0))
 
     tk.Label(r1, text="Pay in / Pay Out Obligation:", font=("Helvetica", 11, "bold"), bg="#ddd6fe", fg="#1e3a8a").pack(side="left", padx=(6, 4))
@@ -972,9 +978,6 @@ def add_trade_zerodha(
     _recalculate_default_levies()
 
     # ── 4. Main Action Buttons ─────────────────────────────────────────────
-    btn_box = tk.Frame(win, bg=bg_win, relief="ridge", bd=2, pady=6)
-    btn_box.pack(side="bottom", fill="x", padx=10, pady=(2, 6))
-
     def _on_save_contract():
         # Validations
         cont_no = cont_no_var.get().strip().upper()
@@ -1280,6 +1283,18 @@ def add_trade_zerodha(
     win.bind("<Control-Return>", lambda e: save_btn.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
+
+    # --- Tooltip Label ---
+    info_label = tk.Label(
+        win,
+        textvariable=tooltip_var,
+        bg=bg_win,
+        fg="#5122df",
+        font=("Helvetica", 14, "italic", "bold"),
+        anchor="center",
+        pady=5,
+    )
+    info_label.pack(fill="x", side="bottom")
 
     # Explicitly apply theme to all entries, just like trade_add.py
     entries = [
