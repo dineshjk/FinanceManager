@@ -52,6 +52,7 @@ from .trade_utils import (
     compute_avg_price,
     enforce_no_oversell_for_stock,
     bifurcate_zerodha_levies,
+    fetch_holding_on_date,
 )
 
 
@@ -168,6 +169,15 @@ def add_trade_zerodha(
     )
     switch_icici_btn.pack(side="left", padx=5)
 
+    available_shares_var = tk.StringVar(value="")
+    tk.Label(
+        broker_switch_frame,
+        textvariable=available_shares_var,
+        font=("Helvetica", 11, "bold"),
+        bg=bg_header,
+        fg="#ffcc00",
+    ).pack(side="left", padx=(15, 5))
+
     # ── Main Content Body ─────────────────────────────────────────────────
     main_frame = tk.Frame(win, bg=bg_win)
     main_frame.pack(fill="both", expand=True, padx=6, pady=2)
@@ -223,7 +233,7 @@ def add_trade_zerodha(
         row=1, column=0, sticky="w", padx=(4, 6), pady=3
     )
     settle_no_var = tk.StringVar(value="0")
-    settle_no_entry = tk.Entry(hdr_grid, textvariable=settle_no_var, font=("Helvetica", 11, "bold"))
+    settle_no_entry = tk.Spinbox(hdr_grid, from_=0, to=999999999, textvariable=settle_no_var, font=("Helvetica", 11, "bold"))
     settle_no_entry.grid(row=1, column=1, sticky="ew", padx=(0, 25), pady=3)
     bind_tooltip(settle_no_entry, tooltip_var, "Settlement Number from Zerodha Contract Note.")
 
@@ -251,11 +261,55 @@ def add_trade_zerodha(
                 elif len(parts) == 3 and parts[2]:
                     cont_no_var.set(f"{new_prefix}{parts[2]}")
 
+            # Estimate settlement number
+            try:
+                from datetime import timedelta, date
+                with get_db_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute('''
+                        SELECT trd_dt, settle_no 
+                        FROM contracts 
+                        WHERE trd_dt <= ? AND settle_no IS NOT NULL AND settle_no > 0
+                        ORDER BY trd_dt DESC 
+                        LIMIT 1
+                    ''', (t_dt.strftime("%Y-%m-%d"),))
+                    row = cursor.fetchone()
+                
+                if row:
+                    last_dt_str, last_settle_no = row
+                    last_dt = datetime.strptime(last_dt_str, "%Y-%m-%d").date()
+                    if last_dt.year == t_dt.year:
+                        working_days = 0
+                        current = last_dt
+                        while current < t_dt:
+                            current += timedelta(days=1)
+                            if current.weekday() < 5:
+                                working_days += 1
+                        est_settle_no = int(last_settle_no) + working_days
+                    else:
+                        row = None # Fallback to Jan 1st logic
+                
+                if not row:
+                    jan1 = date(t_dt.year, 1, 1)
+                    working_days = 0
+                    current = jan1
+                    while current <= t_dt:
+                        if current.weekday() < 5:
+                            working_days += 1
+                        current += timedelta(days=1)
+                    est_settle_no = int(f"{t_dt.year}{working_days:03d}")
+                settle_no_var.set(str(est_settle_no))
+            except Exception as e:
+                logger.error("Error estimating settle no: %s", e)
+
             if "_recalculate_default_levies" in globals() or "_recalculate_default_levies" in locals():
                 _recalculate_default_levies()
         except Exception:
             pass
     trd_dt_entry.bind("<<DateEntrySelected>>", _on_trd_dt_change)
+    
+    # Initialize values
+    _on_trd_dt_change()
 
     # Row 2: Contract Note / Remark
     tk.Label(hdr_grid, text="Contract Note / Remark:", font=("Helvetica", 10), bg=bg_section, fg=fg_label).grid(
@@ -331,6 +385,21 @@ def add_trade_zerodha(
     type_var = tk.StringVar(value="BUY")
     type_combo = ttk.Combobox(tr_input_frame, textvariable=type_var, values=["BUY", "SELL"], width=6, state="readonly", font=("Helvetica", 11, "bold"))
     type_combo.grid(row=0, column=5, sticky="w", padx=4, pady=2)
+
+    def _update_available_shares(*args):
+        if type_var.get() == "SELL":
+            name = company_var.get().strip()
+            id_stk = company_to_id.get(name)
+            if id_stk is not None:
+                qty = fetch_holding_on_date(id_stk, "2099-12-31")
+                available_shares_var.set(f"Available for Selling: {qty}")
+            else:
+                available_shares_var.set("")
+        else:
+            available_shares_var.set("")
+
+    type_var.trace_add("write", _update_available_shares)
+    company_var.trace_add("write", _update_available_shares)
 
     # Exchange: NSE / BSE
     tk.Label(tr_input_frame, text="Exchange:", font=("Helvetica", 11), bg="#fef3c7").grid(row=0, column=6, sticky="w", padx=4, pady=2)
