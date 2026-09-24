@@ -307,7 +307,10 @@ def add_trade_zerodha(
                 _recalculate_default_levies()
         except Exception:
             pass
-    trd_dt_entry.bind("<<DateEntrySelected>>", _on_trd_dt_change)
+    trd_dt_entry.bind("<<DateEntrySelected>>", _on_trd_dt_change, add="+")
+    trd_dt_entry.bind("<FocusOut>", _on_trd_dt_change, add="+")
+    trd_dt_entry.bind("<KeyRelease-Up>", _on_trd_dt_change, add="+")
+    trd_dt_entry.bind("<KeyRelease-Down>", _on_trd_dt_change, add="+")
     
     # Initialize values
     _on_trd_dt_change()
