@@ -595,41 +595,9 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         table_frame = tk.Frame(ipo_win, bg=UI_THEME["bg_input"])
         table_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
-        columns = (
-            "ipo_name",
-            "issue_price",
-            "issue_size",
-            "min_lot",
-            "open_date",
-            "close_date",
-            "allotment_date",
-            "listing_date",
-            "gmp",
-            "bullish_brokerages",
-            "avoid_brokerages",
-        )
-
         ipo_tree = ttk.Treeview(
-            table_frame, columns=columns, show="headings", height=15, style="Watch.Treeview"
+            table_frame, show="headings", height=11, style="Watch.Treeview"
         )
-
-        col_specs = [
-            ("ipo_name", "IPO Name", 170, "w"),
-            ("issue_price", "Issue Price", 105, "center"),
-            ("issue_size", "Issue Size", 100, "center"),
-            ("min_lot", "Min Lot", 85, "center"),
-            ("open_date", "Open Date", 95, "center"),
-            ("close_date", "Close Date", 95, "center"),
-            ("allotment_date", "Allotment", 95, "center"),
-            ("listing_date", "Listing Date", 95, "center"),
-            ("gmp", "GMP", 110, "center"),
-            ("bullish_brokerages", "Bullish Brokerages (Apply)", 260, "w"),
-            ("avoid_brokerages", "Brokerages Suggesting Avoid", 220, "w"),
-        ]
-
-        for col_id, heading, width, anchor in col_specs:
-            ipo_tree.heading(col_id, text=heading)
-            ipo_tree.column(col_id, width=width, anchor=anchor, stretch=True)
 
         vsb = ttk.Scrollbar(
             table_frame, orient="vertical", command=ipo_tree.yview
@@ -647,7 +615,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
 
         # Detail bar at the bottom to read full brokerage lists when a row is clicked
         detail_var = tk.StringVar(
-            value="Tip: Click any IPO row to view the full list of Bullish and Avoid brokerage houses here."
+            value="Tip: Scroll horizontally to view all upcoming IPOs. Data is fetched live from Gemini."
         )
         detail_lbl = tk.Label(
             ipo_win,
@@ -669,11 +637,8 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 return
             vals = ipo_tree.item(selected[0], "values")
             if vals:
-                detail_var.set(
-                    f"IPO: {vals[0]}  |  GMP: {vals[8]}  |  "
-                    f"✅ Bullish (Apply): {vals[9]}  |  "
-                    f"❌ Avoid (Do Not Apply): {vals[10]}"
-                )
+                attr_name = vals[0]
+                detail_var.set(f"Viewing details for: {attr_name}")
 
         ipo_tree.bind("<<TreeviewSelect>>", on_ipo_row_select)
 
@@ -695,27 +660,40 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
             for item in ipo_tree.get_children():
                 ipo_tree.delete(item)
 
-            for ipo in ipo_list:
-                ipo_tree.insert(
-                    "",
-                    "end",
-                    values=(
-                        ipo.get("ipo_name", "N/A"),
-                        ipo.get("issue_price", "TBA"),
-                        ipo.get("issue_size", "TBA"),
-                        ipo.get("min_lot", "TBA"),
-                        ipo.get("open_date", "TBA"),
-                        ipo.get("close_date", "TBA"),
-                        ipo.get("allotment_date", "TBA"),
-                        ipo.get("listing_date", "TBA"),
-                        ipo.get("gmp", "N/A"),
-                        ipo.get("bullish_brokerages", "None yet"),
-                        ipo.get("avoid_brokerages", "None"),
-                    ),
-                )
+            columns = ["Attribute"] + [f"IPO_{i}" for i in range(len(ipo_list))]
+            ipo_tree["columns"] = columns
+
+            ipo_tree.heading("Attribute", text="IPO Detail")
+            ipo_tree.column("Attribute", width=180, anchor="w", stretch=False)
+
+            for i, ipo in enumerate(ipo_list):
+                col_name = f"IPO_{i}"
+                ipo_name = ipo.get("ipo_name", f"IPO {i+1}")
+                ipo_tree.heading(col_name, text=ipo_name)
+                ipo_tree.column(col_name, width=280, anchor="center", stretch=True)
+
+            rows_data = [
+                ("IPO Name", "ipo_name", "N/A"),
+                ("Issue Price", "issue_price", "TBA"),
+                ("Issue Size", "issue_size", "TBA"),
+                ("Min Lot", "min_lot", "TBA"),
+                ("Open Date", "open_date", "TBA"),
+                ("Close Date", "close_date", "TBA"),
+                ("Allotment", "allotment_date", "TBA"),
+                ("Listing Date", "listing_date", "TBA"),
+                ("GMP", "gmp", "N/A"),
+                ("Bullish Brokerages", "bullish_brokerages", "None yet"),
+                ("Avoid Brokerages", "avoid_brokerages", "None"),
+            ]
+
+            for label, key, default_val in rows_data:
+                row_values = [label]
+                for ipo in ipo_list:
+                    row_values.append(ipo.get(key, default_val))
+                ipo_tree.insert("", "end", values=row_values)
 
             ipo_status_lbl.config(
-                text=f"Loaded {len(ipo_list)} ongoing/upcoming IPO(s). Click any row to expand full brokerage names below.",
+                text=f"Loaded {len(ipo_list)} ongoing/upcoming IPO(s). Scroll horizontally to view all.",
                 fg="#4ade80",
             )
 
