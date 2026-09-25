@@ -70,10 +70,11 @@ def get_market_insight(scrip_name, technical_signal, api_key=None):
             f"You are a financial AI assisting a novice investor. "
             f"My local algorithmic scanner just flagged a '{technical_signal}' for the Indian stock {scrip_name}. "
             f"Using Google Search, find the latest news regarding this company and its sector. "
-            f"Write a 3-paragraph plain-English explanation. Paragraph 1: What this technical signal generally means in simple terms. "
+            f"Write a 5-paragraph plain-English explanation. Paragraph 1: What this technical signal generally means in simple terms. "
             f"Paragraph 2: A summary of the latest news/fundamentals for the company. "
             f"Paragraph 3: Any fundamental risks that might contradict the technical signal. "
             f"Paragraph 4: Overall, is it a 'BUY' advice? If so, why? If not, why not? Ignore any contradictory information."
+            f"Paragraph 5: Names of brokerages and projection by brokerages giving the recommendation and next steps for the investor."
         )
 
         # Use the 2.5 Flash model explicitly listed in your terminal, with Google Search Grounding enabled
@@ -92,7 +93,6 @@ def get_market_insight(scrip_name, technical_signal, api_key=None):
             or "429" in error_msg
             or "exhausted" in error_msg
         ):
-            AI_AVAILABLE = False
             return "[System] AI Analysis disabled: Free Tier Quota exhausted."
         elif (
             "permission" in error_msg
@@ -100,7 +100,6 @@ def get_market_insight(scrip_name, technical_signal, api_key=None):
             or "invalid api key" in error_msg
             or "403" in error_msg
         ):
-            AI_AVAILABLE = False
             return "[System] AI Analysis disabled: API access denied or Invalid Key."
         else:
             return f"[System] Temporary network error while contacting AI: {e}"
@@ -159,7 +158,6 @@ def get_portfolio_sell_advice(scrip_list, api_key=None):
             or "429" in error_msg
             or "exhausted" in error_msg
         ):
-            AI_AVAILABLE = False
             return "[System] AI Analysis disabled: Free Tier Quota exhausted."
         elif (
             "permission" in error_msg
@@ -167,7 +165,6 @@ def get_portfolio_sell_advice(scrip_list, api_key=None):
             or "invalid api key" in error_msg
             or "403" in error_msg
         ):
-            AI_AVAILABLE = False
             return "[System] AI Analysis disabled: API access denied or Invalid Key."
         else:
             return f"[System] Temporary network error while contacting AI: {e}"
@@ -225,7 +222,6 @@ def get_portfolio_buy_advice(scrip_list, api_key=None):
             or "429" in error_msg
             or "exhausted" in error_msg
         ):
-            AI_AVAILABLE = False
             return "[System] AI Analysis disabled: Free Tier Quota exhausted."
         elif (
             "permission" in error_msg
@@ -233,7 +229,6 @@ def get_portfolio_buy_advice(scrip_list, api_key=None):
             or "invalid api key" in error_msg
             or "403" in error_msg
         ):
-            AI_AVAILABLE = False
             return "[System] AI Analysis disabled: API access denied or Invalid Key."
         else:
             return f"[System] Temporary network error while contacting AI: {e}"
