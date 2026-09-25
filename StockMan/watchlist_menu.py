@@ -563,33 +563,37 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
     def open_ipo_advice_window():
         ipo_win = tk.Toplevel(win)
         ipo_win.title("IPO Advice — Ongoing & Next 30 Days (AI Grounded)")
-        ipo_win.geometry("1380x560")
-        ipo_win.configure(bg="#1e293b")
+        ipo_win.geometry("1400x950")
+        ipo_win.configure(bg=UI_THEME["bg_input"])
         ipo_win.bind("<Escape>", lambda e: ipo_win.destroy())
+        ipo_win.transient(win)
+        ipo_win.grab_set()
 
-        header_lbl = tk.Label(
-            ipo_win,
-            text="📈 Ongoing & Upcoming IPOs (Next 30 Days) — Brokerage Consensus & GMP",
-            font=("Helvetica", 14, "bold"),
-            bg="#1e293b",
+        # --- Header ---
+        header_frame = tk.Frame(ipo_win, bg=UI_THEME.get("bg_header", "#1e293b"))
+        header_frame.pack(fill="x")
+        tk.Label(
+            header_frame,
+            text="📈 ONGOING & UPCOMING IPOs (NEXT 30 DAYS)",
+            font=UI_THEME.get("font_bold", ("Helvetica", 16, "bold")),
+            bg=UI_THEME.get("bg_header", "#1e293b"),
             fg=UI_THEME.get("gold", "#FFD700"),
-            pady=10,
-        )
-        header_lbl.pack(fill="x")
+            pady=12,
+        ).pack()
 
         ipo_status_lbl = tk.Label(
             ipo_win,
             text="Contacting Gemini with Google Search to fetch live IPO schedules, GMP, and brokerage ratings...",
-            font=("Helvetica", 11, "italic"),
-            bg="#1e293b",
+            font=UI_THEME.get("font_main", ("Helvetica", 12)),
+            bg=UI_THEME["bg_input"],
             fg="#38bdf8",
             pady=4,
         )
         ipo_status_lbl.pack(fill="x")
 
         # Table Frame with Vertical & Horizontal Scrollbars
-        table_frame = tk.Frame(ipo_win, bg="#1e293b")
-        table_frame.pack(fill="both", expand=True, padx=12, pady=8)
+        table_frame = tk.Frame(ipo_win, bg=UI_THEME["bg_input"])
+        table_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
         columns = (
             "ipo_name",
@@ -606,7 +610,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         )
 
         ipo_tree = ttk.Treeview(
-            table_frame, columns=columns, show="headings", height=15
+            table_frame, columns=columns, show="headings", height=15, style="Watch.Treeview"
         )
 
         col_specs = [
@@ -648,16 +652,16 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         detail_lbl = tk.Label(
             ipo_win,
             textvariable=detail_var,
-            font=("Helvetica", 10),
-            bg="#0f172a",
-            fg="#e2e8f0",
+            font=UI_THEME.get("font_main", ("Helvetica", 12)),
+            bg=UI_THEME.get("bg_header", "#1e293b"),
+            fg=UI_THEME.get("gold", "#FFD700"),
             anchor="w",
             justify="left",
             wraplength=1340,
             padx=12,
             pady=8,
         )
-        detail_lbl.pack(fill="x", padx=12, pady=(0, 10))
+        detail_lbl.pack(fill="x", padx=15, pady=(0, 15))
 
         def on_ipo_row_select(event):
             selected = ipo_tree.selection()
