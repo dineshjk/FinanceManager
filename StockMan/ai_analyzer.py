@@ -77,9 +77,9 @@ def get_market_insight(scrip_name, technical_signal, api_key=None):
             f"Paragraph 5: Names of brokerages and projection by brokerages giving the recommendation and next steps for the investor."
         )
 
-        # Use the 2.5 Flash model explicitly listed in your terminal, with Google Search Grounding enabled
+        # Try Gemini Pro first
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-1.5-pro",
             contents=prompt,
             config=types.GenerateContentConfig(tools=[{"google_search": {}}]),
         )
@@ -93,7 +93,16 @@ def get_market_insight(scrip_name, technical_signal, api_key=None):
             or "429" in error_msg
             or "exhausted" in error_msg
         ):
-            return "[System] API Rate limit exceeded. Please wait a minute and try again (Free tier limit is 15 requests/min)."
+            try:
+                # Fallback to Gemini Flash
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(tools=[{"google_search": {}}]),
+                )
+                return response.text
+            except Exception as inner_e:
+                return "[System] API Rate limit exceeded on both Pro and Flash. Please wait a minute and try again (Free tier limit is 15 requests/min)." 
         elif (
             "permission" in error_msg
             or "400" in error_msg
@@ -282,8 +291,9 @@ def get_ipo_advice(api_key):
 
     try:
         client = genai.Client(api_key=api_key)
+        # Try Gemini Pro first
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-1.5-pro",
             contents=prompt,
             config=types.GenerateContentConfig(
                 tools=[{"google_search": {}}],
@@ -300,4 +310,24 @@ def get_ipo_advice(api_key):
         return {"error": "Could not parse structured IPO data from Gemini response."}
 
     except Exception as e:
+        error_msg = str(e).lower()
+        if "quota" in error_msg or "429" in error_msg or "exhausted" in error_msg:
+            try:
+                # Fallback to Gemini Flash
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        tools=[{"google_search": {}}],
+                        temperature=0.2,
+                    ),
+                )
+                raw_text = response.text.strip()
+                match = re.search(r"\[.*\]", raw_text, re.DOTALL)
+                if match:
+                    ipo_list = json.loads(match.group(0))
+                    return {"data": ipo_list}
+                return {"error": "Could not parse structured IPO data from Gemini (Flash fallback) response."}
+            except Exception as inner_e:
+                return {"error": f"[System] API Rate limit exceeded on both Pro and Flash. {inner_e}"}
         return {"error": f"[System] Error fetching IPO Advice: {e}"}
