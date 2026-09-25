@@ -95,19 +95,37 @@ def scan_watchlist_for_signals(watchlist):
             window=20
         ).sum() / df["Volume"].rolling(window=20).sum()
 
+        # MACD (12-day EMA, 26-day EMA, 9-day Signal EMA)
+        ema_12 = df["Close"].ewm(span=12, adjust=False).mean()
+        ema_26 = df["Close"].ewm(span=26, adjust=False).mean()
+        df["MACD"] = ema_12 - ema_26
+        df["MACD_Signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
+
+        # Bollinger Bandwidth & Prior 20-Day High
+        df["BB_Width"] = (df["BB_Upper"] - df["BB_Lower"]) / df["SMA_20"]
+        df["High_20"] = df["High"].shift(1).rolling(window=20).max()
+
         # Get the two most recent days to check for crossovers
         latest = df.iloc[-1]
         previous = df.iloc[-2]
 
         # --- TRIGGER LOGIC ---
 
-        # Trigger A: RSI is Oversold (below 30)
+        # Trigger A: RSI Extremes (Oversold below 30 or Overbought above 70)
         if latest["RSI"] < 30:
             alerts.append(
                 {
                     "scrip": scrip,
                     "signal": "RSI Oversold",
                     "details": f"RSI has dropped to {round(latest['RSI'], 2)}",
+                }
+            )
+        elif latest["RSI"] > 70:
+            alerts.append(
+                {
+                    "scrip": scrip,
+                    "signal": "RSI Overbought",
+                    "details": f"RSI has surged to {round(latest['RSI'], 2)} (potential profit-taking zone).",
                 }
             )
 
@@ -159,6 +177,39 @@ def scan_watchlist_for_signals(watchlist):
                     "scrip": scrip,
                     "signal": "Bullish VWAP Breakout",
                     "details": f"Price crossed above VWAP. (Suggested Stop-Loss: {round(latest['Close'] - latest['ATR_14'], 2)} based on ATR)",
+                }
+            )
+
+        # Trigger F: Bullish MACD Crossover
+        if (
+            previous["MACD"] <= previous["MACD_Signal"]
+            and latest["MACD"] > latest["MACD_Signal"]
+        ):
+            alerts.append(
+                {
+                    "scrip": scrip,
+                    "signal": "Bullish MACD Crossover",
+                    "details": "MACD line just crossed above the Signal line, indicating upward momentum.",
+                }
+            )
+
+        # Trigger G: Bollinger Band Squeeze (Bandwidth under 5%)
+        if latest["BB_Width"] < 0.05:
+            alerts.append(
+                {
+                    "scrip": scrip,
+                    "signal": "Bollinger Band Squeeze",
+                    "details": f"Volatility is tightly compressed (Bandwidth: {round(latest['BB_Width'] * 100, 2)}%), signaling a potential big move.",
+                }
+            )
+
+        # Trigger H: 20-Day High Breakout
+        if latest["Close"] > latest["High_20"]:
+            alerts.append(
+                {
+                    "scrip": scrip,
+                    "signal": "20-Day High Breakout",
+                    "details": f"Close ({round(latest['Close'], 2)}) broke above the previous 20-day high ({round(latest['High_20'], 2)}).",
                 }
             )
 

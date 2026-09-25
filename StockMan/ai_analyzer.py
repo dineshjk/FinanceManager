@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 # StockMan/ai_analyzer.py
 import os
+import json
+import re
 from google import genai
 from google.genai import types
 
@@ -17,7 +19,7 @@ def get_api_key():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(current_dir)
     key_file_path = os.path.join(project_root, "api_key.txt")
-    
+
     # 1. Try to read from api_key.txt
     if os.path.exists(key_file_path):
         try:
@@ -234,3 +236,72 @@ def get_portfolio_buy_advice(scrip_list, api_key=None):
             return "[System] AI Analysis disabled: API access denied or Invalid Key."
         else:
             return f"[System] Temporary network error while contacting AI: {e}"
+
+
+def get_ipo_advice(api_key):
+    """
+    Queries Gemini with Google Search grounding for ongoing and upcoming Indian IPOs
+    (next 30 days), including GMP and brokerage recommendations, returning a list of dicts.
+    """
+    global AI_AVAILABLE
+    if not AI_AVAILABLE:
+        return {"error": "[System] AI Analysis is disabled for this session."}
+
+    if not api_key or api_key == "YOUR_API_KEY_HERE":
+        return {"error": "[System] Valid Gemini API key required."}
+
+    prompt = (
+        "Search the web for all currently ongoing Indian mainboard IPOs and upcoming "
+        "Indian mainboard IPOs scheduled to open within the next 30 days. "
+        "For each IPO, find the following details:\n"
+        "1. IPO Name (Company Name)\n"
+        "2. Issue Price (price band in INR, e.g., '₹450 - ₹475')\n"
+        "3. Issue Size (in Cr, e.g., '₹1,200 Cr')\n"
+        "4. Minimum Lot (lot size / shares per lot, e.g., '30 Shares')\n"
+        "5. Open Date (e.g., '25 Sep 2026')\n"
+        "6. Close Date (e.g., '29 Sep 2026')\n"
+        "7. Allotment Date (e.g., '30 Sep 2026')\n"
+        "8. Listing Date (e.g., '02 Oct 2026')\n"
+        "9. Current GMP (Grey Market Premium in INR and estimated listing gain %, e.g., '+₹65 (14%)')\n"
+        "10. Brokerage houses that are BULLISH (suggesting 'Subscribe' or 'Apply')\n"
+        "11. Brokerage houses suggesting NOT TO APPLY ('Avoid' or 'Neutral/Skip')\n\n"
+        "Return ONLY a valid JSON array of objects with the exact keys below. "
+        "Do not include any introductory or concluding text outside the JSON array:\n"
+        "[\n"
+        "  {\n"
+        '    "ipo_name": "...",\n'
+        '    "issue_price": "...",\n'
+        '    "issue_size": "...",\n'
+        '    "min_lot": "...",\n'
+        '    "open_date": "...",\n'
+        '    "close_date": "...",\n'
+        '    "allotment_date": "...",\n'
+        '    "listing_date": "...",\n'
+        '    "gmp": "...",\n'
+        '    "bullish_brokerages": "Comma-separated list of bullish brokerages, or None yet",\n'
+        '    "avoid_brokerages": "Comma-separated list of avoid brokerages, or None"\n'
+        "  }\n"
+        "]"
+    )
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                tools=[{"google_search": {}}],
+                temperature=0.2,
+            ),
+        )
+        raw_text = response.text.strip()
+
+        # Extract JSON array even if wrapped in ```json ... ``` fences
+        match = re.search(r"\[.*\]", raw_text, re.DOTALL)
+        if match:
+            ipo_list = json.loads(match.group(0))
+            return {"data": ipo_list}
+        return {"error": "Could not parse structured IPO data from Gemini response."}
+
+    except Exception as e:
+        return {"error": f"[System] Error fetching IPO Advice: {e}"}

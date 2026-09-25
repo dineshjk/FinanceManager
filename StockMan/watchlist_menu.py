@@ -337,7 +337,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         try:
             t_buy = float(target_buy_var.get() or 0.0)
             t_sell = float(target_sell_var.get() or 0.0)
-        except ValueError:
+        except (ValueError, tk.TclError):
             show_colorful_error(
                 win, "Error", "Target prices must be valid numbers."
             )
@@ -560,6 +560,174 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         # Run scanner in background to prevent UI freezing while downloading
         threading.Thread(target=_scan_thread, daemon=True).start()
 
+    def open_ipo_advice_window():
+        ipo_win = tk.Toplevel(win)
+        ipo_win.title("IPO Advice — Ongoing & Next 30 Days (AI Grounded)")
+        ipo_win.geometry("1380x560")
+        ipo_win.configure(bg="#1e293b")
+        ipo_win.bind("<Escape>", lambda e: ipo_win.destroy())
+
+        header_lbl = tk.Label(
+            ipo_win,
+            text="📈 Ongoing & Upcoming IPOs (Next 30 Days) — Brokerage Consensus & GMP",
+            font=("Helvetica", 14, "bold"),
+            bg="#1e293b",
+            fg="#f8fafc",
+            pady=10,
+        )
+        header_lbl.pack(fill="x")
+
+        ipo_status_lbl = tk.Label(
+            ipo_win,
+            text="Contacting Gemini with Google Search to fetch live IPO schedules, GMP, and brokerage ratings...",
+            font=("Helvetica", 11, "italic"),
+            bg="#1e293b",
+            fg="#38bdf8",
+            pady=4,
+        )
+        ipo_status_lbl.pack(fill="x")
+
+        # Table Frame with Vertical & Horizontal Scrollbars
+        table_frame = tk.Frame(ipo_win, bg="#1e293b")
+        table_frame.pack(fill="both", expand=True, padx=12, pady=8)
+
+        columns = (
+            "ipo_name",
+            "issue_price",
+            "issue_size",
+            "min_lot",
+            "open_date",
+            "close_date",
+            "allotment_date",
+            "listing_date",
+            "gmp",
+            "bullish_brokerages",
+            "avoid_brokerages",
+        )
+
+        ipo_tree = ttk.Treeview(
+            table_frame, columns=columns, show="headings", height=15
+        )
+
+        col_specs = [
+            ("ipo_name", "IPO Name", 170, "w"),
+            ("issue_price", "Issue Price", 105, "center"),
+            ("issue_size", "Issue Size", 100, "center"),
+            ("min_lot", "Min Lot", 85, "center"),
+            ("open_date", "Open Date", 95, "center"),
+            ("close_date", "Close Date", 95, "center"),
+            ("allotment_date", "Allotment", 95, "center"),
+            ("listing_date", "Listing Date", 95, "center"),
+            ("gmp", "GMP", 110, "center"),
+            ("bullish_brokerages", "Bullish Brokerages (Apply)", 260, "w"),
+            ("avoid_brokerages", "Brokerages Suggesting Avoid", 220, "w"),
+        ]
+
+        for col_id, heading, width, anchor in col_specs:
+            ipo_tree.heading(col_id, text=heading)
+            ipo_tree.column(col_id, width=width, anchor=anchor, stretch=True)
+
+        vsb = ttk.Scrollbar(
+            table_frame, orient="vertical", command=ipo_tree.yview
+        )
+        hsb = ttk.Scrollbar(
+            table_frame, orient="horizontal", command=ipo_tree.xview
+        )
+        ipo_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+        ipo_tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb.grid(row=1, column=0, sticky="ew")
+        table_frame.grid_rowconfigure(0, weight=1)
+        table_frame.grid_columnconfigure(0, weight=1)
+
+        # Detail bar at the bottom to read full brokerage lists when a row is clicked
+        detail_var = tk.StringVar(
+            value="Tip: Click any IPO row to view the full list of Bullish and Avoid brokerage houses here."
+        )
+        detail_lbl = tk.Label(
+            ipo_win,
+            textvariable=detail_var,
+            font=("Helvetica", 10),
+            bg="#0f172a",
+            fg="#e2e8f0",
+            anchor="w",
+            justify="left",
+            wraplength=1340,
+            padx=12,
+            pady=8,
+        )
+        detail_lbl.pack(fill="x", padx=12, pady=(0, 10))
+
+        def on_ipo_row_select(event):
+            selected = ipo_tree.selection()
+            if not selected:
+                return
+            vals = ipo_tree.item(selected[0], "values")
+            if vals:
+                detail_var.set(
+                    f"IPO: {vals[0]}  |  GMP: {vals[8]}  |  "
+                    f"✅ Bullish (Apply): {vals[9]}  |  "
+                    f"❌ Avoid (Do Not Apply): {vals[10]}"
+                )
+
+        ipo_tree.bind("<<TreeviewSelect>>", on_ipo_row_select)
+
+        def _populate_ipo_tree(result):
+            if not ipo_win.winfo_exists():
+                return
+            if "error" in result:
+                ipo_status_lbl.config(text=result["error"], fg="#f87171")
+                return
+
+            ipo_list = result.get("data", [])
+            if not ipo_list:
+                ipo_status_lbl.config(
+                    text="No ongoing or upcoming IPOs found for the next 30 days.",
+                    fg="#fbbf24",
+                )
+                return
+
+            for item in ipo_tree.get_children():
+                ipo_tree.delete(item)
+
+            for ipo in ipo_list:
+                ipo_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        ipo.get("ipo_name", "N/A"),
+                        ipo.get("issue_price", "TBA"),
+                        ipo.get("issue_size", "TBA"),
+                        ipo.get("min_lot", "TBA"),
+                        ipo.get("open_date", "TBA"),
+                        ipo.get("close_date", "TBA"),
+                        ipo.get("allotment_date", "TBA"),
+                        ipo.get("listing_date", "TBA"),
+                        ipo.get("gmp", "N/A"),
+                        ipo.get("bullish_brokerages", "None yet"),
+                        ipo.get("avoid_brokerages", "None"),
+                    ),
+                )
+
+            ipo_status_lbl.config(
+                text=f"Loaded {len(ipo_list)} ongoing/upcoming IPO(s). Click any row to expand full brokerage names below.",
+                fg="#4ade80",
+            )
+
+        def _fetch_ipo_thread():
+            try:
+                from . import ai_analyzer
+            except ImportError:
+                import ai_analyzer
+
+            API_KEY = ai_analyzer.get_api_key()
+            result = ai_analyzer.get_ipo_advice(API_KEY)
+            if ipo_win.winfo_exists():
+                ipo_win.after(0, _populate_ipo_tree, result)
+
+        threading.Thread(target=_fetch_ipo_thread, daemon=True).start()
+
     scan_btn = tk.Button(
         bottom_frame,
         text="📊 Scan Technicals",
@@ -570,6 +738,17 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         cursor="hand2",
     )
     scan_btn.pack(side="right", padx=10)
+
+    ipo_btn = tk.Button(
+        bottom_frame,
+        text="🏛️ IPO Advice",
+        command=open_ipo_advice_window,
+        font=("Helvetica", 12, "bold"),
+        bg="#0ea5e9",
+        fg="white",
+        cursor="hand2",
+    )
+    ipo_btn.pack(side="right", padx=10)
 
     def run_portfolio_sell_scan():
         # Open Toplevel modal window
@@ -1397,6 +1576,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
     apply_button_animations(close_btn, "#475569", "#334155")
     apply_button_animations(add_comp_btn, "#10b981", "#059669")
     apply_button_animations(scan_btn, "#8b5cf6", "#7c3aed")
+    apply_button_animations(ipo_btn, "#0ea5e9", "#0284c7")
     apply_button_animations(ai_sell_btn, "#d97706", "#b45309")
     apply_button_animations(ai_buy_btn, "#059669", "#047857")
 
