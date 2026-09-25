@@ -72,7 +72,8 @@ def get_market_insight(scrip_name, technical_signal, api_key=None):
             f"Using Google Search, find the latest news regarding this company and its sector. "
             f"Write a 3-paragraph plain-English explanation. Paragraph 1: What this technical signal generally means in simple terms. "
             f"Paragraph 2: A summary of the latest news/fundamentals for the company. "
-            f"Paragraph 3: Any fundamental risks that might contradict the technical signal."
+            f"Paragraph 3: Any fundamental risks that might contradict the technical signal. "
+            f"Paragraph 4: Overall, is it a 'BUY' advice? If so, why? If not, why not? Ignore any contradictory information."
         )
 
         # Use the 2.5 Flash model explicitly listed in your terminal, with Google Search Grounding enabled
