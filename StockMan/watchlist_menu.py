@@ -572,7 +572,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
             text="📈 Ongoing & Upcoming IPOs (Next 30 Days) — Brokerage Consensus & GMP",
             font=("Helvetica", 14, "bold"),
             bg="#1e293b",
-            fg="#f8fafc",
+            fg=UI_THEME.get("gold", "#FFD700"),
             pady=10,
         )
         header_lbl.pack(fill="x")
