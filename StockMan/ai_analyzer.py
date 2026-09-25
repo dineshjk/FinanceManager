@@ -93,14 +93,14 @@ def get_market_insight(scrip_name, technical_signal, api_key=None):
             or "429" in error_msg
             or "exhausted" in error_msg
         ):
-            return "[System] AI Analysis disabled: Free Tier Quota exhausted."
+            return "[System] API Rate limit exceeded. Please wait a minute and try again (Free tier limit is 15 requests/min)."
         elif (
             "permission" in error_msg
             or "400" in error_msg
             or "invalid api key" in error_msg
             or "403" in error_msg
         ):
-            return "[System] AI Analysis disabled: API access denied or Invalid Key."
+            return "[System] API access denied or Invalid Key. Please check your api_key.txt file."
         else:
             return f"[System] Temporary network error while contacting AI: {e}"
 
@@ -158,14 +158,14 @@ def get_portfolio_sell_advice(scrip_list, api_key=None):
             or "429" in error_msg
             or "exhausted" in error_msg
         ):
-            return "[System] AI Analysis disabled: Free Tier Quota exhausted."
+            return "[System] API Rate limit exceeded. Please wait a minute and try again (Free tier limit is 15 requests/min)."
         elif (
             "permission" in error_msg
             or "400" in error_msg
             or "invalid api key" in error_msg
             or "403" in error_msg
         ):
-            return "[System] AI Analysis disabled: API access denied or Invalid Key."
+            return "[System] API access denied or Invalid Key. Please check your api_key.txt file."
         else:
             return f"[System] Temporary network error while contacting AI: {e}"
 
@@ -222,14 +222,14 @@ def get_portfolio_buy_advice(scrip_list, api_key=None):
             or "429" in error_msg
             or "exhausted" in error_msg
         ):
-            return "[System] AI Analysis disabled: Free Tier Quota exhausted."
+            return "[System] API Rate limit exceeded. Please wait a minute and try again (Free tier limit is 15 requests/min)."
         elif (
             "permission" in error_msg
             or "400" in error_msg
             or "invalid api key" in error_msg
             or "403" in error_msg
         ):
-            return "[System] AI Analysis disabled: API access denied or Invalid Key."
+            return "[System] API access denied or Invalid Key. Please check your api_key.txt file."
         else:
             return f"[System] Temporary network error while contacting AI: {e}"
 
