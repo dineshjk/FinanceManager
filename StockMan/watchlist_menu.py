@@ -595,8 +595,36 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         table_frame = tk.Frame(ipo_win, bg=UI_THEME["bg_input"])
         table_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
+        columns = (
+            "ipo_name",
+            "issue_price",
+            "issue_size",
+            "min_lot",
+            "open_date",
+            "close_date",
+            "allotment_date",
+            "listing_date",
+            "gmp",
+            "bullish_brokerages",
+            "avoid_brokerages",
+        )
+
+        col_headers = {
+            "ipo_name": "IPO Name",
+            "issue_price": "Issue Price",
+            "issue_size": "Issue Size",
+            "min_lot": "Min Lot",
+            "open_date": "Open Date",
+            "close_date": "Close Date",
+            "allotment_date": "Allotment",
+            "listing_date": "Listing Date",
+            "gmp": "GMP",
+            "bullish_brokerages": "Bullish Brokerages (Apply)",
+            "avoid_brokerages": "Brokerages Suggesting Avoid",
+        }
+
         ipo_tree = ttk.Treeview(
-            table_frame, show="headings", height=11, style="Watch.Treeview"
+            table_frame, columns=columns, show="headings", height=15, style="Watch.Treeview"
         )
 
         vsb = ttk.Scrollbar(
@@ -615,7 +643,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
 
         # Detail bar at the bottom to read full brokerage lists when a row is clicked
         detail_var = tk.StringVar(
-            value="Tip: Scroll horizontally to view all upcoming IPOs. Data is fetched live from Gemini."
+            value="Tip: Click any IPO row to view the full list of Bullish and Avoid brokerage houses here."
         )
         detail_lbl = tk.Label(
             ipo_win,
@@ -637,8 +665,11 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 return
             vals = ipo_tree.item(selected[0], "values")
             if vals:
-                attr_name = vals[0]
-                detail_var.set(f"Viewing details for: {attr_name}")
+                detail_var.set(
+                    f"IPO: {vals[0]}  |  GMP: {vals[8]}  |  "
+                    f"✅ Bullish (Apply): {vals[9]}  |  "
+                    f"❌ Avoid (Do Not Apply): {vals[10]}"
+                )
 
         ipo_tree.bind("<<TreeviewSelect>>", on_ipo_row_select)
 
@@ -660,40 +691,34 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
             for item in ipo_tree.get_children():
                 ipo_tree.delete(item)
 
-            columns = ["Attribute"] + [f"IPO_{i}" for i in range(len(ipo_list))]
-            ipo_tree["columns"] = columns
+            import tkinter.font as tkfont
+            font_obj = tkfont.Font(font=UI_THEME.get("font_main", ("Helvetica", 12)))
+            bold_font_obj = tkfont.Font(font=UI_THEME.get("font_bold", ("Helvetica", 12, "bold")))
+            
+            # Start column widths at the size of their headers + margin
+            col_widths = {col: bold_font_obj.measure(col_headers[col]) + 40 for col in columns}
 
-            ipo_tree.heading("Attribute", text="IPO Detail")
-            ipo_tree.column("Attribute", width=180, anchor="w", stretch=False)
+            for ipo in ipo_list:
+                vals = []
+                for col in columns:
+                    val_str = str(ipo.get(col, "N/A" if col in ["ipo_name", "gmp"] else ("None" if "brokerages" in col else "TBA")))
+                    vals.append(val_str)
+                    
+                    # Update max width
+                    width = font_obj.measure(val_str) + 40
+                    if width > col_widths[col]:
+                        col_widths[col] = width
+                        
+                ipo_tree.insert("", "end", values=tuple(vals))
 
-            for i, ipo in enumerate(ipo_list):
-                col_name = f"IPO_{i}"
-                ipo_name = ipo.get("ipo_name", f"IPO {i+1}")
-                ipo_tree.heading(col_name, text=ipo_name)
-                ipo_tree.column(col_name, width=280, anchor="center", stretch=True)
-
-            rows_data = [
-                ("IPO Name", "ipo_name", "N/A"),
-                ("Issue Price", "issue_price", "TBA"),
-                ("Issue Size", "issue_size", "TBA"),
-                ("Min Lot", "min_lot", "TBA"),
-                ("Open Date", "open_date", "TBA"),
-                ("Close Date", "close_date", "TBA"),
-                ("Allotment", "allotment_date", "TBA"),
-                ("Listing Date", "listing_date", "TBA"),
-                ("GMP", "gmp", "N/A"),
-                ("Bullish Brokerages", "bullish_brokerages", "None yet"),
-                ("Avoid Brokerages", "avoid_brokerages", "None"),
-            ]
-
-            for label, key, default_val in rows_data:
-                row_values = [label]
-                for ipo in ipo_list:
-                    row_values.append(ipo.get(key, default_val))
-                ipo_tree.insert("", "end", values=row_values)
+            # Apply final calculated widths and headers
+            for col in columns:
+                anchor = "w" if col in ("ipo_name", "bullish_brokerages", "avoid_brokerages") else "center"
+                ipo_tree.heading(col, text=col_headers[col])
+                ipo_tree.column(col, width=col_widths[col], anchor=anchor, stretch=False)
 
             ipo_status_lbl.config(
-                text=f"Loaded {len(ipo_list)} ongoing/upcoming IPO(s). Scroll horizontally to view all.",
+                text=f"Loaded {len(ipo_list)} ongoing/upcoming IPO(s). Click any row to expand full brokerage names below.",
                 fg="#4ade80",
             )
 
