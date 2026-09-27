@@ -886,8 +886,11 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 tree_container = tk.Frame(ai_win, bg=UI_THEME["bg_input"])
                 tree_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
-                tree_scroll = ttk.Scrollbar(tree_container)
+                tree_scroll = ttk.Scrollbar(tree_container, orient="vertical")
                 tree_scroll.pack(side="right", fill="y")
+
+                h_scroll = ttk.Scrollbar(tree_container, orient="horizontal")
+                h_scroll.pack(side="bottom", fill="x")
 
                 advice_cols = ("WL", "Scrip", "Broker House", "Advice", "Date of Report")
                 advice_tree = ttk.Treeview(
@@ -895,9 +898,11 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     columns=advice_cols,
                     show="headings",
                     yscrollcommand=tree_scroll.set,
+                    xscrollcommand=h_scroll.set,
                     style="Watch.Treeview",
                 )
                 tree_scroll.config(command=advice_tree.yview)
+                h_scroll.config(command=advice_tree.xview)
                 advice_tree.pack(side="left", fill="both", expand=True)
 
                 # Configure Columns & Sorting
@@ -910,13 +915,13 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     if col == "WL":
                         advice_tree.column(col, width=40, anchor="center", stretch=False)
                     elif col == "Scrip":
-                        advice_tree.column(col, width=150, anchor="w")
+                        advice_tree.column(col, anchor="w", stretch=False)
                     elif col == "Broker House":
-                        advice_tree.column(col, width=250, anchor="w")
+                        advice_tree.column(col, anchor="w", stretch=False)
                     elif col == "Advice":
-                        advice_tree.column(col, width=250, anchor="w")
+                        advice_tree.column(col, anchor="w", stretch=False)
                     elif col == "Date of Report":
-                        advice_tree.column(col, width=150, anchor="center")
+                        advice_tree.column(col, anchor="center", stretch=False)
 
                 header_seen = False
                 for line in table_lines:
@@ -950,6 +955,21 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     else:
                         row_values = ("",) + tuple(parts[:4])
                         advice_tree.insert("", "end", values=row_values)
+
+                # Autosize columns based on contents
+                import tkinter.font as tkfont
+                font = tkfont.nametofont("TkDefaultFont")
+                for col in advice_cols:
+                    if col == "WL":
+                        continue
+                    max_width = font.measure(col) + 20
+                    for item in advice_tree.get_children():
+                        val = advice_tree.set(item, col)
+                        if val:
+                            width = font.measure(str(val)) + 20
+                            if width > max_width:
+                                max_width = width
+                    advice_tree.column(col, width=max_width)
 
                 def on_advice_double_click(event):
                     region = advice_tree.identify("region", event.x, event.y)
@@ -1141,8 +1161,11 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 tree_container = tk.Frame(ai_win, bg=UI_THEME["bg_input"])
                 tree_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
-                tree_scroll = ttk.Scrollbar(tree_container)
+                tree_scroll = ttk.Scrollbar(tree_container, orient="vertical")
                 tree_scroll.pack(side="right", fill="y")
+
+                h_scroll = ttk.Scrollbar(tree_container, orient="horizontal")
+                h_scroll.pack(side="bottom", fill="x")
 
                 advice_cols = ("WL", "Scrip", "Buy Price Band", "Target Price", "Target Period", "Broker House", "Date of Report")
                 advice_tree = ttk.Treeview(
@@ -1150,9 +1173,11 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     columns=advice_cols,
                     show="headings",
                     yscrollcommand=tree_scroll.set,
+                    xscrollcommand=h_scroll.set,
                     style="Watch.Treeview",
                 )
                 tree_scroll.config(command=advice_tree.yview)
+                h_scroll.config(command=advice_tree.xview)
                 advice_tree.pack(side="left", fill="both", expand=True)
 
                 # Configure Columns & Sorting
@@ -1165,17 +1190,17 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     if col == "WL":
                         advice_tree.column(col, width=40, anchor="center", stretch=False)
                     elif col == "Scrip":
-                        advice_tree.column(col, width=120, anchor="w")
+                        advice_tree.column(col, anchor="w", stretch=False)
                     elif col == "Buy Price Band":
-                        advice_tree.column(col, width=120, anchor="e")
+                        advice_tree.column(col, anchor="e", stretch=False)
                     elif col == "Target Price":
-                        advice_tree.column(col, width=110, anchor="e")
+                        advice_tree.column(col, anchor="e", stretch=False)
                     elif col == "Target Period":
-                        advice_tree.column(col, width=120, anchor="center")
+                        advice_tree.column(col, anchor="center", stretch=False)
                     elif col == "Broker House":
-                        advice_tree.column(col, width=220, anchor="w")
+                        advice_tree.column(col, anchor="w", stretch=False)
                     elif col == "Date of Report":
-                        advice_tree.column(col, width=120, anchor="center")
+                        advice_tree.column(col, anchor="center", stretch=False)
 
                 for line in table_lines:
                     parts = [p.strip() for p in line.split("|")[1:-1]]
@@ -1208,6 +1233,21 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     else:
                         row_values = ("",) + tuple(parts[:6])
                         advice_tree.insert("", "end", values=row_values)
+
+                # Autosize columns based on contents
+                import tkinter.font as tkfont
+                font = tkfont.nametofont("TkDefaultFont")
+                for col in advice_cols:
+                    if col == "WL":
+                        continue
+                    max_width = font.measure(col) + 20
+                    for item in advice_tree.get_children():
+                        val = advice_tree.set(item, col)
+                        if val:
+                            width = font.measure(str(val)) + 20
+                            if width > max_width:
+                                max_width = width
+                    advice_tree.column(col, width=max_width)
 
                 def on_advice_double_click(event):
                     region = advice_tree.identify("region", event.x, event.y)

@@ -34,3 +34,4 @@ scratch/
 
 # Test Queries and Scratch Scripts
 test_query*.py
+local_tests/

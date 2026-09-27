@@ -2404,6 +2404,11 @@ def add_trade(
                 "Company Not Found",
                 f"The company '{name}' was not found. Would you like to add it now?",
             )
+            try:
+                if not rat_win.winfo_exists():
+                    return
+            except (tk.TclError, NameError):
+                return
             if response:
                 add_company(rat_win)
                 export_company(rat_win)

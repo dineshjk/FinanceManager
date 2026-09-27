@@ -47,6 +47,7 @@ from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 from .date_utils import next_working_day
 from .company_add import add_company
+from .company_ex_import import export_company
 from .trade_utils import (
     compute_avg_price,
     enforce_no_oversell_for_stock,
@@ -380,8 +381,51 @@ def add_trade_zerodha(
             isin_var.set(company_to_isin[name])
         else:
             isin_var.set("")
+
+    def _on_company_focus_out(_event=None):
+        try:
+            if not win.winfo_exists():
+                return
+        except (tk.TclError, NameError):
+            return
+        name = company_var.get().strip()
+        if not name:
+            return
+        _on_company_select()
+        if not isin_var.get().strip():
+            response = show_colorful_yesno(
+                win,
+                "Company Not Found",
+                f"The company '{name}' was not found. Would you like to add it now?",
+            )
+            try:
+                if not win.winfo_exists():
+                    return
+            except (tk.TclError, NameError):
+                return
+
+            if response:
+                add_company(win, initial_company_name=name)
+                export_company(win)
+                _reload_stock_lookups()
+                company_combo["values"] = company_names
+                progressive_selection(company_combo, company_names)
+                company_combo.focus_set()
+                # Ensure the newly added company's details are populated
+                if name in company_names:
+                    company_var.set(name)
+                    _on_company_select()
+            else:
+                show_colorful_error(
+                    win,
+                    "Invalid Company",
+                    "You cannot change company here. Please select a company from the Company menu.",
+                )
+                company_combo.focus_set()
+                company_combo.select_range(0, "end")
+
     company_combo.bind("<<ComboboxSelected>>", _on_company_select)
-    company_combo.bind("<FocusOut>", _on_company_select)
+    company_combo.bind("<FocusOut>", _on_company_focus_out)
 
     # Type: BUY / SELL
     tk.Label(tr_input_frame, text="Type:", font=("Helvetica", 11, "bold"), bg="#fef3c7").grid(row=0, column=4, sticky="w", padx=4, pady=2)
@@ -528,6 +572,7 @@ def add_trade_zerodha(
             )
             if prompt:
                 add_company(win, initial_company_name=c_name)
+                export_company(win)
                 _reload_stock_lookups()
                 company_combo["values"] = company_names
                 progressive_selection(company_combo, company_names)
