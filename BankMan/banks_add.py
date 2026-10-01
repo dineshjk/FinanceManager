@@ -19,6 +19,7 @@ from Shared.gui_utils import (
 from Shared.dialog_utils import show_colorful_info, show_colorful_error
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import db_add_bank as _db_add_bank
 from Shared.globals import logger
 
@@ -28,98 +29,41 @@ from Shared.globals import logger
 
 
 def show_help(ba_win: tk.Toplevel, on_escape) -> None:
-    """Launch the help sub-window for the Bank Entry dialog."""
-    ba_win.unbind("<Escape>")
-
-    help_win = tk.Toplevel(ba_win)
-    try:
-        help_win.transient(ba_win)
-    except (tk.TclError, AttributeError) as _exc:
-        logger.debug("help_win.transient failed: %s", _exc)
-    help_win.title("Help — Bank Entry")
-
-    # Using Theme Dictionary
-    help_win.configure(bg=BANK_ADD_UI_THEME["help_bg"])
-    help_win.geometry("640x620")
-    help_win.resizable(False, False)
-    help_win.grab_set()
-    push_window(help_win, ba_win)
-    try:
-        help_win.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        help_win,
-        text="Bank Entry Help",
-        font=("Helvetica", 16, "bold"),
-        bg=BANK_ADD_UI_THEME["help_header_bg"],  # Using Theme Dictionary
-        fg="white",
-        pady=8,
-    ).pack(fill="x")
-
-    body = tk.Frame(
-        help_win, bg=BANK_ADD_UI_THEME["help_bg"], padx=12, pady=12
-    )  # Using Theme Dictionary
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg=BANK_ADD_UI_THEME["help_bg"],  # Using Theme Dictionary
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=12,
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "• This is a data entry form for a new bank.",
+    """Launch the standardized help sub-window for the Bank Entry dialog."""
+    
+    guide_lines = [
+        "This form registers a new financial institution in your database.",
         "",
         "Fields:",
-        "  Bank Name (required): Full legal name of the institution.",
-        "  Branch (optional): Branch name or location.",
-        "  IFSC (optional): 11-character RBI code, e.g. SBIN0001234.",
-        "  MICR (optional): 9-digit code printed on cheque leaves.",
-        "  Cust ID (optional): Customer ID / User ID for online banking.",
+        "• Bank Name (Required): The full legal name of the institution.",
+        "• Branch (Optional): The physical branch location. Can be left blank for digital accounts.",
+        "• IFSC (Optional): The 11-character alphanumeric code assigned by the RBI.",
+        "• MICR (Optional): The 9-digit code printed on cheque leaves.",
+        "• Cust ID (Optional): Your Customer ID or User ID for online banking login.",
         "",
         "Hotkeys:",
-        "  F1: This screen (Help)",
-        "  F2: Session Banks",
-        "  Escape: Rollback the Current Bank Entry and Close",
-        "  Enter/Space: Execute button or Advance field",
+        "• F2: View Session Banks (Banks added during this session)",
+        "• Escape: Cancel and Close",
+        "• Ctrl+Enter: Submit Form"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(help_win, ba_win)
-        ba_win.bind("<Control-Return>", lambda e: submit_button.invoke())
-        ba_win.bind("<Escape>", on_escape)
-        return "break"
-
-    help_win.bind("<Control-Return>", lambda e: submit_button.invoke())
-    help_win.bind("<Escape>", close_help)
-    help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-    btn = tk.Button(
-        help_win,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=BANK_ADD_UI_THEME["help_btn_bg"],  # Using Theme Dictionary
-        fg="white",
-        padx=12,
-        pady=6,
-        cursor="hand2",
+    
+    faq_data = [
+        (
+            "Q: Can I add non-bank entities here (like 'Cash' or 'Friends')?",
+            "A: Yes! To track cash or friendly loans, you can create a pseudo-bank named 'My Home' or 'Friends & Family Ledger' here. Later, create specific Accounts under it."
+        ),
+        (
+            "Q: What if I make a mistake while typing the IFSC code?",
+            "A: You can always fix it later! Just go to 'Manage Master' -> 'Bank' from the main menu, select the bank, and click 'Edit Selected'."
+        )
+    ]
+    
+    show_standard_help(
+        parent=ba_win,
+        title="Bank Entry Help",
+        guide_lines=guide_lines,
+        faq_data=faq_data
     )
-    btn.pack(side="bottom", pady=10)
-    try:
-        btn.focus_set()
-    except tk.TclError:
-        pass
 
 
 def show_session_banks(
@@ -531,7 +475,7 @@ def add_bank(
         ),
     )
 
-    ba_win.bind("<F1>", lambda e: show_help(ba_win, on_escape))
+    ba_win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (show_help(ba_win, on_escape)))
     ba_win.bind(
         "<F2>",
         lambda e: show_session_banks(ba_win, current_session_banks, on_escape),

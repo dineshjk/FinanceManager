@@ -18,8 +18,8 @@ from Shared.dialog_utils import show_colorful_info, show_colorful_error
 from .validation_utils import ValidationError, show_validation_error
 from Shared.gui_progressive import progressive_selection
 from Shared.globals import get_db_connection, logger
-from Shared.window_manager import push_window, pop_window, safe_close_modal
-from Shared.modal_utils import disable_parent, enable_parent
+from Shared.window_manager import push_window, safe_close_modal
+from Shared.modal_utils import disable_parent
 from Shared.gui_utils import (
     apply_entry_theme,
     bind_tooltip,
@@ -41,7 +41,7 @@ def update_company(
     required_color = "#dc143c"
 
     # Create modal and register
-    modal_id = disable_parent(parent, calling_button=calling_button)
+    disable_parent(parent, calling_button=calling_button)
     uc = tk.Toplevel(parent)
     uc.title("\U0001f4dd Update Company")
     uc.geometry("1050x700")
@@ -692,6 +692,9 @@ def update_company(
     parent.wait_window(uc)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")

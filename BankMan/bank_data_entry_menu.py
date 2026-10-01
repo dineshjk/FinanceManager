@@ -5,15 +5,34 @@
 Data entry menu for the BankMan application.
 """
 
-import tkinter as tk
 from Shared.menu_factory import create_menu_window
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
+from Shared.help_utils import show_standard_help
 from .banks_add import add_bank
 from .budget_head_add import add_account_type_main
 from .accounts_add import add_account_main
 from .accounts_edit import edit_account
 from .bank_transactions_add import add_bank_transaction_main
+
+
+def _get_bank_data_entry_help_data():
+    guide_lines = [
+        "This menu is specifically for logging new bank-related masters and passbook entries.",
+        "",
+        "• Add Bank: Register a new financial institution (e.g., HDFC, SBI).",
+        "• Add Budget Category: Create new Income or Expense heads for tracking.",
+        "• Add Account: Register a new Savings, Current, or Overdraft account.",
+        "• Edit Account: Quickly fix account details without navigating to Manage Master.",
+        "• Add Transaction: Open the passbook entry form to log deposits, withdrawals, and asset transfers."
+    ]
+    faq_data = [
+        (
+            "Q: How do I add a new Mutual Fund, Insurance Policy, or FD from here?",
+            "A: Click on 'Add Transaction'. When logging your bank entry, select the respective Module Type (MF, INS, FD) and use the 'New' button to create the master record on the fly!"
+        )
+    ]
+    return guide_lines, faq_data
 
 
 def show_data_entry_menu(parent, come_back_index=None):
@@ -77,7 +96,20 @@ def show_data_entry_menu(parent, come_back_index=None):
     # When the modal window's close button (X) is clicked, handle it gracefully
     bank_data_window.protocol("WM_DELETE_WINDOW", close_modal)
 
+    def _show_help(_e=None):
+        guide, faq = _get_bank_data_entry_help_data()
+        show_standard_help(
+            parent=bank_data_window,
+            title="Bank Data Entry Help",
+            guide_lines=guide,
+            faq_data=faq
+        )
+    bank_data_window.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+
     push_window(bank_data_window, parent)
     parent.wait_window(bank_data_window)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(modal_id)

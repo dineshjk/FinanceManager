@@ -15,7 +15,6 @@ Provides access to:
 
 import tkinter as tk
 from typing import Union
-from Shared.dialog_utils import show_colorful_info
 
 from .corp_manager import show_corp_manager
 from .dividend import add_dividend
@@ -26,6 +25,7 @@ from .demerger_entry import add_demerger
 from Shared.menu_factory import create_menu_window
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
+from Shared.help_utils import show_standard_help
 
 DEFAULT_GEOMETRY = "400x400"
 
@@ -74,6 +74,20 @@ def show_add_corp_menu(menu=None, button=None):
 
     show_add_corp_menu_modal(parent, come_back_index=idx)
 
+
+def _get_add_corp_help_data():
+    guide = [
+        "Choose the specific type of corporate event declared by the company.",
+        "• Dividend: Record standard cash payouts.",
+        "• Bonus Issue: Record free additional shares given to current shareholders.",
+        "• Share Split: Record a face-value split that increases your quantity and reduces your average price.",
+        "• Merger / Demerger: Restructure holdings when a company amalgamates or spins off a new entity."
+    ]
+    faq = [(
+        "Q: How do I handle Fractional Shares during a split or bonus?",
+        "A: If a corporate action results in fractional shares, record only the whole shares here. The company will eventually cash out the fractional remainder directly to your bank account, which you should log manually."
+    )]
+    return guide, faq
 
 def show_add_corp_menu_modal(
     parent: Union[tk.Tk, tk.Toplevel], come_back_index: int | None = None
@@ -134,9 +148,18 @@ def show_add_corp_menu_modal(
         "come_back_index": come_back_index,
     }
     add_corp_win, _ = create_menu_window(menu_config)
+    
+    def _show_add_help(e=None):
+        guide, faq = _get_add_corp_help_data()
+        show_standard_help(add_corp_win, "Add Corporate Action Help", guide, faq)
+    add_corp_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_add_help(e))
+
     push_window(add_corp_win, parent)
     parent.wait_window(add_corp_win)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(modal_id)
 
 
@@ -205,6 +228,20 @@ def show_add_corp_menu_modal(
 #     enable_parent(modal_id)
 
 
+def _get_corp_hub_help_data():
+    guide = [
+        "This is your primary hub for managing corporate events that affect your portfolio structure.",
+        "• Add Corporate Action: Open the sub-menu to record a Dividend, Bonus, Split, or Merger.",
+        "• Demerger: A direct shortcut to record a corporate spin-off.",
+        "• Manage / Edit / Remove: Open the Manager grid to review, edit, or delete historical corporate actions."
+    ]
+    faq = [(
+        "Q: Do these actions automatically update my portfolio balance?",
+        "A: Yes! When you log a Bonus or Split here, the system automatically adjusts your holding quantity and average purchase price in your reports."
+    )]
+    return guide, faq
+
+
 def show_corporate_menu_modal(parent, come_back_index=None):
     """Show the corporate actions management menu as a modal window.
 
@@ -251,7 +288,16 @@ def show_corporate_menu_modal(parent, come_back_index=None):
         "come_back_index": come_back_index,
     }
     corp_win, _ = create_menu_window(menu_config)
+    
+    def _show_hub_help(e=None):
+        guide, faq = _get_corp_hub_help_data()
+        show_standard_help(corp_win, "Corporate Actions Hub Help", guide, faq)
+    corp_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_hub_help(e))
+
     push_window(corp_win, parent)
     parent.wait_window(corp_win)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(modal_id)

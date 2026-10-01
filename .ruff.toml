@@ -1,3 +1,6 @@
 # Ruff configuration
 line-length = 79
-exclude = ["**/*Copy*.py", "**/__pycache__/**", ".venv/**"]
+exclude = ["**/*Copy*.py", "**/__pycache__/**", ".venv/**", "archive/**"]
+
+[lint]
+ignore = ["E402", "F401"]

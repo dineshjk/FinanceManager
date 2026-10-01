@@ -7,7 +7,8 @@ Database utility functions for the BankMan module.
 
 import sqlite3
 from datetime import date
-from Shared.globals import BANK_DB_PATH, get_db_connection
+import os
+from Shared.globals import BANK_DB_PATH, STOCK_DB_PATH, get_db_connection
 
 
 def get_all_banks():
@@ -516,7 +517,40 @@ def add_bank_transaction(data: dict) -> None:
                 amount,
                 drcr,
             )
-        elif module_type in ("STOCK_COMP", "STOCK_ACTU", "MF"):
+        
+        elif module_type == "MF" and master_id is not None:
+            cursor.execute(
+                "INSERT INTO mf_transactions "
+                "(mf_master_id, account_id, mf_trans_dt, mf_description, mf_purchase, mf_redemption) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    master_id,
+                    account_id,
+                    trans_date,
+                    data.get("user_desc") or bank_desc,
+                    withdrawal_amount,
+                    deposit_amount,
+                )
+            )
+            module_ref_id = cursor.lastrowid
+
+        elif module_type == "INS" and master_id is not None:
+            cursor.execute(
+                "INSERT INTO ins_transactions "
+                "(ins_master_id, account_id, ins_trans_dt, ins_description, premium_paid, payout_received) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    master_id,
+                    account_id,
+                    trans_date,
+                    data.get("user_desc") or bank_desc,
+                    withdrawal_amount,
+                    deposit_amount,
+                )
+            )
+            module_ref_id = cursor.lastrowid
+
+        elif module_type in ("STOCK_COMP", "STOCK_ACTU"):
             module_ref_id = master_id
 
         cursor.execute(
@@ -563,8 +597,29 @@ def get_active_fd_masters() -> list:
         return cursor.fetchall()
 
 
+def get_active_ppf_masters() -> list:
+    """Return all ppf_master rows ordered by active first.
+
+    Returns rows of (ppf_master_id, ppf_account_number, holder_name, bank_name, is_active).
+    """
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.ppf_master_id,
+                   p.ppf_account_number,
+                   p.holder_name,
+                   b.name AS bank_name,
+                   p.is_active
+            FROM   ppf_master p
+            JOIN   accounts   a ON a.ac_id = p.account_id
+            JOIN   banks      b ON b.b_id  = a.b_id
+            ORDER  BY p.is_active DESC, p.open_dt DESC
+            """)
+        return cursor.fetchall()
+
+
 def get_fd_principal(fd_master_id: int) -> float | None:
-    """Return the principal_amount for the given fd_master_id, or None."""
+    """Return the remaining principal for the given fd_master_id, or None."""
     with get_db_connection(BANK_DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -572,7 +627,29 @@ def get_fd_principal(fd_master_id: int) -> float | None:
             (fd_master_id,),
         )
         row = cursor.fetchone()
-        return float(row[0]) if row else None
+        if not row:
+            return None
+        master_principal = float(row[0])
+        
+        cursor.execute(
+            "SELECT SUM(fd_saving), SUM(fd_principal) FROM fd_transactions WHERE fd_master_id = ?",
+            (fd_master_id,)
+        )
+        tx_row = cursor.fetchone()
+        if tx_row:
+            sum_saving = float(tx_row[0] or 0.0)
+            sum_principal = float(tx_row[1] or 0.0)
+        else:
+            sum_saving = 0.0
+            sum_principal = 0.0
+            
+        if sum_saving > 0:
+            total_deposited = sum_saving
+        else:
+            total_deposited = master_principal
+            
+        remaining = total_deposited - sum_principal
+        return max(0.0, round(remaining, 2))
 
 
 def db_add_fd_master(data: dict) -> int:
@@ -1370,7 +1447,40 @@ def add_bank_transaction_v2(data: dict) -> int:
             )
             module_ref_id = cursor.lastrowid
 
-        elif module_type in ("STOCK_COMP", "STOCK_ACTU", "MF"):
+        
+        elif module_type == "MF" and master_id is not None:
+            cursor.execute(
+                "INSERT INTO mf_transactions "
+                "(mf_master_id, account_id, mf_trans_dt, mf_description, mf_purchase, mf_redemption) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    master_id,
+                    account_id,
+                    trans_date,
+                    data.get("user_desc") or bank_desc,
+                    withdrawal_amount,
+                    deposit_amount,
+                )
+            )
+            module_ref_id = cursor.lastrowid
+
+        elif module_type == "INS" and master_id is not None:
+            cursor.execute(
+                "INSERT INTO ins_transactions "
+                "(ins_master_id, account_id, ins_trans_dt, ins_description, premium_paid, payout_received) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    master_id,
+                    account_id,
+                    trans_date,
+                    data.get("user_desc") or bank_desc,
+                    withdrawal_amount,
+                    deposit_amount,
+                )
+            )
+            module_ref_id = cursor.lastrowid
+
+        elif module_type in ("STOCK_COMP", "STOCK_ACTU"):
             module_ref_id = master_id
 
         cursor.execute(
@@ -1660,6 +1770,45 @@ def db_update_bank_transaction(
                     cascades["subledger_updated"] = True
                     cascades["subledger_module"] = "PPF"
 
+            elif new_module == "MF":
+                if date_changed:
+                    cursor.execute(
+                        "UPDATE mf_transactions SET mf_trans_dt = ? "
+                        "WHERE mf_trans_id = ?",
+                        (trans_date, module_ref_id),
+                    )
+                if amount_changed:
+                    cursor.execute(
+                        "UPDATE mf_transactions "
+                        "   SET mf_purchase   = ?, "
+                        "       mf_redemption = ? "
+                        " WHERE mf_trans_id   = ?",
+                        (withdrawal_amount, deposit_amount, module_ref_id),
+                    )
+                if date_changed or amount_changed:
+                    cascades["subledger_updated"] = True
+                    cascades["subledger_module"] = "MF"
+
+            elif new_module == "INS":
+                if date_changed:
+                    cursor.execute(
+                        "UPDATE ins_transactions SET ins_trans_dt = ? "
+                        "WHERE ins_trans_id = ?",
+                        (trans_date, module_ref_id),
+                    )
+                if amount_changed:
+                    cursor.execute(
+                        "UPDATE ins_transactions "
+                        "   SET premium_paid    = ?, "
+                        "       payout_received = ? "
+                        " WHERE ins_trans_id    = ?",
+                        (withdrawal_amount, deposit_amount, module_ref_id),
+                    )
+                if date_changed or amount_changed:
+                    cascades["subledger_updated"] = True
+                    cascades["subledger_module"] = "INS"
+
+
         elif (old_module and old_module != new_module) and old_module_ref_id:
             # Module type was changed — cannot safely modify the old
             # sub-ledger row automatically.
@@ -1694,3 +1843,152 @@ def db_add_rewards_points(data: dict) -> int:
 
 
 # Add more functions here for other tables as needed.
+
+
+# ---------------------------------------------------------------------------
+# StockMan integration helpers
+# ---------------------------------------------------------------------------
+
+
+def get_stock_computed_bank_entries() -> list:
+    if not os.path.exists(STOCK_DB_PATH):
+        return []
+    try:
+        with get_db_connection(STOCK_DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id_comp_bt, comp_bt_dt, comp_bt_type, comp_bt_amt, cont_no, comp_bt_desc "
+                "FROM computed_bank ORDER BY comp_bt_dt DESC, id_comp_bt DESC"
+            )
+            return cursor.fetchall()
+    except sqlite3.Error:
+        return []
+
+
+def get_stock_actual_bank_entries() -> list:
+    if not os.path.exists(STOCK_DB_PATH):
+        return []
+    try:
+        with get_db_connection(STOCK_DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id_actu_bt, actu_bt_dt, actu_bt_type, actu_bt_amt, actu_bt_desc "
+                "FROM actual_bank ORDER BY actu_bt_dt DESC, id_actu_bt DESC"
+            )
+            return cursor.fetchall()
+    except sqlite3.Error:
+        return []
+
+
+def db_add_stock_actual_bank(actu_bt_dt: str, actu_bt_type: str, actu_bt_amt: float, actu_bt_desc: str) -> int:
+    with get_db_connection(STOCK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO actual_bank (actu_bt_dt, actu_bt_type, actu_bt_amt, actu_bt_desc) VALUES (?, ?, ?, ?)",
+            (actu_bt_dt, actu_bt_type, actu_bt_amt, actu_bt_desc)
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+# ---------------------------------------------------------------------------
+# MF master helpers
+# ---------------------------------------------------------------------------
+
+
+def get_active_mf_masters() -> list:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT mf_master_id, amc_name, rta_name, folio_number, scheme_name "
+            "FROM mf_master WHERE is_active = 1 ORDER BY amc_name, scheme_name"
+        )
+        return cursor.fetchall()
+
+
+def db_add_mf_master(data: dict) -> int:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON;")
+        cursor.execute(
+            "INSERT INTO mf_master (account_id, amc_name, rta_name, folio_number, scheme_name, is_active) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (data["account_id"], data["amc_name"], data["rta_name"], data["folio_number"], data["scheme_name"], int(data.get("is_active", 1)))
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+# ---------------------------------------------------------------------------
+# INS master helpers
+# ---------------------------------------------------------------------------
+
+
+def get_active_ins_masters() -> list:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT ins_master_id, company_name, ins_category, policy_number, plan_name, proposer_name, assured_item "
+            "FROM ins_master WHERE is_active = 1 ORDER BY company_name, policy_number"
+        )
+        return cursor.fetchall()
+
+
+def db_add_ins_master(data: dict) -> int:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON;")
+        cursor.execute(
+            "INSERT INTO ins_master (account_id, company_name, ins_category, policy_number, plan_name, proposer_name, assured_item, premium_amount, start_dt, maturity_dt, is_active) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (data["account_id"], data["company_name"], data["ins_category"], data["policy_number"], data["plan_name"], data["proposer_name"], data["assured_item"], float(data.get("premium_amount", 0.0)), data["start_dt"], data.get("maturity_dt"), int(data.get("is_active", 1)))
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+# ---------------------------------------------------------------------------
+# MF / INS Summary queries for overview UI
+# ---------------------------------------------------------------------------
+
+def get_mf_summary_for_display() -> list:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT m.mf_master_id, m.amc_name, m.rta_name, m.folio_number, m.scheme_name,
+                   b.name || ' [' || a.ac_number || ']' AS bank_acct,
+                   COALESCE(SUM(t.mf_purchase), 0.0) AS total_invested,
+                   COALESCE(SUM(t.mf_redemption), 0.0) AS total_redeemed,
+                   m.is_active
+            FROM mf_master m
+            JOIN accounts a ON a.ac_id = m.account_id
+            JOIN banks b ON b.b_id = a.b_id
+            LEFT JOIN mf_transactions t ON t.mf_master_id = m.mf_master_id
+            GROUP BY m.mf_master_id
+            ORDER BY m.amc_name, m.scheme_name
+            '''
+        )
+        return cursor.fetchall()
+
+
+def get_ins_summary_for_display() -> list:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT i.ins_master_id, i.company_name, i.ins_category, i.policy_number,
+                   i.plan_name, i.proposer_name, i.assured_item, i.premium_amount,
+                   i.start_dt, COALESCE(i.maturity_dt, '—'),
+                   COALESCE(SUM(t.premium_paid), 0.0) AS total_premium_paid,
+                   COALESCE(SUM(t.payout_received), 0.0) AS total_payout_received,
+                   i.is_active
+            FROM ins_master i
+            JOIN accounts a ON a.ac_id = i.account_id
+            JOIN banks b ON b.b_id = a.b_id
+            LEFT JOIN ins_transactions t ON t.ins_master_id = i.ins_master_id
+            GROUP BY i.ins_master_id
+            ORDER BY i.ins_category, i.company_name, i.policy_number
+            '''
+        )
+        return cursor.fetchall()

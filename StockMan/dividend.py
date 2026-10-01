@@ -13,6 +13,7 @@ from tkinter import ttk
 import sqlite3
 from datetime import timedelta, datetime
 from tkcalendar import DateEntry
+from Shared.help_utils import show_standard_help
 
 # Local project imports
 from Shared.globals import get_db_connection, logger
@@ -22,19 +23,17 @@ from Shared.dialog_utils import (
     show_colorful_yesno,
 )
 from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 from .trade_utils import fetch_holding_on_date
 from Shared.gui_utils import (
     bind_tooltip,
-    bind_entry_hover,
     on_enter_focus_next,
     apply_button_animations,
     apply_entry_theme,
     setup_footer_tooltip,
     bind_date_spin,
 )
-from Shared.validation_utils import validate_positive_numeric
 
 
 def get_previous_working_day(dt):
@@ -83,8 +82,6 @@ def add_dividend(
     btnfrbg = "#f5f5f5"  # Light grey
     hintbg = "#b2dfdb"  # Matches ratframe
     hintfg = "#800000"  # Dark Maroon for high contrast
-    submitusualbg = "#0288d1"  # Blue
-    submitactivebg = "#01579b"  # Darker blue
     cancelusualbg = "#d32f2f"  # Red
     cancelactivebg = "#c62828"  # Darker red
 
@@ -552,105 +549,36 @@ def add_dividend(
         except tk.TclError:
             pass
 
-    def show_help(_event=None):
-        div_win.unbind("<Escape>")
-
-        help_win = tk.Toplevel(div_win)
-        help_win.title("Help — Dividend Entry")
-        help_win.geometry("640x550")
-        help_win.configure(bg="#f4fbf8")
-        help_win.transient(div_win)
-        help_win.grab_set()
-        push_window(help_win, div_win)
-
-        try:
-            help_win.focus_set()
-        except tk.TclError:
-            pass
-
-        header = tk.Label(
-            help_win,
-            text="🌟 Dividend Data Entry Guide 🌟",
-            font=("Helvetica", 16, "bold"),
-            bg="#004d40",
-            fg="#ffb300",
-            pady=10,
+    def show_help(e=None):
+        guide_lines = [
+            "This module tracks and logs corporate cash dividend payouts efficiently.",
+            "",
+            "Key Fields:",
+            "• Record Date: The cut-off date. Your holding quantity will be automatically fetched based on this exact date.",
+            "• Ex-Date & Payment Date: These are auto-estimated based on the Record Date but can be manually adjusted.",
+            "• Div Percent (%): Enter the declared percentage. The amount per share is calculated against the Face Value of the stock.",
+            "• TDS Deducted: Enter any tax deducted at source to calculate your exact Net Benefit.",
+            "",
+            "Hotkeys:",
+            "• Enter: Move rapidly between fields",
+            "• F2: View Session History",
+            "• Esc: Cancel and Close",
+            "• Ctrl+Enter: Save Entry"
+        ]
+        
+        faq_data = [
+            (
+                "Q: Why did my 'Entitled Qty' auto-fill with zero?",
+                "A: The system automatically searches your trade ledger to calculate exactly how many shares you held on the Record Date you entered. If it shows zero, it means you either bought the shares after the Ex-Date, or you haven't logged your purchase trades in the system yet."
+            )
+        ]
+        
+        show_standard_help(
+            parent=div_win,
+            title="Dividend Entry Help",
+            guide_lines=guide_lines,
+            faq_data=faq_data
         )
-        header.pack(fill="x")
-
-        body = tk.Frame(help_win, bg="#f4fbf8", padx=15, pady=15)
-        body.pack(fill="both", expand=True)
-
-        text = tk.Text(
-            body,
-            wrap="word",
-            bg="#f4fbf8",
-            bd=0,
-            font=("Helvetica", 12),
-            height=14,
-        )
-        text.pack(fill="both", expand=True)
-
-        help_content = (
-            "Welcome to the Dividend Entry System!\n\n"
-            "This module allows you to track and log corporate dividend actions efficiently. "
-            "Please ensure accuracy when entering the following key fields:\n\n"
-            "• Company: Select the stock. The ISIN and Face Value will auto-populate.\n"
-            "• Record Date: The cut-off date. Your holding quantity will be automatically fetched based on this date.\n"
-            "• Ex-Date & Payment Date: These are auto-estimated but can be manually adjusted if the company specifies differently.\n"
-            "• Div Percent (%): Enter the declared percentage. The amount per share is calculated against the Face Value.\n"
-            "• TDS Deducted: Enter any tax deducted at source to calculate your exact Net Benefit.\n\n"
-            "Navigation Shortcuts:\n"
-            "  [Enter]  : Move to the next field rapidly.\n"
-            "  [Esc]    : Cancel the current entry.\n"
-            "  [F2]     : View all dividends recorded during this active session."
-        )
-        text.insert("1.0", help_content)
-
-        highlights = {
-            "Company": "#00695c",
-            "Record Date": "#d84315",
-            "Div Percent (%)": "#0277bd",
-            "TDS Deducted": "#c62828",
-        }
-        for word, color in highlights.items():
-            start = "1.0"
-            while True:
-                pos = text.search(word, start, stopindex="end")
-                if not pos:
-                    break
-                end_pos = f"{pos}+{len(word)}c"
-                text.tag_add(word, pos, end_pos)
-                text.tag_config(
-                    word, foreground=color, font=("Helvetica", 12, "bold")
-                )
-                start = end_pos
-        text.config(state="disabled")
-
-        def close_help(e=None):
-            safe_close_modal(help_win, div_win)
-            div_win.bind("<Control-Return>", lambda e: save_btn.invoke())
-            div_win.bind("<Escape>", _close_div)
-            return "break"
-
-        help_win.bind("<Control-Return>", lambda e: save_btn.invoke())
-        help_win.bind("<Escape>", close_help)
-        help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-        ok_btn = tk.Button(
-            help_win,
-            text="Got It",
-            font=("Helvetica", 11, "bold"),
-            bg="#004d40",
-            fg="white",
-            width=10,
-            command=close_help,
-        )
-        ok_btn.pack(pady=10)
-        try:
-            ok_btn.focus_set()
-        except tk.TclError:
-            pass
 
     def show_session_dividends(_event=None):
         if not current_session_dividends:
@@ -1209,7 +1137,7 @@ def add_dividend(
     )
     div_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     div_win.bind("<Escape>", _close_div)
-    div_win.bind("<F1>", show_help)
+    div_win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else show_help(e) if getattr(show_help, "__code__", None) and show_help.__code__.co_argcount > 0 else show_help())
     div_win.bind("<F2>", show_session_dividends)
     div_win.protocol("WM_DELETE_WINDOW", _close_div)
 
@@ -1279,6 +1207,9 @@ def add_dividend(
     parent.wait_window(div_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

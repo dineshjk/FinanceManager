@@ -7,6 +7,7 @@ Allows users to track potential investments and set target buy/sell prices.
 """
 
 import tkinter as tk
+from Shared.help_utils import show_standard_help
 from tkinter import ttk
 import sqlite3
 import threading
@@ -23,8 +24,8 @@ from Shared.dialog_utils import (
     show_colorful_info,
     show_colorful_yesno,
 )
-from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.modal_utils import disable_parent
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_utils import apply_button_animations, apply_entry_theme
 from Shared.gui_progressive import progressive_selection
 from .company_add import add_company
@@ -33,7 +34,7 @@ from .helpers import universal_tree_sort
 
 
 def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
-    modal_id = disable_parent(parent)
+    disable_parent(parent)
 
     win = tk.Toplevel(parent)
     win.title("👁️ Watchlist & Price Alerts")
@@ -1612,6 +1613,12 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         vals[8] = status  # Shifted to 8 due to Curr Avg
         tree.item(item, values=vals, tags=(tag,))
 
+    def _show_help(e=None):
+        guide, faq = _get_watchlist_help_data()
+        show_standard_help(win, "Watchlist & Alerts Help", guide, faq)
+
+    win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+
     load_watchlist()
 
     win.bind("<Escape>", _close_manager)
@@ -1630,6 +1637,9 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
     parent.wait_window(win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

@@ -28,6 +28,7 @@ from Shared.dialog_utils import (
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     add_bank_transaction_v2 as _db_add_transaction,
     get_all_accounts,
@@ -41,11 +42,20 @@ from .bank_db_utils import (
     get_last_balance,
     get_account_curr_balance,
     get_last_used_account_id,
-    get_single_ppf_master_id as _db_get_ppf_master_id,
     get_last_ppf_balance as _db_get_last_ppf_balance,
     get_budget_heads_with_parents as _db_get_bh_with_parents,
     get_all_card_masters as _db_get_all_card_masters,
     get_all_user_descriptions,
+    get_active_ppf_masters as get_all_ppf_masters,
+    db_add_ppf_master,
+    get_all_loan_masters_for_display,
+    get_stock_computed_bank_entries,
+    get_stock_actual_bank_entries,
+    db_add_stock_actual_bank,
+    get_active_mf_masters,
+    db_add_mf_master,
+    get_active_ins_masters,
+    db_add_ins_master,
 )
 from Shared.globals import logger, UI_THEME
 from Shared.gui_progressive import progressive_selection
@@ -112,409 +122,260 @@ def show_master_help(
     on_escape,
     focus_back_widget: tk.Widget | None = None,
 ) -> None:
-    """Launch a tabbed help window.
-
-    Contains General Help, Budget Heads, and FAQ tabs.
-    """
-    win.unbind("<Escape>")
-
-    help_win = tk.Toplevel(win)
-    try:
-        help_win.transient(win)
-    except (tk.TclError, AttributeError) as _exc:
-        logger.debug("help_win.transient failed: %s", _exc)
-    help_win.title("Master Help — Bank Transactions")
-    help_win.configure(bg=_THEME["help_bg"])
-    help_win.geometry("800x700")
-    help_win.resizable(True, True)
-    help_win.grab_set()
-    push_window(help_win, win)
-    try:
-        help_win.focus_set()
-    except tk.TclError:
-        pass
-
-    # ── Title bar ─────────────────────────────────────────────────────────
-    tk.Label(
-        help_win,
-        text="Bank Transaction Help Center",
-        font=("Helvetica", 16, "bold"),
-        bg=_THEME["help_header_bg"],
-        fg="white",
-        pady=8,
-    ).pack(fill="x")
-
-    # ── Notebook Setup ────────────────────────────────────────────────────
-    style = ttk.Style(help_win)
-    original_theme = style.theme_use()
-    style.theme_use("default")
-    style.configure("TNotebook", background=_THEME["help_bg"], borderwidth=0)
-    style.configure(
-        "TNotebook.Tab",
-        font=("Helvetica", 12, "bold"),
-        padding=[10, 5],
-        background="#e0e0e0",
-        foreground="#333",
-    )
-    style.map(
-        "TNotebook.Tab",
-        background=[("selected", BANK_TRANSACTION_ADD_UI_THEME["help_tab_bg"])],
-        foreground=[("selected", "white")],
-    )
-
-    notebook = ttk.Notebook(help_win)
-    notebook.pack(fill="both", expand=True, padx=10, pady=10)
-
-    # ======================================================================
-    # TAB 1: GENERAL HELP
-    # ======================================================================
-    tab_general = tk.Frame(notebook, bg=_THEME["help_bg"], padx=12, pady=12)
-    notebook.add(tab_general, text="General Help")
-
-    gen_text = tk.Text(
-        tab_general,
-        wrap="word",
-        bg=_THEME["help_bg"],
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-    )
-    gen_text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "\u2022 This form records a new bank statement transaction.",
+    """Launch a standardized tabbed help window for Bank Transactions."""
+    
+    guide_lines = [
+        "• This form records a new bank statement transaction.",
         "",
         "Fields:",
-        "  Account      \u2014 Select the bank account.  Defaults to last-used.",
-        "  Serial No    \u2014 Optional bank serial / reference number.",
-        "  Value Dt     \u2014 Date the bank applied this transaction for "
-        "interest purposes.  Defaults to the next working day.",
-        "  Trans Dt     \u2014 Calendar date the event was initiated.  "
-        "Auto-syncs to Value Dt when Value Dt changes.",
-        "  Cheque No    \u2014 Cheque reference for cheque-based transactions.",
-        "  Bank Remark  \u2014 Narration as printed on the bank statement.",
-        "  Withdrawal   \u2014 Amount leaving the account (debit).  Enter 0 if N/A.",
-        "  Deposit      \u2014 Amount entering the account (credit). Enter 0 if N/A.",
-        "  Balance      \u2014 Running balance after this transaction.",
-        "  Pair ID      \u2014 Links this row to an opposite transfer row. "
-        "Click \u2018Select\u2019 to browse recent unpaired entries.",
-        "  Budget Head  \u2014 Budget category for analysis reports.",
-        "  Module Type  \u2014 NONE for plain transactions; choose FD, CC, "
-        "LOAN, PPF, STOCK_COMP, STOCK_ACTU, or MF to link to a sub-ledger "
-        "product.",
-        "  Module Ref   \u2014 For FD: pick from the active-FD dropdown and "
-        "use \u2018New\u2019 to create a new FD on the fly. For all other "
-        "types: enter the integer product ID.",
+        "  Account      — Select the bank account.  Defaults to last-used.",
+        "  Serial No    — Optional bank serial / reference number.",
+        "  Value Dt     — Date the bank applied this transaction for interest purposes.",
+        "  Trans Dt     — Calendar date the event was initiated. Auto-syncs to Value Dt.",
+        "  Cheque No    — Cheque reference for cheque-based transactions.",
+        "  Bank Remark  — Narration as printed on the bank statement.",
+        "  Withdrawal   — Amount leaving the account (debit). Enter 0 if N/A.",
+        "  Deposit      — Amount entering the account (credit). Enter 0 if N/A.",
+        "  Balance      — Running balance after this transaction.",
+        "  Pair ID      — Links this row to an opposite transfer row. Click 'Select' to browse.",
+        "  Budget Head  — Budget category for analysis reports.",
+        "  Module Type  — NONE for plain transactions; choose FD, CC, LOAN, PPF, STOCK_COMP, STOCK_ACTU, MF, or INS to link to a specialist sub-ledger.",
+        "  Module Ref   — Select the active product from the dynamic dropdown (FD, CC, LOAN, PPF, STOCK_COMP, STOCK_ACTU, MF, or INS). Use the 'New' button to create a new master record on the fly.",
         "",
         "FD Logic:",
-        "  Withdrawal > 0  \u2192  Deposit into FD (fd_saving entry).",
-        "  Deposit > 0     \u2192  Maturity / partial withdrawal from FD.",
-        "    Full (deposit \u2265 principal): auto-splits principal + interest.",
+        "  Withdrawal > 0  →  Deposit into FD (fd_saving entry).",
+        "  Deposit > 0     →  Maturity / partial withdrawal from FD.",
+        "    Full (deposit ≥ principal): auto-splits principal + interest.",
         "    Partial (deposit < principal): prompts for manual breakdown.",
     ]
-    gen_text.insert("1.0", "\n".join(help_lines))
-    gen_text.config(state="disabled")
 
-    # ======================================================================
-    # TAB 2: BUDGET HEADS
-    # ======================================================================
-    try:
-        bh_rows = _db_get_bh_with_parents()
-    except Exception as exc:
-        logger.warning("budget heads fetch failed: %s", exc)
-        bh_rows = []
-
-    tab_budget = tk.Frame(notebook, bg="#f0f9ff")
-    notebook.add(tab_budget, text="Budget Heads Reference")
-
-    search_frame = tk.Frame(tab_budget, bg="#e0f2fe", pady=5)
-    search_frame.pack(fill="x", padx=10, pady=(6, 0))
-    tk.Label(
-        search_frame,
-        text="Search:",
-        font=("Helvetica", 11, "bold"),
-        bg="#e0f2fe",
-        fg="#0369a1",
-    ).pack(side="left", padx=(6, 4))
-
-    search_var = tk.StringVar()
-    search_entry = tk.Entry(
-        search_frame,
-        textvariable=search_var,
-        font=("Helvetica", 12),
-        width=32,
-        bg="#fff",
-        fg="#0c4a6e",
-        insertbackground="#0369a1",
-        relief="solid",
-        bd=1,
-    )
-    search_entry.pack(side="left", padx=4)
-
-    clear_btn = tk.Button(
-        search_frame,
-        text="✕",
-        font=("Helvetica", 10, "bold"),
-        bg="#bae6fd",
-        fg="#0369a1",
-        bd=0,
-        padx=6,
-        pady=2,
-        cursor="hand2",
-        command=lambda: search_var.set(""),
-    )
-    apply_button_animations(clear_btn, "#bae6fd", "#a5d8ff")
-    clear_btn.pack(side="left", padx=2)
-    match_label = tk.Label(
-        search_frame, text="", font=("Helvetica", 10), bg="#e0f2fe", fg="#0369a1"
-    )
-    match_label.pack(side="left", padx=8)
-
-    text_frame = tk.Frame(tab_budget, bg="#f0f9ff")
-    text_frame.pack(fill="both", expand=True, padx=10, pady=6)
-    scrollbar = tk.Scrollbar(text_frame)
-    scrollbar.pack(side="right", fill="y")
-
-    bh_text_widget = tk.Text(
-        text_frame,
-        wrap="word",
-        bg="#f8fafc",
-        fg="#0c4a6e",
-        font=("Helvetica", 11),
-        padx=10,
-        pady=8,
-        bd=1,
-        relief="solid",
-        yscrollcommand=scrollbar.set,
-        state="disabled",
-    )
-    bh_text_widget.pack(fill="both", expand=True)
-    scrollbar.config(command=bh_text_widget.yview)
-
-    bh_text_widget.tag_configure(
-        "section", font=("Helvetica", 12, "bold"), foreground="#0369a1"
-    )
-    bh_text_widget.tag_configure(
-        "header", font=("Helvetica", 10, "bold"), foreground="#64748b"
-    )
-    bh_text_widget.tag_configure("income", font=("Helvetica", 11), foreground="#166534")
-    bh_text_widget.tag_configure(
-        "expense", font=("Helvetica", 11), foreground="#9a3412"
-    )
-    bh_text_widget.tag_configure(
-        "highlight", background="#fef08a", foreground="#0c4a6e"
-    )
-
-    income_rows = [
-        (desc, parent) for _, desc, btype, parent in bh_rows if btype == "INCOME"
+    faq_data = [
+        (
+            "Q1 [General]: How do I decide between INCOME, EXPENSE, and TRANSFER?",
+            "A: Ask yourself whether your net worth changed or if money simply moved between two places you own/track:\n\n"
+            "   1. INCOME (Money earned/received from outside):\n"
+            "      - Enter amount in 'Deposit', 0 in 'Withdrawal'.\n"
+            "      - Pick an INCOME Budget Head (e.g., Pension, SB Interest, Dividend).\n"
+            "      - Entry Type: INCOME.\n\n"
+            "   2. EXPENSE (Money spent permanently):\n"
+            "      - Enter amount in 'Withdrawal', 0 in 'Deposit'.\n"
+            "      - Pick an EXPENSE Budget Head (e.g., Electricity, Groceries).\n"
+            "      - Entry Type: EXPENSE.\n\n"
+            "   3. TRANSFER (Money moving between your own accounts, investments, or loans):\n"
+            "      - Set Budget Head to '(none)' and Entry Type to 'TRANSFER'.\n"
+            "      - Either pair it with another bank/cash account using 'Pair ID', OR link it to a specialist sub-ledger using 'Module Type' (FD, CC, LOAN, PPF, STOCK_COMP, STOCK_ACTU, MF, INS)."
+        ),
+        (
+            "Q2 [A1 - PPF]: How do I record PPF deposits, withdrawals, and multiple PPF accounts over time?",
+            "A: PPF is an asset transfer, not an expense.\n\n"
+            "   1. Set Budget Head = '(none)' and Entry Type = 'TRANSFER'.\n"
+            "   2. Select Module Type = 'PPF'.\n"
+            "   3. From the dropdown, select the specific PPF account (active or historical). If you opened a new PPF account, click 'New' next to the dropdown to register it on the fly.\n"
+            "   4. For a deposit into PPF: enter the amount in 'Withdrawal' (money leaving savings).\n"
+            "   5. For a maturity/partial withdrawal from PPF: enter the amount in 'Deposit' (money entering savings)."
+        ),
+        (
+            "Q3 [A2 - Fixed Deposits & Auto-Sweep]: How do I record normal FDs and Flexible (Auto-Sweep) FDs?",
+            "A: Both standard FDs and Flexible/Auto-Sweep FDs use Module Type = 'FD':\n\n"
+            "   1. Opening / Sweep-Out (Savings -> FD):\n"
+            "      - Enter the amount in 'Withdrawal', Deposit = 0.\n"
+            "      - Budget Head = '(none)', Entry Type = 'TRANSFER', Module Type = 'FD'.\n"
+            "      - Click 'New' to create the FD if it is a new receipt, or pick the existing FD.\n\n"
+            "   2. Partial Sweep-In (Flexible FD -> Savings when balance drops below threshold):\n"
+            "      - Enter the amount received in 'Deposit', Withdrawal = 0.\n"
+            "      - Select Module Type = 'FD' and pick the Flexible FD.\n"
+            "      - Because Deposit < Remaining Principal, a popup will automatically ask you to split the amount between Principal Repaid and Interest Earned!\n\n"
+            "   3. Full Maturity (FD -> Savings):\n"
+            "      - Enter total maturity amount in 'Deposit', select the FD, and submit. The system automatically splits Remaining Principal and Interest!"
+        ),
+        (
+            "Q4 [A3 - Mutual Funds]: How do I record SIPs, Lump-Sum Purchases, and Redemptions across AMCs/CAMS?",
+            "A: Mutual Fund investments are asset transfers:\n\n"
+            "   1. Set Budget Head = '(none)', Entry Type = 'TRANSFER', and Module Type = 'MF'.\n"
+            "   2. Select the AMC/Scheme/Folio from the dropdown, or click 'New' to register a new folio (specifying AMC like ICICI Pru, HDFC, Nippon, and RTA like CAMS or KFintech).\n"
+            "   3. Purchase / SIP: Put the amount in 'Withdrawal' (logged as mf_purchase).\n"
+            "   4. Redemption: Put the amount in 'Deposit' (logged as mf_redemption)."
+        ),
+        (
+            "Q5 [A4 - Insurance]: How do I handle Term Life, Health, Vehicle, and General Insurance vs. Endowment/ULIP plans?",
+            "A: All insurance policies can be linked using Module Type = 'INS' (click 'New' to record Company, Category, Policy No, Proposer, and Life Assured / Vehicle), but their Entry Type depends on whether they build a cash value:\n\n"
+            "   1. Pure Protection (Term Life, Health, Car/Vehicle, General Insurance):\n"
+            "      - These do not return principal. Record Withdrawal > 0, pick an EXPENSE Budget Head ('Life Insurance - Self/Family', 'Health Insurance', 'Auto Insurance'), set Entry Type = 'EXPENSE', and set Module Type = 'INS' to link the policy!\n\n"
+            "   2. Savings / Investment Policies (LIC Endowment, Money-Back, ULIP, TATA AIG, Kotak, ICICI Pru):\n"
+            "      - If you want to track premiums as an expense: map like (1) above.\n"
+            "      - If you want to track accumulated principal as an Asset: set Budget Head = '(none)', Entry Type = 'TRANSFER', and Module Type = 'INS' (Category: LIFE_SAVINGS)."
+        ),
+        (
+            "Q6 [A5 - STOCK_COMP (Computed Bank)]: What is STOCK_COMP and how do I record entries for it?",
+            "A: STOCK_COMP links a bank passbook entry to 'computed_bank' in StockMan (which holds exact, system-calculated obligations from Contract Notes, Dividends, IPO/Rights Allotments, and Merger Refunds).\n\n"
+            "   • WHEN TO USE IT:\n"
+            "     1. Dividends credited directly to your bank account.\n"
+            "     2. IPO / Rights Issue (ASBA) bank debits or fractional share refunds.\n"
+            "     3. 3-in-1 accounts (like ICICI Direct) where the exact bill of a single Contract Note is debited/credited directly in your bank passbook.\n\n"
+            "   • HOW TO ENTER:\n"
+            "     1. First, ensure the Trade, Dividend, or Allotment is already recorded in StockMan (StockMan automatically creates the 'computed_bank' entry; hence there is no 'New' button here).\n"
+            "     2. In BankMan, enter the Withdrawal or Deposit amount.\n"
+            "     3. Set Budget Head = '(none)' and Entry Type = 'TRANSFER' (or pick an INCOME head for Dividends if you track dividend income in BankMan).\n"
+            "     4. Select Module Type = 'STOCK_COMP' and pick the matching Contract Note / Dividend row (#ID | Date | Type | Amount | Cont_No) from the dropdown.\n"
+            "     5. Click Submit. BankMan stores 'id_comp_bt' in 'module_ref_id', linking your bank passbook directly to that StockMan event!"
+        ),
+        (
+            "Q7 [A5 - STOCK_ACTU (Actual Bank)]: What is STOCK_ACTU and how do I record Broker Transfers (Zerodha, Jhaveri Sec, ICICI Sec)?",
+            "A: STOCK_ACTU links a bank passbook entry to 'actual_bank' in StockMan (which tracks lump-sum funds transferred to or withdrawn from your stockbroker's trading wallet/ledger).\n\n"
+            "   • WHEN TO USE IT:\n"
+            "     Whenever you transfer a lump sum (pay-in) to a broker like Zerodha, Jhaveri Securities, or ICICI Securities, or receive a lump-sum payout back from the broker into your bank account.\n\n"
+            "   • HOW TO ENTER & MECHANISM:\n"
+            "     1. In BankMan, enter the lump-sum pay-in in 'Withdrawal' (or payout in 'Deposit').\n"
+            "     2. Set Budget Head = '(none)' and Entry Type = 'TRANSFER'.\n"
+            "     3. Select Module Type = 'STOCK_ACTU'.\n"
+            "     4. If you haven't logged this transfer in StockMan yet, click the 'New' button next to the dropdown! A modal will open pre-filled with the Date, Type (DEBIT for bank withdrawal / CREDIT for bank deposit), Amount, and Broker Description.\n"
+            "     5. Click Save in the modal—this directly inserts a new row into StockMan's 'actual_bank' table and auto-selects it in the dropdown.\n"
+            "     6. Click Submit on the main form to save the bank transaction with 'id_actu_bt' linked in 'module_ref_id'!"
+        ),
+        (
+            "Q8 [B - Petty Cash]: How do I map ATM Cash Withdrawals and Cash Deposits?",
+            "A: Cash in hand is tracked via your 'Petty Cash' account (Bank: My Home), so moving cash between Bank and Hand is a TRANSFER:\n\n"
+            "   - ATM Withdrawal: Enter a Withdrawal in your Savings account with Budget Head = '(none)' and Entry Type = 'TRANSFER'. Submit and click 'Yes' on the auto-fill prompt to record the matching Deposit into 'Petty Cash'.\n"
+            "   - Cash Deposit into Bank: Enter a Withdrawal from 'Petty Cash' with Entry Type = 'TRANSFER', and pair it with a Deposit in your Savings account."
+        ),
+        (
+            "Q9 [B - Negative Petty Cash]: My Petty Cash or Suspense account shows a negative balance. Is that okay?",
+            "A: Yes! At the start of historical data entry, you may not know your exact opening cash in hand, or a suspense/reversal entry may temporarily dip below zero. When the balance turns red/negative, click 'Yes' on the Negative Balance Warning prompt to allow it."
+        ),
+        (
+            "Q10 [C - Credit Cards]: How do I map Credit Card bill payments when multiple cards share an account?",
+            "A: A credit card bill payment pays off a liability, so it is a TRANSFER (individual card swipes are already recorded as Expenses in the CC ledger):\n\n"
+            "   - Account: Your Savings/Current Account.\n"
+            "   - Withdrawal: Exact bill amount paid (Deposit = 0).\n"
+            "   - Budget Head: '(none)' (Entry Type auto-sets to TRANSFER).\n"
+            "   - Module Type: 'CC'.\n"
+            "   - Module Ref: Select the specific Credit Card from the dropdown.\n"
+            "   (Note: For old historical CC bills where you don't have the statement, choose Budget Head = 'Historical CC Payment', Entry Type = 'EXPENSE', and Module Type = 'NONE')."
+        ),
+        (
+            "Q11 [D - Bank Loans]: How do I record Loan EMIs or prepayments?",
+            "A: Select your Savings account, enter the EMI in 'Withdrawal', set Budget Head = '(none)', Entry Type = 'TRANSFER', and Module Type = 'LOAN'. Then select the active Loan account from the Module Ref dropdown."
+        ),
+        (
+            "Q12 [E - Friends & Family]: How do I record money lent to or borrowed from friends/family, or transfers from a minor child's account?",
+            "A: Money exchanged with friends or transferred within the family corpus is NOT an income or expense—treat it as a TRANSFER:\n\n"
+            "   1. Setup: Create a Bank called 'Friends & Family Ledger' (or 'My Home' for family) and add an Account for that person (or a general 'Friendly Loans' account, noting the person's name in 'User Desc').\n"
+            "   2. Lending / Giving temporary funds: Record a Withdrawal from your Savings/Petty Cash (Budget Head = '(none)', Entry Type = 'TRANSFER') and pair it with a Deposit into their ledger account.\n"
+            "   3. Receiving repayment / Borrowing / Child Account Transfer: Record a Deposit into your Savings account (Entry Type = 'TRANSFER') and pair it with a Withdrawal from their ledger account (allow negative balance if you borrowed first)."
+        ),
+        (
+            "Q13 [F - Cash Expenses]: How do I record specific expenses paid in cash?",
+            "A: Select your 'Petty Cash' account in the Account dropdown! Enter the amount spent in 'Withdrawal', Deposit = 0, pick the relevant EXPENSE Budget Head (e.g., 'Groceries & Daily Needs' or 'Miscellaneous Cash Expenses'), and set Entry Type = 'EXPENSE'."
+        ),
+        (
+            "Q14 [G - Social Obligations]: How do I record cash blessings or gifts given to younger relatives on festivals/marriages?",
+            "A: Whether given in cash (from 'Petty Cash' account) or via bank/UPI (from your Savings account):\n\n"
+            "   - Enter the amount in 'Withdrawal' (Deposit = 0).\n"
+            "   - Select Budget Head = 'Festival Blessings & Cash Gifts' or 'Marriage & Event Gifts' (under 'Social & Family Obligations').\n"
+            "   - Set Entry Type = 'EXPENSE' and add the relative's name/event in 'User Desc'."
+        ),
+        (
+            "Q15 [H - Social Responsibilities]: How do I record charitable donations made on various occasions?",
+            "A: Select the account used (Savings or Petty Cash), enter the amount in 'Withdrawal', select the appropriate EXPENSE Budget Head under 'Giving & Charity' ('Social Responsibilities & Occasions', 'Medical Donations', 'Education Charity', or 'General Charity'), and set Entry Type = 'EXPENSE'."
+        ),
+        (
+            "Q16 [Reversals & Bank Mistakes]: How do I map an erroneous bank charge or failed transaction that is reversed later?",
+            "A: Mapping the debit as an Expense and the credit as Income would artificially inflate your totals. Instead, use your 'ReverseEntry' (Account 1234) suspense account:\n\n"
+            "   1. Wrong Debit: Record a Withdrawal in Savings with Budget Head = '(none)' and Entry Type = 'TRANSFER', paired with a Deposit in 'ReverseEntry'.\n"
+            "   2. Bank Reversal/Refund: Record a Deposit in Savings with Budget Head = '(none)' and Entry Type = 'TRANSFER', paired with a Withdrawal from 'ReverseEntry'."
+        ),
     ]
-    expense_rows = [
-        (desc, parent) for _, desc, btype, parent in bh_rows if btype == "EXPENSE"
-    ]
 
-    bh_text_widget.config(state="normal")
-    bh_text_widget.insert("end", "\u2500" * 20 + " Income items\n", "section")
-    bh_text_widget.insert(
-        "end", "IBH  Income Budget Head          IPH  Income Parent Head\n\n", "header"
+    # We use a custom callback to build the Budget Heads Reference tab
+    def inject_budget_heads_tab(notebook):
+        try:
+            bh_rows = _db_get_bh_with_parents()
+        except Exception as exc:
+            logger.warning("budget heads fetch failed: %s", exc)
+            bh_rows = []
+
+        tab_budget = tk.Frame(notebook, bg="#f0f9ff")
+        notebook.add(tab_budget, text="Budget Heads Reference")
+
+        search_frame = tk.Frame(tab_budget, bg="#e0f2fe", pady=5)
+        search_frame.pack(fill="x", padx=10, pady=(6, 0))
+        tk.Label(search_frame, text="Search:", font=("Helvetica", 11, "bold"), bg="#e0f2fe", fg="#0369a1").pack(side="left", padx=(6, 4))
+        
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(search_frame, textvariable=search_var, font=("Helvetica", 12), width=32, bg="#fff", fg="#0c4a6e", insertbackground="#0369a1", relief="solid", bd=1)
+        search_entry.pack(side="left", padx=4)
+
+        clear_btn = tk.Button(search_frame, text="✕", font=("Helvetica", 10, "bold"), bg="#bae6fd", fg="#0369a1", bd=0, padx=6, pady=2, cursor="hand2", command=lambda: search_var.set(""))
+        apply_button_animations(clear_btn, "#bae6fd", "#a5d8ff")
+        clear_btn.pack(side="left", padx=2)
+        match_label = tk.Label(search_frame, text="", font=("Helvetica", 10), bg="#e0f2fe", fg="#0369a1")
+        match_label.pack(side="left", padx=8)
+
+        text_frame = tk.Frame(tab_budget, bg="#f0f9ff")
+        text_frame.pack(fill="both", expand=True, padx=10, pady=6)
+        scrollbar = tk.Scrollbar(text_frame)
+        scrollbar.pack(side="right", fill="y")
+        bh_text_widget = tk.Text(text_frame, wrap="word", bg="#f8fafc", fg="#0c4a6e", font=("Helvetica", 11), padx=10, pady=8, bd=1, relief="solid", yscrollcommand=scrollbar.set, state="disabled")
+        bh_text_widget.pack(fill="both", expand=True)
+        scrollbar.config(command=bh_text_widget.yview)
+
+        bh_text_widget.tag_configure("section", font=("Helvetica", 12, "bold"), foreground="#0369a1")
+        bh_text_widget.tag_configure("header", font=("Helvetica", 10, "bold"), foreground="#64748b")
+        bh_text_widget.tag_configure("income", font=("Helvetica", 11), foreground="#166534")
+        bh_text_widget.tag_configure("expense", font=("Helvetica", 11), foreground="#9a3412")
+        bh_text_widget.tag_configure("highlight", background="#fef08a", foreground="#0c4a6e")
+
+        income_rows = [(desc, parent) for _, desc, btype, parent in bh_rows if btype == "INCOME"]
+        expense_rows = [(desc, parent) for _, desc, btype, parent in bh_rows if btype == "EXPENSE"]
+
+        bh_text_widget.config(state="normal")
+        bh_text_widget.insert("end", "─" * 20 + " Income items\n", "section")
+        bh_text_widget.insert("end", "IBH  Income Budget Head          IPH  Income Parent Head\n\n", "header")
+        for desc, parent in income_rows:
+            bh_text_widget.insert("end", f"  (IBH {desc}    IPH {parent})\n", "income")
+        bh_text_widget.insert("end", "\n" + "─" * 20 + " Expense items\n", "section")
+        bh_text_widget.insert("end", "EBH  Expense Budget Head         EPH  Expense Parent Head\n\n", "header")
+        for desc, parent in expense_rows:
+            bh_text_widget.insert("end", f"  (EBH {desc}    EPH {parent})\n", "expense")
+        bh_text_widget.config(state="disabled")
+
+        def _do_search(*_args):
+            term = search_var.get().strip()
+            bh_text_widget.tag_remove("highlight", "1.0", "end")
+            if not term:
+                match_label.config(text="")
+                return
+            count = 0
+            start = "1.0"
+            while True:
+                pos = bh_text_widget.search(term, start, stopindex="end", nocase=True)
+                if not pos:
+                    break
+                end = f"{pos}+{len(term)}c"
+                bh_text_widget.tag_add("highlight", pos, end)
+                start = end
+                count += 1
+            if count:
+                first = bh_text_widget.search(term, "1.0", stopindex="end", nocase=True)
+                if first:
+                    bh_text_widget.see(first)
+                match_label.config(text=f"{count} match{'es' if count != 1 else ''}")
+            else:
+                match_label.config(text="No matches")
+        search_var.trace_add("write", _do_search)
+
+    # Let the user still trigger submit with Ctrl+Return from within help
+    # if it was bound originally on the parent
+    def _override_escape_in_help(nb):
+        pass # The standardized help binds escape properly
+
+    show_standard_help(
+        parent=win,
+        title="Bank Transaction Help Center",
+        guide_lines=guide_lines,
+        faq_data=faq_data,
+        extra_tabs_callback=inject_budget_heads_tab
     )
-    for desc, parent in income_rows:
-        bh_text_widget.insert("end", f"  (IBH {desc}    IPH {parent})\n", "income")
-    bh_text_widget.insert("end", "\n" + "\u2500" * 20 + " Expense items\n", "section")
-    bh_text_widget.insert(
-        "end", "EBH  Expense Budget Head         EPH  Expense Parent Head\n\n", "header"
-    )
-    for desc, parent in expense_rows:
-        bh_text_widget.insert("end", f"  (EBH {desc}    EPH {parent})\n", "expense")
-    bh_text_widget.config(state="disabled")
-
-    def _do_search(*_args):
-        term = search_var.get().strip()
-        bh_text_widget.tag_remove("highlight", "1.0", "end")
-        if not term:
-            match_label.config(text="")
-            return
-        count = 0
-        start = "1.0"
-        while True:
-            pos = bh_text_widget.search(term, start, stopindex="end", nocase=True)
-            if not pos:
-                break
-            end = f"{pos}+{len(term)}c"
-            bh_text_widget.tag_add("highlight", pos, end)
-            start = end
-            count += 1
-        if count:
-            first = bh_text_widget.search(term, "1.0", stopindex="end", nocase=True)
-            if first:
-                bh_text_widget.see(first)
-            match_label.config(text=f"{count} match{'es' if count != 1 else ''}")
-        else:
-            match_label.config(text="No matches")
-
-    search_var.trace_add("write", _do_search)
-
-    # ======================================================================
-    # TAB 3: FAQ
-    # ======================================================================
-    tab_faq = tk.Frame(notebook, bg=_THEME["help_bg"], padx=12, pady=12)
-    notebook.add(tab_faq, text="FAQ")
-
-    faq_text = tk.Text(
-        tab_faq,
-        wrap="word",
-        bg=_THEME["help_bg"],
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-    )
-    faq_text.pack(fill="both", expand=True)
-
-    faq_lines = [
-        "Frequently Asked Questions",
-        "--------------------------",
-        "",
-        "Q: How do I map a new bank statement entry to a Budget Head?",
-        "A: Think of every transaction as a directional flow of money. Do not "
-        "use negative numbers.",
-        "",
-        "   1. Money leaving the account (Outflow):",
-        "      - Put the amount in the 'Withdrawal' field.",
-        "      - Put 0 in 'Deposit'.",
-        "      - Select an EXPENSE budget head (e.g., 'Electricity', 'Groceries').",
-        "",
-        "   2. Money entering the account (Inflow):",
-        "      - Put 0 in 'Withdrawal'.",
-        "      - Put the amount in the 'Deposit' field.",
-        "      - Select an INCOME budget head (e.g., 'Pension', 'Savings Bank "
-        "Interest').",
-        "",
-        "   3. Money moving between your own accounts (Transfers/Liability Payoffs):",
-        "      - Select '(none)' for the Budget Head.",
-        "      - The system will treat it as a TRANSFER.",
-        "      - Link it using the 'Module Type' and 'Module Ref' (e.g., CC for "
-        "Credit Card Bills).",
-        "",
-        "Q: How do I map an ATM Cash Withdrawal?",
-        "A: Since cash is tracked as its own account, a withdrawal is not an "
-        "expense. Treat it as a TRANSFER. First, enter a transaction in your "
-        "Savings account for the Withdrawal amount, set the Budget Head to "
-        "'(none)', and the Entry Type to 'TRANSFER'. Submit it. Then, log a "
-        "second transaction in your 'Petty Cash' account for the identical "
-        "Deposit amount, set Entry Type to 'TRANSFER', click 'Select' next to "
-        "Pair ID, and pick the Savings withdrawal you just created to link them.",
-        "",
-        "Q: How do I map a Cash Deposit into my bank account?",
-        "A: Just like a withdrawal, this is a TRANSFER, but in reverse. First, "
-        "enter a transaction in your 'Petty Cash' account for the Withdrawal "
-        "amount, set the Budget Head to '(none)', and the Entry Type to "
-        "'TRANSFER'. Submit it. Then, log a second transaction in your Savings "
-        "account for the identical Deposit amount, set Entry Type to 'TRANSFER', "
-        "click 'Select' next to Pair ID, and pick the Petty Cash withdrawal to "
-        "link them.",
-        "",
-        "Q: How do I map my Credit Card bill payment (e.g., auto-debited from "
-        "savings)?",
-        "A: A credit card payment is a transfer to a liability, not a standard "
-        "expense. Set up the form exactly as follows:",
-        "   • Account: Select your Savings/Current Account.",
-        "   • Withdrawal: The exact bill amount paid.",
-        "   • Deposit: 0.00",
-        "   • Pair ID: Leave blank.",
-        "   • Budget Head: Select '(none)'.",
-        "   • Entry Type: TRANSFER (Auto-selected when you choose none).",
-        "   • Module Type: CC",
-        "   • Module Ref / Master ID: Select your specific Credit Card.",
-        "Note: Because Module Type is CC, the system knows this goes to the credit "
-        "card ledger and will not ask you to auto-fill a receiving bank account.",
-        "",
-        "Q: How do I map a historical Credit Card bill payment if I don't have the "
-        "statement to enter individual expenses?",
-        "A: Treat it as a standard expense to balance your cash flow, rather than "
-        "a CC transfer. Select the 'Historical CC Payment' budget head (under "
-        "'General & Uncategorized'). Leave the Module Type as '(none)' so the "
-        "system does not look for a matching credit card ledger entry. If you find "
-        "the statement later, you can edit this transaction, change the Module Type "
-        "to 'CC', and link it to the newly entered CC statement.",
-        "",
-        "",
-        "Q: How do I map a cheque payment for a Life Insurance premium?",
-        "A: A premium payment is an outward flow of money (an expense). Map it as "
-        "follows:",
-        "",
-        "   - Cheque No: Enter the cheque number (e.g., 238633).",
-        "   - Bank Remark: The payee from the statement (e.g., 'LIC OF INDIA').",
-        "   - Withdrawal: The exact deduction amount (e.g., 10000).",
-        "   - Deposit: 0",
-        "   - Budget Head: Select an Expense head like 'Life Insurance - Self'.",
-        "   - User Desc: A personal note (e.g., 'Life Insurance').",
-        "   - Entry Type: Select the 'EXPENSE' radio button. (Crucial for correct "
-        "math!)",
-        "   - Module Type: Leave blank. (It is an external expense, not an internal ",
-        "transfer).",
-        "",
-        "Q: How do I map a bank fee that was incorrectly charged and later reversed/refunded?",
-        "A: Since the system strictly uses Expense heads for withdrawals and Income ",
-        "heads for deposits, mapping them directly will inflate your Income and Expense.",
-        "Instead, use the same 'TRANSFER' trick you use for cash withdrawals:",
-        "   1. Create a new Bank Account in your Master list called 'Suspense Account' ",
-        "      (or use your existing Petty Cash account).",
-        "   2. For the Initial Charge (₹56 out): Record a Withdrawal of 56, select ",
-        "      Budget Head '(none)', and Entry Type 'TRANSFER'. Pair it to a Deposit ",
-        "      in the Suspense Account.",
-        "   3. For the Refund (₹56 in): Record a Deposit of 56, select Budget Head ",
-        "      '(none)', and Entry Type 'TRANSFER'. Pair it to a Withdrawal in the ",
-        "      Suspense Account.",
-        "Because both entries are TRANSFERS, they completely bypass your Income and ",
-        "Expense reports, keeping your layout perfectly clean!",
-        "",
-        "Q: My Petty Cash or Reverse/Suspense account is showing a negative balance. Is this allowed?",
-        "A: Yes. Suspense accounts (like ReverseEntry) or cash accounts often dip into the negative temporarily if you record the outgoing side of a transaction before the incoming replenishment or refund. The software will warn you when a balance goes negative, but you can choose to proceed and allow it.",
-        "",
-        "Q: I transferred money from my minor child's account to my savings account. How do I classify this?",
-        "A: Money moving within the family corpus is not an Income. To prevent it from inflating your Income reports, map it as a TRANSFER. Create a placeholder account for your child in your Master list (e.g., Bank: 'My Home', Account: 'Daughter Savings'). Record a Withdrawal from her account and a Deposit into yours, linking them via the 'Select' Pair ID button with Budget Head set to '(none)'.",
-        "",
-        "More FAQs will be added here over time...",
-    ]
-    faq_text.insert("1.0", "\n".join(faq_lines))
-    faq_text.config(state="disabled")
-
-    # ── Close Logistics ───────────────────────────────────────────────────
-    def close_help(_e=None):
-        style.theme_use(original_theme)
-        safe_close_modal(help_win, win)
-        win.bind("<Control-Return>", lambda e: submit_button.invoke())
-        win.bind("<Escape>", on_escape)
-        if focus_back_widget:
-            try:
-                focus_back_widget.focus_set()
-            except Exception:
-                pass
-        return "break"
-
-    help_win.bind("<Control-Return>", lambda e: submit_button.invoke())
-    help_win.bind("<Escape>", close_help)
-    help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-    close_help_btn = tk.Button(
-        help_win,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=BANK_TRANSACTION_ADD_UI_THEME["help_btn_bg"],
-        fg="white",
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    )
-    close_help_btn.pack(side="bottom", pady=10)
-    apply_button_animations(
-        close_help_btn,
-        BANK_TRANSACTION_ADD_UI_THEME["help_btn_bg"],
-        BANK_TRANSACTION_ADD_UI_THEME["hover_bg"],
-    )
-
 
 def show_session_transactions(
     win: tk.Toplevel,
@@ -655,6 +516,7 @@ def show_session_transactions(
     def close_viewer(_event=None):
         safe_close_modal(viewer, win)
         win.bind("<Control-Return>", lambda e: submit_button.invoke())
+
         win.bind("<Escape>", on_escape)
         if focus_back_widget:
             try:
@@ -775,6 +637,7 @@ def show_pair_select_modal(
     def _close(_e=None):
         safe_close_modal(modal, win)
         win.bind("<Control-Return>", lambda e: submit_button.invoke())
+
         win.bind("<Escape>", on_escape)
         return "break"
 
@@ -948,6 +811,7 @@ def show_fd_new_modal(
     def _close(_e=None):
         safe_close_modal(modal, win)
         win.bind("<Control-Return>", lambda e: submit_button.invoke())
+
         win.bind("<Escape>", on_escape)
         return "break"
 
@@ -1089,6 +953,7 @@ def show_fd_partial_modal(
     def _close(_e=None):
         safe_close_modal(modal, win)
         win.bind("<Control-Return>", lambda e: submit_button.invoke())
+
         win.bind("<Escape>", on_escape)
         return "break"
 
@@ -1173,6 +1038,547 @@ def _fmt_amount_on_focus_out(entry: tk.Entry, _event=None) -> None:
 # ---------------------------------------------------------------------------
 
 
+
+# ---------------------------------------------------------------------------
+# New PPF modal
+# ---------------------------------------------------------------------------
+
+def show_ppf_new_modal(
+    win,
+    account_id: int,
+    on_escape,
+    on_ppf_saved,  # callback(ppf_master_id, display_label)
+) -> None:
+    """Modal to create a new ppf_master entry and auto-select it in the parent."""
+    win.unbind("<Escape>")
+
+    modal = tk.Toplevel(win)
+    modal.title("New PPF Account")
+    modal.transient(win)
+    modal.grab_set()
+    modal.geometry("500x400")
+    modal.resizable(False, False)
+    modal.configure(bg="#1e293b")
+    push_window(modal, win)
+    try:
+        modal.focus_set()
+    except tk.TclError:
+        pass
+
+    tk.Label(
+        modal,
+        text="New PPF Account",
+        font=("Helvetica", 14, "bold"),
+        bg="#784212",
+        fg="white",
+        pady=8,
+    ).pack(fill="x")
+
+    form = tk.Frame(modal, bg="#1e293b", padx=16, pady=12)
+    form.pack(fill="both", expand=True)
+
+    _fields = [
+        ("PPF Account No:", "ppf_account_number", "entry"),
+        ("Holder Name:", "holder_name", "entry"),
+        ("Open Date:", "open_dt", "date"),
+        ("Maturity Date:", "maturity_dt", "date"),
+    ]
+    _widgets = {}
+    for r, (lbl, key, wtype) in enumerate(_fields):
+        tk.Label(
+            form,
+            text=lbl,
+            font=("Helvetica", 14),
+            bg="#1e293b",
+            fg="yellow",
+            anchor="e",
+        ).grid(row=r, column=0, sticky="e", padx=(4, 8), pady=8)
+        if wtype == "date":
+            w = DateEntry(
+                form, date_pattern="dd-mm-yyyy", width=18, font=("Helvetica", 14)
+            )
+        else:
+            w = tk.Entry(form, width=28, font=("Helvetica", 14))
+        apply_entry_theme(w)
+        w.grid(row=r, column=1, sticky="w", padx=4, pady=8)
+        _widgets[key] = w
+
+    _keys = [f[1] for f in _fields]
+    for _i, _k in enumerate(_keys[:-1]):
+        _nxt = _keys[_i + 1]
+        _widgets[_k].bind("<Return>", lambda e, n=_nxt: _widgets[n].focus_set())
+
+    btn_row = tk.Frame(modal, bg="#1e293b")
+    btn_row.pack(fill="x", padx=16, pady=12)
+
+    def _save(_e=None):
+        ppf_number = _widgets["ppf_account_number"].get().strip()
+        holder = _widgets["holder_name"].get().strip()
+        if not ppf_number:
+            show_colorful_error(modal, "Validation", "PPF Account Number is required.")
+            _widgets["ppf_account_number"].focus_set()
+            return
+        if not holder:
+            show_colorful_error(modal, "Validation", "Holder Name is required.")
+            _widgets["holder_name"].focus_set()
+            return
+        open_dt = _widgets["open_dt"].get_date().strftime("%Y-%m-%d")
+        maturity_dt = _widgets["maturity_dt"].get_date().strftime("%Y-%m-%d")
+        if maturity_dt <= open_dt:
+            show_colorful_error(
+                modal, "Validation", "Maturity Date must be after Open Date."
+            )
+            _widgets["maturity_dt"].focus_set()
+            return
+        try:
+            new_id = db_add_ppf_master(
+                {
+                    "account_id": account_id,
+                    "ppf_account_number": ppf_number,
+                    "holder_name": holder,
+                    "open_dt": open_dt,
+                    "maturity_dt": maturity_dt,
+                    "is_active": 1,
+                }
+            )
+            _close()
+            display_label = f"{ppf_number} - {holder} (Active)"
+            on_ppf_saved(new_id, display_label)
+        except Exception as exc:
+            show_colorful_error(modal, "Error", f"Failed to save PPF: {exc}")
+
+    def _close(_e=None):
+        safe_close_modal(modal, win)
+        win.bind("<Control-Return>", lambda e: win.event_generate("<<InvokeSubmit>>"))
+        win.bind("<Escape>", on_escape)
+        return "break"
+
+    save_btn = tk.Button(
+        btn_row,
+        text="💾 Save PPF",
+        command=_save,
+        font=("Helvetica", 11, "bold"),
+        bg="#22c55e",
+        fg="white",
+        cursor="hand2",
+        padx=10,
+    )
+    save_btn.pack(side="left", padx=5)
+    apply_button_animations(save_btn, "#22c55e", "#2563eb")
+
+    cancel_button = tk.Button(
+        btn_row,
+        text="❌ Cancel",
+        command=_close,
+        font=("Helvetica", 11, "bold"),
+        bg="#ef4444",
+        fg="white",
+        cursor="hand2",
+        padx=10,
+    )
+    cancel_button.pack(side="left", padx=5)
+    apply_button_animations(cancel_button, "#ef4444", "#b91c1c")
+    modal.bind("<Control-Return>", lambda e: _save())
+    modal.bind("<Escape>", _close)
+    modal.protocol("WM_DELETE_WINDOW", _close)
+    _widgets["ppf_account_number"].focus_set()
+
+
+
+# ---------------------------------------------------------------------------
+# Stock Actual Bank modal
+# ---------------------------------------------------------------------------
+
+def show_stock_actu_new_modal(
+    win: tk.Toplevel,
+    default_dt_str: str,
+    withdrawal_amt: float,
+    deposit_amt: float,
+    default_desc: str,
+    on_escape,
+    on_saved,  # callback(new_id)
+) -> None:
+    """Modal to create a new actual_bank entry in StockMan."""
+    win.unbind("<Escape>")
+
+    modal = tk.Toplevel(win)
+    modal.title("New Stock Actual Bank Entry")
+    modal.transient(win)
+    modal.grab_set()
+    modal.geometry("500x380")
+    modal.resizable(False, False)
+    modal.configure(bg="#1e293b")
+    push_window(modal, win)
+    try:
+        modal.focus_set()
+    except tk.TclError:
+        pass
+
+    tk.Label(
+        modal,
+        text="New Stock Actual Bank Entry",
+        font=("Helvetica", 14, "bold"),
+        bg="#784212",
+        fg="white",
+        pady=8,
+    ).pack(fill="x")
+
+    form = tk.Frame(modal, bg="#1e293b", padx=16, pady=12)
+    form.pack(fill="both", expand=True)
+
+    # Pre-populate
+    default_type = "DEBIT" if withdrawal_amt > 0 else "CREDIT"
+    default_amt = withdrawal_amt if withdrawal_amt > 0 else deposit_amt
+
+    _fields = [
+        ("Date:", "actu_bt_dt", "date"),
+        ("Type (CREDIT/DEBIT):", "actu_bt_type", "entry"),
+        ("Amount:", "actu_bt_amt", "entry"),
+        ("Demat Broker/Desc:", "actu_bt_desc", "entry"),
+    ]
+    _widgets = {}
+    for r, (lbl, key, wtype) in enumerate(_fields):
+        tk.Label(
+            form,
+            text=lbl,
+            font=("Helvetica", 14),
+            bg="#1e293b",
+            fg="yellow",
+            anchor="e",
+        ).grid(row=r, column=0, sticky="e", padx=(4, 8), pady=8)
+        if wtype == "date":
+            w = DateEntry(
+                form, date_pattern="dd-mm-yyyy", width=18, font=("Helvetica", 14)
+            )
+            try:
+                from datetime import datetime
+                w.set_date(datetime.strptime(default_dt_str, "%Y-%m-%d").date())
+            except:
+                pass
+        else:
+            w = tk.Entry(form, width=28, font=("Helvetica", 14))
+        apply_entry_theme(w)
+        w.grid(row=r, column=1, sticky="w", padx=4, pady=8)
+        _widgets[key] = w
+
+    _widgets["actu_bt_type"].insert(0, default_type)
+    _widgets["actu_bt_amt"].insert(0, str(default_amt))
+    _widgets["actu_bt_desc"].insert(0, default_desc)
+
+    _keys = [f[1] for f in _fields]
+    for _i, _k in enumerate(_keys[:-1]):
+        _nxt = _keys[_i + 1]
+        _widgets[_k].bind("<Return>", lambda e, n=_nxt: _widgets[n].focus_set())
+
+    btn_row = tk.Frame(modal, bg="#1e293b")
+    btn_row.pack(fill="x", padx=16, pady=12)
+
+    def _save(_e=None):
+        dt = _widgets["actu_bt_dt"].get_date().strftime("%Y-%m-%d")
+        b_type = _widgets["actu_bt_type"].get().strip().upper()
+        amt_str = _widgets["actu_bt_amt"].get().strip()
+        desc = _widgets["actu_bt_desc"].get().strip()
+        
+        if b_type not in ("CREDIT", "DEBIT"):
+            show_colorful_error(modal, "Validation", "Type must be CREDIT or DEBIT.")
+            _widgets["actu_bt_type"].focus_set()
+            return
+            
+        try:
+            amt = float(amt_str)
+        except ValueError:
+            show_colorful_error(modal, "Validation", "Amount must be a number.")
+            _widgets["actu_bt_amt"].focus_set()
+            return
+
+        try:
+            new_id = db_add_stock_actual_bank(dt, b_type, amt, desc)
+            _close()
+            on_saved(new_id)
+        except Exception as exc:
+            show_colorful_error(modal, "Error", f"Failed to save: {exc}")
+
+    def _close(_e=None):
+        safe_close_modal(modal, win)
+        win.bind("<Control-Return>", lambda e: win.event_generate("<<InvokeSubmit>>"))
+        win.bind("<Escape>", on_escape)
+        return "break"
+
+    save_btn = tk.Button(
+        btn_row,
+        text="💾 Save",
+        command=_save,
+        font=("Helvetica", 11, "bold"),
+        bg="#22c55e",
+        fg="white",
+        cursor="hand2",
+        padx=10,
+    )
+    save_btn.pack(side="left", padx=5)
+    apply_button_animations(save_btn, "#22c55e", "#2563eb")
+
+    cancel_button = tk.Button(
+        btn_row,
+        text="❌ Cancel",
+        command=_close,
+        font=("Helvetica", 11, "bold"),
+        bg="#ef4444",
+        fg="white",
+        cursor="hand2",
+        padx=10,
+    )
+    cancel_button.pack(side="left", padx=5)
+    apply_button_animations(cancel_button, "#ef4444", "#b91c1c")
+    modal.bind("<Control-Return>", lambda e: _save())
+    modal.bind("<Escape>", _close)
+    modal.protocol("WM_DELETE_WINDOW", _close)
+    _widgets["actu_bt_desc"].focus_set()
+
+
+
+# ---------------------------------------------------------------------------
+# MF / INS modals
+# ---------------------------------------------------------------------------
+
+def show_mf_new_modal(
+    win: tk.Toplevel,
+    account_id: int,
+    on_escape,
+    on_mf_saved,
+) -> None:
+    win.unbind("<Escape>")
+    modal = tk.Toplevel(win)
+    modal.title("New Mutual Fund")
+    modal.transient(win)
+    modal.grab_set()
+    modal.geometry("500x380")
+    modal.resizable(False, False)
+    modal.configure(bg="#1e293b")
+    push_window(modal, win)
+    try:
+        modal.focus_set()
+    except tk.TclError:
+        pass
+
+    tk.Label(
+        modal,
+        text="New Mutual Fund",
+        font=("Helvetica", 14, "bold"),
+        bg="#784212",
+        fg="white",
+        pady=8,
+    ).pack(fill="x")
+
+    form = tk.Frame(modal, bg="#1e293b", padx=16, pady=12)
+    form.pack(fill="both", expand=True)
+
+    _fields = [
+        ("AMC Name:", "amc_name", "entry"),
+        ("RTA (CAMS/KFintech/Direct):", "rta_name", "entry"),
+        ("Folio Number:", "folio_number", "entry"),
+        ("Scheme Name:", "scheme_name", "entry"),
+    ]
+    _widgets = {}
+    for r, (lbl, key, wtype) in enumerate(_fields):
+        tk.Label(
+            form, text=lbl, font=("Helvetica", 14), bg="#1e293b", fg="yellow", anchor="e"
+        ).grid(row=r, column=0, sticky="e", padx=(4, 8), pady=8)
+        w = tk.Entry(form, width=28, font=("Helvetica", 14))
+        apply_entry_theme(w)
+        w.grid(row=r, column=1, sticky="w", padx=4, pady=8)
+        _widgets[key] = w
+
+    _keys = [f[1] for f in _fields]
+    for _i, _k in enumerate(_keys[:-1]):
+        _nxt = _keys[_i + 1]
+        _widgets[_k].bind("<Return>", lambda e, n=_nxt: _widgets[n].focus_set())
+
+    btn_row = tk.Frame(modal, bg="#1e293b")
+    btn_row.pack(fill="x", padx=16, pady=12)
+
+    def _save(_e=None):
+        amc = _widgets["amc_name"].get().strip()
+        rta = _widgets["rta_name"].get().strip() or "CAMS"
+        folio = _widgets["folio_number"].get().strip()
+        scheme = _widgets["scheme_name"].get().strip()
+        
+        if not amc or not folio or not scheme:
+            show_colorful_error(modal, "Validation", "AMC, Folio, and Scheme are required.")
+            return
+
+        try:
+            new_id = db_add_mf_master({
+                "account_id": account_id,
+                "amc_name": amc,
+                "rta_name": rta,
+                "folio_number": folio,
+                "scheme_name": scheme,
+                "is_active": 1,
+            })
+            _close()
+            display_label = f"{amc} | {scheme} [Folio: {folio} - {rta}]"
+            on_mf_saved(new_id, display_label)
+        except Exception as exc:
+            show_colorful_error(modal, "Error", f"Failed to save MF: {exc}")
+
+    def _close(_e=None):
+        safe_close_modal(modal, win)
+        win.bind("<Control-Return>", lambda e: win.event_generate("<<InvokeSubmit>>"))
+        win.bind("<Escape>", on_escape)
+        return "break"
+
+    save_btn = tk.Button(
+        btn_row, text="💾 Save", command=_save, font=("Helvetica", 11, "bold"),
+        bg="#22c55e", fg="white", cursor="hand2", padx=10
+    )
+    save_btn.pack(side="left", padx=5)
+    apply_button_animations(save_btn, "#22c55e", "#2563eb")
+
+    cancel_btn = tk.Button(
+        btn_row, text="❌ Cancel", command=_close, font=("Helvetica", 11, "bold"),
+        bg="#ef4444", fg="white", cursor="hand2", padx=10
+    )
+    cancel_btn.pack(side="left", padx=5)
+    apply_button_animations(cancel_btn, "#ef4444", "#b91c1c")
+    modal.bind("<Control-Return>", lambda e: _save())
+    modal.bind("<Escape>", _close)
+    modal.protocol("WM_DELETE_WINDOW", _close)
+    _widgets["amc_name"].focus_set()
+
+def show_ins_new_modal(
+    win: tk.Toplevel,
+    account_id: int,
+    on_escape,
+    on_ins_saved,
+) -> None:
+    win.unbind("<Escape>")
+    modal = tk.Toplevel(win)
+    modal.title("New Insurance Policy")
+    modal.transient(win)
+    modal.grab_set()
+    modal.geometry("500x550")
+    modal.resizable(False, False)
+    modal.configure(bg="#1e293b")
+    push_window(modal, win)
+    try:
+        modal.focus_set()
+    except tk.TclError:
+        pass
+
+    tk.Label(
+        modal,
+        text="New Insurance Policy",
+        font=("Helvetica", 14, "bold"),
+        bg="#784212",
+        fg="white",
+        pady=8,
+    ).pack(fill="x")
+
+    form = tk.Frame(modal, bg="#1e293b", padx=16, pady=12)
+    form.pack(fill="both", expand=True)
+
+    _fields = [
+        ("Company Name:", "company_name", "entry"),
+        ("Category:", "ins_category", "combo"),
+        ("Policy Number:", "policy_number", "entry"),
+        ("Plan Name:", "plan_name", "entry"),
+        ("Proposer Name:", "proposer_name", "entry"),
+        ("Life Assured / Vehicle:", "assured_item", "entry"),
+        ("Premium Amount:", "premium_amount", "entry"),
+        ("Start Date:", "start_dt", "date"),
+        ("Maturity/Renewal Date:", "maturity_dt", "date"),
+    ]
+    _widgets = {}
+    for r, (lbl, key, wtype) in enumerate(_fields):
+        tk.Label(
+            form, text=lbl, font=("Helvetica", 11), bg="#1e293b", fg="yellow", anchor="e"
+        ).grid(row=r, column=0, sticky="e", padx=(4, 8), pady=6)
+        if wtype == "date":
+            w = DateEntry(form, date_pattern="dd-mm-yyyy", width=18, font=("Helvetica", 11))
+        elif wtype == "combo":
+            w = ttk.Combobox(form, values=['LIFE_TERM', 'LIFE_SAVINGS', 'HEALTH', 'VEHICLE', 'GENERAL'], width=24, font=("Helvetica", 11))
+            w.set("LIFE_TERM")
+        else:
+            w = tk.Entry(form, width=26, font=("Helvetica", 11))
+        if wtype != "combo":
+            apply_entry_theme(w)
+        w.grid(row=r, column=1, sticky="w", padx=4, pady=6)
+        _widgets[key] = w
+
+    _keys = [f[1] for f in _fields]
+    for _i, _k in enumerate(_keys[:-1]):
+        _nxt = _keys[_i + 1]
+        _widgets[_k].bind("<Return>", lambda e, n=_nxt: _widgets[n].focus_set())
+
+    btn_row = tk.Frame(modal, bg="#1e293b")
+    btn_row.pack(fill="x", padx=16, pady=12)
+
+    def _save(_e=None):
+        company = _widgets["company_name"].get().strip()
+        cat = _widgets["ins_category"].get().strip()
+        pol = _widgets["policy_number"].get().strip()
+        plan = _widgets["plan_name"].get().strip()
+        proposer = _widgets["proposer_name"].get().strip()
+        assured = _widgets["assured_item"].get().strip()
+        amt_str = _widgets["premium_amount"].get().strip()
+        sdt = _widgets["start_dt"].get_date().strftime("%Y-%m-%d")
+        mdt = _widgets["maturity_dt"].get_date().strftime("%Y-%m-%d")
+        
+        if not company or not pol or not plan or not proposer or not assured:
+            show_colorful_error(modal, "Validation", "Missing required fields.")
+            return
+
+        try:
+            amt = float(amt_str) if amt_str else 0.0
+        except ValueError:
+            show_colorful_error(modal, "Validation", "Premium must be a number.")
+            return
+
+        try:
+            new_id = db_add_ins_master({
+                "account_id": account_id,
+                "company_name": company,
+                "ins_category": cat,
+                "policy_number": pol,
+                "plan_name": plan,
+                "proposer_name": proposer,
+                "assured_item": assured,
+                "premium_amount": amt,
+                "start_dt": sdt,
+                "maturity_dt": mdt,
+                "is_active": 1,
+            })
+            _close()
+            display_label = f"{company} ({cat}) | Pol: {pol} | Assured: {assured}"
+            on_ins_saved(new_id, display_label)
+        except Exception as exc:
+            show_colorful_error(modal, "Error", f"Failed to save INS: {exc}")
+
+    def _close(_e=None):
+        safe_close_modal(modal, win)
+        win.bind("<Control-Return>", lambda e: win.event_generate("<<InvokeSubmit>>"))
+        win.bind("<Escape>", on_escape)
+        return "break"
+
+    save_btn = tk.Button(
+        btn_row, text="💾 Save", command=_save, font=("Helvetica", 11, "bold"),
+        bg="#22c55e", fg="white", cursor="hand2", padx=10
+    )
+    save_btn.pack(side="left", padx=5)
+    apply_button_animations(save_btn, "#22c55e", "#2563eb")
+
+    cancel_btn = tk.Button(
+        btn_row, text="❌ Cancel", command=_close, font=("Helvetica", 11, "bold"),
+        bg="#ef4444", fg="white", cursor="hand2", padx=10
+    )
+    cancel_btn.pack(side="left", padx=5)
+    apply_button_animations(cancel_btn, "#ef4444", "#b91c1c")
+    modal.bind("<Control-Return>", lambda e: _save())
+    modal.bind("<Escape>", _close)
+    modal.protocol("WM_DELETE_WINDOW", _close)
+    _widgets["company_name"].focus_set()
+
+
 def add_bank_transaction_main(
     parent: Union[tk.Toplevel, tk.Tk],
     calling_button: tk.Widget | None = None,
@@ -1208,7 +1614,13 @@ def add_bank_transaction_main(
     bh_values = ["(none)"] + [r[1] for r in bh_rows]
 
     fd_map: dict = {}  # fd_number → fd_master_id
-    cc_map: dict = {}  # display_label → card_master_id
+    cc_map: dict = {}
+    ppf_map: dict = {}
+    loan_map: dict = {}
+    stock_comp_map: dict = {}
+    stock_actu_map: dict = {}
+    mf_map: dict = {}
+    ins_map: dict = {}
     _prev_balance: list = [None]  # mutable container so closures can update it
 
     # Build prev-balance lookup: last transaction balance, or curr_balance fallback
@@ -1717,6 +2129,7 @@ def add_bank_transaction_main(
         "STOCK_COMP",
         "STOCK_ACTU",
         "MF",
+        "INS",
     ]
     mt_radios: list[tk.Radiobutton] = []
     for _col, _mt in enumerate(_module_types[:4]):
@@ -1754,14 +2167,15 @@ def add_bank_transaction_main(
     module_ref_cell = tk.Frame(mod_ref_erow, bg=_C_MOD)
     module_ref_cell.pack(side="left", fill="x", expand=True)
 
-    # Plain entry — default (non-FD)
+    # Plain entry — disabled placeholder when Module Type is NONE
     module_ref_entry = tk.Entry(module_ref_cell, width=50, font=_F)
     module_ref_entry.pack(side="left")
-    apply_entry_theme(module_ref_entry)
+    apply_entry_theme(module_ref_entry, is_readonly=True)
+    module_ref_entry.config(state="disabled")
     bind_tooltip(
         module_ref_entry,
         tooltip_var,
-        "Integer product ID (e.g. loan_master_id). Not required for NONE.",
+        "Not required when Module Type is NONE. Select a Module Type above to choose from a dropdown.",
     )
 
     # FD sub-frame — hidden until FD is selected
@@ -1839,21 +2253,291 @@ def add_bank_transaction_main(
         else:
             cc_combo.set("")
 
+    # PPF sub-frame - hidden until PPF is selected
+    ppf_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+
+    ppf_combo = ttk.Combobox(ppf_cell, width=40)
+    ppf_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(ppf_combo)
+    bind_tooltip(ppf_combo, tooltip_var, "Select an active PPF Account.")
+
+    def _rebuild_ppf_combo():
+        nonlocal ppf_map
+        ppf_rows = get_all_ppf_masters()
+        ppf_map = {
+            f"{r[1]} - {r[2]} ({'Active' if r[4] else 'Closed'})": r[0] for r in ppf_rows
+        }
+        ppf_combo["values"] = list(ppf_map.keys())
+        progressive_selection(ppf_combo, list(ppf_map.keys()))
+        if ppf_combo["values"]:
+            ppf_combo.set(ppf_combo["values"][0])
+        else:
+            ppf_combo.set("")
+
+    def _open_ppf_new():
+        acct_name = account_combo.get()
+        if not acct_name or acct_name not in account_map:
+            show_colorful_error(
+                win, "Validation", "Select an account before adding a new PPF."
+            )
+            return
+
+        def _on_ppf_saved(_new_id, display_label):
+            _rebuild_ppf_combo()
+            ppf_combo.set(display_label)
+
+        show_ppf_new_modal(win, account_map[acct_name], on_escape, _on_ppf_saved)
+
+    new_ppf_btn = tk.Button(
+        ppf_cell,
+        text="New",
+        command=_open_ppf_new,
+        font=("Helvetica", 11, "bold"),
+        bg=_BTN_BG,
+        fg=_BTN_FG,
+        cursor="hand2",
+        padx=8,
+        pady=2,
+        relief="raised",
+        bd=2,
+    )
+    new_ppf_btn.pack(side="left")
+    apply_button_animations(
+        new_ppf_btn,
+        _BTN_BG,
+        BANK_TRANSACTION_ADD_UI_THEME["hover_bg"],
+    )
+
+    # LOAN sub-frame - hidden until LOAN is selected
+    loan_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+
+    loan_combo = ttk.Combobox(loan_cell, width=40)
+    loan_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(loan_combo)
+    bind_tooltip(loan_combo, tooltip_var, "Select an active Loan Account.")
+
+    def _rebuild_loan_combo():
+        nonlocal loan_map
+        loan_rows = get_all_loan_masters_for_display()
+        loan_map = {
+            f"{r[1]} [{r[2]}] - {r[5]}": r[0] for r in loan_rows
+        }
+        loan_combo["values"] = list(loan_map.keys())
+        progressive_selection(loan_combo, list(loan_map.keys()))
+        if loan_combo["values"]:
+            loan_combo.set(loan_combo["values"][0])
+        else:
+            loan_combo.set("")
+
+    # STOCK_COMP sub-frame
+    stock_comp_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+
+    stock_comp_combo = ttk.Combobox(stock_comp_cell, width=52)
+    stock_comp_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(stock_comp_combo)
+    bind_tooltip(stock_comp_combo, tooltip_var, "Select a Computed Bank Entry from StockMan.")
+
+    def _rebuild_stock_comp_combo():
+        nonlocal stock_comp_map
+        rows = get_stock_computed_bank_entries()
+        stock_comp_map = {
+            f"#{r[0]} | {r[1]} | {r[2]} ₹{r[3]:.2f} | {r[4] or ''} {r[5] or ''}".strip(): r[0]
+            for r in rows
+        }
+        stock_comp_combo["values"] = list(stock_comp_map.keys())
+        progressive_selection(stock_comp_combo, list(stock_comp_map.keys()))
+        if stock_comp_combo["values"]:
+            stock_comp_combo.set(stock_comp_combo["values"][0])
+        else:
+            stock_comp_combo.set("")
+
+    # STOCK_ACTU sub-frame
+    stock_actu_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+
+    stock_actu_combo = ttk.Combobox(stock_actu_cell, width=44)
+    stock_actu_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(stock_actu_combo)
+    bind_tooltip(stock_actu_combo, tooltip_var, "Select an Actual Bank Entry from StockMan.")
+
+    def _rebuild_stock_actu_combo():
+        nonlocal stock_actu_map
+        rows = get_stock_actual_bank_entries()
+        stock_actu_map = {
+            f"#{r[0]} | {r[1]} | {r[2]} ₹{r[3]:.2f} | {r[4] or ''}".strip(): r[0]
+            for r in rows
+        }
+        stock_actu_combo["values"] = list(stock_actu_map.keys())
+        progressive_selection(stock_actu_combo, list(stock_actu_map.keys()))
+        if stock_actu_combo["values"]:
+            stock_actu_combo.set(stock_actu_combo["values"][0])
+        else:
+            stock_actu_combo.set("")
+
+    # MF sub-frame
+    mf_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+
+    mf_combo = ttk.Combobox(mf_cell, width=44)
+    mf_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(mf_combo)
+    bind_tooltip(mf_combo, tooltip_var, "Select an active Mutual Fund folio.")
+
+    def _rebuild_mf_combo():
+        nonlocal mf_map
+        rows = get_active_mf_masters()
+        mf_map = {
+            f"{r[1]} | {r[4]} [Folio: {r[3]} - {r[2]}]": r[0]
+            for r in rows
+        }
+        mf_combo["values"] = list(mf_map.keys())
+        progressive_selection(mf_combo, list(mf_map.keys()))
+        if mf_combo["values"]:
+            mf_combo.set(mf_combo["values"][0])
+        else:
+            mf_combo.set("")
+
+    def _open_mf_new():
+        acct_name = account_combo.get()
+        if not acct_name or acct_name not in account_map:
+            show_colorful_error(win, "Validation", "Select an account before adding a new MF.")
+            return
+
+        def _on_mf_saved(_new_id, display_label):
+            _rebuild_mf_combo()
+            mf_combo.set(display_label)
+
+        show_mf_new_modal(win, account_map[acct_name], on_escape, _on_mf_saved)
+
+    new_mf_btn = tk.Button(
+        mf_cell, text="New", command=_open_mf_new, font=("Helvetica", 11, "bold"),
+        bg=_BTN_BG, fg=_BTN_FG, cursor="hand2", padx=8, pady=2, relief="raised", bd=2
+    )
+    new_mf_btn.pack(side="left")
+    apply_button_animations(new_mf_btn, _BTN_BG, BANK_TRANSACTION_ADD_UI_THEME["hover_bg"])
+
+    # INS sub-frame
+    ins_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+
+    ins_combo = ttk.Combobox(ins_cell, width=44)
+    ins_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(ins_combo)
+    bind_tooltip(ins_combo, tooltip_var, "Select an active Insurance policy.")
+
+    def _rebuild_ins_combo():
+        nonlocal ins_map
+        rows = get_active_ins_masters()
+        ins_map = {
+            f"{r[1]} ({r[2]}) | Pol: {r[3]} | Assured: {r[6]}": r[0]
+            for r in rows
+        }
+        ins_combo["values"] = list(ins_map.keys())
+        progressive_selection(ins_combo, list(ins_map.keys()))
+        if ins_combo["values"]:
+            ins_combo.set(ins_combo["values"][0])
+        else:
+            ins_combo.set("")
+
+    def _open_ins_new():
+        acct_name = account_combo.get()
+        if not acct_name or acct_name not in account_map:
+            show_colorful_error(win, "Validation", "Select an account before adding a new INS.")
+            return
+
+        def _on_ins_saved(_new_id, display_label):
+            _rebuild_ins_combo()
+            ins_combo.set(display_label)
+
+        show_ins_new_modal(win, account_map[acct_name], on_escape, _on_ins_saved)
+
+    new_ins_btn = tk.Button(
+        ins_cell, text="New", command=_open_ins_new, font=("Helvetica", 11, "bold"),
+        bg=_BTN_BG, fg=_BTN_FG, cursor="hand2", padx=8, pady=2, relief="raised", bd=2
+    )
+    new_ins_btn.pack(side="left")
+    apply_button_animations(new_ins_btn, _BTN_BG, BANK_TRANSACTION_ADD_UI_THEME["hover_bg"])
+
+    def _open_stock_actu_new():
+        try:
+            w_amt = float(withdrawal_entry.get().strip().replace(",", "") or "0")
+        except:
+            w_amt = 0.0
+        try:
+            d_amt = float(deposit_entry.get().strip().replace(",", "") or "0")
+        except:
+            d_amt = 0.0
+            
+        desc = bank_remark_entry.get().strip() or user_desc_combo.get().strip()
+        dt_str = trans_dt.get_date().strftime("%Y-%m-%d")
+
+        def _on_saved(_new_id):
+            _rebuild_stock_actu_combo()
+            for k, v in stock_actu_map.items():
+                if v == _new_id:
+                    stock_actu_combo.set(k)
+                    break
+
+        show_stock_actu_new_modal(win, dt_str, w_amt, d_amt, desc, on_escape, _on_saved)
+
+    new_stock_actu_btn = tk.Button(
+        stock_actu_cell,
+        text="New",
+        command=_open_stock_actu_new,
+        font=("Helvetica", 11, "bold"),
+        bg=_BTN_BG,
+        fg=_BTN_FG,
+        cursor="hand2",
+        padx=8,
+        pady=2,
+        relief="raised",
+        bd=2,
+    )
+    new_stock_actu_btn.pack(side="left")
+    apply_button_animations(
+        new_stock_actu_btn,
+        _BTN_BG,
+        BANK_TRANSACTION_ADD_UI_THEME["hover_bg"],
+    )
+
     # ── Module-type change handler ─────────────────────────────────────────
     def _on_module_type_change(*_):
-        if module_type_var.get() == "FD":
-            module_ref_entry.pack_forget()
-            cc_cell.pack_forget()
+        for _w in (
+            module_ref_entry,
+            fd_cell,
+            cc_cell,
+            ppf_cell,
+            loan_cell,
+            stock_comp_cell,
+            stock_actu_cell,
+            mf_cell,
+            ins_cell,
+        ):
+            _w.pack_forget()
+
+        mt = module_type_var.get()
+        if mt == "FD":
             _rebuild_fd_combo()
             fd_cell.pack(side="left")
-        elif module_type_var.get() == "CC":
-            module_ref_entry.pack_forget()
-            fd_cell.pack_forget()
+        elif mt == "CC":
             _rebuild_cc_combo()
             cc_cell.pack(side="left")
+        elif mt == "PPF":
+            _rebuild_ppf_combo()
+            ppf_cell.pack(side="left")
+        elif mt == "LOAN":
+            _rebuild_loan_combo()
+            loan_cell.pack(side="left")
+        elif mt == "STOCK_COMP":
+            _rebuild_stock_comp_combo()
+            stock_comp_cell.pack(side="left")
+        elif mt == "STOCK_ACTU":
+            _rebuild_stock_actu_combo()
+            stock_actu_cell.pack(side="left")
+        elif mt == "MF":
+            _rebuild_mf_combo()
+            mf_cell.pack(side="left")
+        elif mt == "INS":
+            _rebuild_ins_combo()
+            ins_cell.pack(side="left")
         else:
-            fd_cell.pack_forget()
-            cc_cell.pack_forget()
             module_ref_entry.pack(side="left")
 
     module_type_var.trace_add("write", _on_module_type_change)
@@ -1915,9 +2599,10 @@ def add_bank_transaction_main(
     win.after(50, _on_account_change)
 
     # ── Auto-fill Balance ─────────────────────────────────────────────────
-    _bal_updater = lambda e=None: _update_balance_default(
-        win, _prev_balance, withdrawal_entry, deposit_entry, balance_entry, e
-    )
+    def _bal_updater(e=None):
+        return _update_balance_default(
+            win, _prev_balance, withdrawal_entry, deposit_entry, balance_entry, e
+        )
     withdrawal_entry.bind("<FocusOut>", _bal_updater, add="+")
     deposit_entry.bind("<FocusOut>", _bal_updater, add="+")
     withdrawal_entry.bind("<KeyRelease>", _bal_updater, add="+")
@@ -2180,16 +2865,76 @@ def add_bank_transaction_main(
             master_id = cc_map[cc_label]
 
         elif module_type == "PPF":
-            # Auto-resolve: expects exactly one row in ppf_master
-            master_id = _db_get_ppf_master_id()
-            if master_id is None:
+            ppf_label = ppf_combo.get().strip()
+            if not ppf_label or ppf_label not in ppf_map:
                 show_colorful_error(
                     win,
                     "Validation Error",
-                    "Could not determine PPF account. "
-                    "Ensure exactly one entry exists in ppf_master.",
+                    "Please select a valid PPF Account from the dropdown.",
                 )
+                flash_error(ppf_combo)
                 return
+            master_id = ppf_map[ppf_label]
+
+        elif module_type == "LOAN":
+            loan_label = loan_combo.get().strip()
+            if not loan_label or loan_label not in loan_map:
+                show_colorful_error(
+                    win,
+                    "Validation Error",
+                    "Please select a valid Loan Account from the dropdown.",
+                )
+                flash_error(loan_combo)
+                return
+            master_id = loan_map[loan_label]
+
+        elif module_type == "STOCK_COMP":
+            label = stock_comp_combo.get().strip()
+            if not label or label not in stock_comp_map:
+                show_colorful_error(
+                    win,
+                    "Validation Error",
+                    "Please select a valid Computed Bank entry from the dropdown.",
+                )
+                flash_error(stock_comp_combo)
+                return
+            master_id = stock_comp_map[label]
+
+        elif module_type == "STOCK_ACTU":
+            label = stock_actu_combo.get().strip()
+            if not label or label not in stock_actu_map:
+                show_colorful_error(
+                    win,
+                    "Validation Error",
+                    "Please select a valid Actual Bank entry from the dropdown.",
+                )
+                flash_error(stock_actu_combo)
+                return
+            master_id = stock_actu_map[label]
+
+        elif module_type == "MF":
+            label = mf_combo.get().strip()
+            if not label or label not in mf_map:
+                show_colorful_error(
+                    win,
+                    "Validation Error",
+                    "Please select a valid MF entry from the dropdown.",
+                )
+                flash_error(mf_combo)
+                return
+            master_id = mf_map[label]
+
+        elif module_type == "INS":
+            label = ins_combo.get().strip()
+            if not label or label not in ins_map:
+                show_colorful_error(
+                    win,
+                    "Validation Error",
+                    "Please select a valid INS entry from the dropdown.",
+                )
+                flash_error(ins_combo)
+                return
+            master_id = ins_map[label]
 
         elif module_type != "NONE":
             ref_val = module_ref_entry.get().strip()
@@ -2501,6 +3246,18 @@ def add_bank_transaction_main(
             fd_combo.focus_set()
         elif mt == "CC":
             cc_combo.focus_set()
+        elif mt == "PPF":
+            ppf_combo.focus_set()
+        elif mt == "LOAN":
+            loan_combo.focus_set()
+        elif mt == "STOCK_COMP":
+            stock_comp_combo.focus_set()
+        elif mt == "STOCK_ACTU":
+            stock_actu_combo.focus_set()
+        elif mt == "MF":
+            mf_combo.focus_set()
+        elif mt == "INS":
+            ins_combo.focus_set()
         else:
             module_ref_entry.focus_set()
 
@@ -2528,10 +3285,16 @@ def add_bank_transaction_main(
     module_ref_entry.bind("<Return>", lambda e: submit_button.focus_set())
     fd_combo.bind("<Return>", lambda e: submit_button.focus_set())
     cc_combo.bind("<Return>", lambda e: submit_button.focus_set())
+    ppf_combo.bind("<Return>", lambda e: submit_button.focus_set())
+    loan_combo.bind("<Return>", lambda e: submit_button.focus_set())
+    stock_comp_combo.bind("<Return>", lambda e: submit_button.focus_set())
+    stock_actu_combo.bind("<Return>", lambda e: submit_button.focus_set())
+    mf_combo.bind("<Return>", lambda e: submit_button.focus_set())
+    ins_combo.bind("<Return>", lambda e: submit_button.focus_set())
     submit_button.bind("<Return>", lambda e: on_submit())
 
     # ── Global hotkeys ────────────────────────────────────────────────────
-    win.bind("<F1>", lambda e: show_master_help(win, on_escape, win.focus_get()))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else show_master_help(win, on_escape, win.focus_get()))
     win.bind(
         "<F2>",
         lambda e: show_session_transactions(win, current_session_txns, on_escape, win.focus_get()),
@@ -2539,6 +3302,8 @@ def add_bank_transaction_main(
     # F3 is now obsolete since Budget Heads are inside the F1 notebook
     win.bind("<F3>", lambda e: "break")
     win.bind("<Control-Return>", lambda e: submit_button.invoke())
+    win.bind("<<InvokeSubmit>>", lambda e: submit_button.invoke())
+
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
 

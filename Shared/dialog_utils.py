@@ -10,7 +10,6 @@ confirmation messages with automatic sizing based on content.
 """
 
 import tkinter as tk
-from tkinter import ttk
 
 from .dialog_sizing import calculate_dialog_size
 from .window_manager import push_window, pop_window
@@ -107,7 +106,10 @@ def show_colorful_error(parent, title, message):
             dialog.wait_window()
     try:
         if parent is not None and parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")
 
@@ -212,7 +214,10 @@ def show_colorful_info(parent, title, message, on_close=None):
             dialog.wait_window()
     try:
         if parent is not None and parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")
 
@@ -349,7 +354,10 @@ def show_colorful_yesno(parent, title, message):
             dialog.wait_window()
     try:
         if parent is not None and parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")
     return result[0]

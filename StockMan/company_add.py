@@ -12,7 +12,7 @@ modal and uses the project's dialog utilities for user feedback.
 import re
 import sqlite3
 import tkinter as tk
-from tkinter import ttk
+from Shared.help_utils import show_standard_help
 from typing import Optional, Tuple, Union
 
 # Project-specific imports (assume these are available in the project)
@@ -23,7 +23,7 @@ from Shared.dialog_utils import (
 )
 from Shared.dialog_sizing import calculate_dialog_size
 from Shared.globals import get_db_connection, logger
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 from Shared.gui_utils import (
     create_label_entry_pair,
@@ -32,7 +32,6 @@ from Shared.gui_utils import (
     apply_button_animations,
 )
 
-from Shared.globals import logger
 from .validation_utils import ValidationError, show_validation_error
 
 
@@ -147,7 +146,6 @@ def add_company(
     header_color = "#4682b4"  # Steel blue
     label_color = "#2f4f4f"  # Dark slate gray
     entry_bg = "#ffffff"
-    required_color = "#dc143c"  # Crimson
 
     ac.configure(bg=bg_color)
 
@@ -713,29 +711,28 @@ def add_company(
     )
 
     # Help text for F1 key
-    help_text_content = (
-        "🏢 Add Company Help\n\n"
-        "Required Fields:\n"
-        "• Stock Code: 2+ characters (auto-uppercase)\n"
-        "• ISIN: 12 characters starting with 'IN' (auto-uppercase)\n"
-        "• Company Name: 3+ characters\n"
-        "• Short Name: 2+ characters\n\n"
-        "Optional Fields:\n"
-        "• Sector: Use dropdown or type new\n"
-        "• Face Value: Default 10.0\n"
-        "• Tick Size: Default 0.01\n"
-        "• Is Active: Default Yes\n"
-        "• Is ETF: Default No\n\n"
-        "Keyboard Shortcuts:\n"
-        "• Enter: Submit form\n"
-        "• ESC: Close window\n"
-        "• F1: Show this help"
-    )
+    def _show_help(e=None):
+        guide_lines = [
+            "This form adds a new company to your master stock registry.",
+            "",
+            "Required Fields:",
+            "• Stock Code: 2+ characters (auto-uppercase).",
+            "• ISIN: Exactly 12 characters starting with 'IN' (auto-uppercase).",
+            "• Company Name & Short Name: Full legal name and a shorter display alias.",
+            "",
+            "Optional Fields:",
+            "• Ticker: The exchange ticker symbol (e.g., INFY.NS) used for fetching live market prices.",
+            "• Sector, Face Value, & Tick Size: Market classification details."
+        ]
+        faq_data = [
+            (
+                "Q: Why is the ISIN field strictly enforced?",
+                "A: The ISIN (International Securities Identification Number) acts as the ultimate unique identifier for a stock, ensuring accurate data merging during corporate actions like mergers or demergers."
+            )
+        ]
+        show_standard_help(ac, "Add Company Help", guide_lines, faq_data)
 
-    def _show_help(_e=None):
-        show_colorful_info(ac, "Help", help_text_content)
-
-    ac.bind("<F1>", _show_help)
+    ac.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
 
     # F2: Show companies added in current session
     def show_session_companies(_event=None):
@@ -760,4 +757,7 @@ def add_company(
     )
     # Make window modal and wait
     parent.wait_window(ac)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass

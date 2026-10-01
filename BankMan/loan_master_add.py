@@ -32,6 +32,7 @@ from Shared.window_manager import push_window, safe_close_modal
 from .bank_db_utils import get_all_accounts, db_add_loan_master as _db_add_loan_master
 from Shared.globals import logger
 from Shared.gui_progressive import progressive_selection
+from Shared.help_utils import show_standard_help
 from .accounts_add import add_account_main as _add_account
 
 # ---------------------------------------------------------------------------
@@ -84,103 +85,27 @@ def _band_label(parent, text, bg, font=("Helvetica", 14), padx=0):
 
 
 def _show_help(win: tk.Toplevel, on_escape) -> None:
-    win.unbind("<Escape>")
-
-    hw = tk.Toplevel(win)
-    try:
-        hw.transient(win)
-    except (tk.TclError, AttributeError) as exc:
-        logger.debug("hw.transient failed: %s", exc)
-    hw.title("Help — Add Loan Master")
-    hw.configure(bg=_T["header_bg"])
-    hw.geometry("700x660")
-    hw.resizable(False, False)
-    hw.grab_set()
-    push_window(hw, win)
-    try:
-        hw.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        hw,
-        text="Add Loan Master  —  Help",
-        font=("Helvetica", 16, "bold"),
-        bg=_T["header_bg"],
-        fg=_T["header_fg"],
-        pady=8,
-    ).pack(fill="x")
-
-    body = tk.Frame(hw, bg=_T["main_bg"], padx=12, pady=12)
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg=_T["main_bg"],
-        fg=_T["header_fg"],
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=32,
-        insertbackground=_T["header_fg"],
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "\u2022 This form records a new loan facility in the loan_master table.",
+    guide_lines = [
+        "This form records a new loan facility in the database.",
         "",
         "Fields:",
-        "  Linked Account    \u2014 Bank account through which EMIs are debited.",
-        "  Loan Type         \u2014 Product category:",
-        "                      HOME LOAN, PERSONAL LOAN, AUTO LOAN, CAR LOAN,",
-        "                      EDUCATION LOAN, BUSINESS LOAN, etc.",
-        "  Loan Account No.  \u2014 Bank-assigned loan reference number.",
-        "  Principal Amount  \u2014 Original sanctioned loan amount (in \u20b9).",
-        "  Interest Rate     \u2014 Annual rate at origination (%, e.g. 8.5).",
-        "  EMI Amount        \u2014 Fixed monthly instalment (\u20b9).",
-        "  Start Date        \u2014 Disbursement / first repayment date (dd-mm-yyyy).",
-        "  End Date          \u2014 Scheduled final EMI / closure date (dd-mm-yyyy).",
-        "  Is Active         \u2014 Tick if loan is still outstanding.",
+        "• Linked Account: The bank account through which EMIs are debited.",
+        "• Loan Type & Account No: Product category (e.g., HOME LOAN) and Bank-assigned reference number.",
+        "• Principal Amount: Original sanctioned loan amount.",
+        "• Interest Rate: Annual rate at origination (%, e.g. 8.5).",
+        "• EMI Amount: Fixed monthly instalment.",
+        "• Start / End Dates: Disbursement/first EMI date and the scheduled final EMI date.",
+        "• Active: Tick if the loan is still outstanding.",
         "",
-        "Hotkeys:",
-        "  F1  : This help screen",
-        "  F2  : Session viewer (loans added this session)",
-        "  Esc : Close without saving",
-        "  Enter on last field : Submit",
+        "Hotkeys: F2 (Session Viewer), Esc (Close), Ctrl+Enter (Save)"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(hw, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-        win.bind("<Escape>", on_escape)
-        return "break"
-
-    hw.bind("<Control-Return>", lambda e: submit_btn.invoke())
-    hw.bind("<Escape>", close_help)
-    hw.protocol("WM_DELETE_WINDOW", close_help)
-
-    help_close_btn = tk.Button(
-        hw,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=_T.get("help_btn_bg", _T["button_bg"]),
-        fg=_T.get("button_fg", "white"),
-        activeforeground=_T.get("button_fg", "white"),
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    )
-    help_close_btn.pack(side="bottom", pady=10)
-    apply_button_animations(
-        help_close_btn,
-        _T.get("help_btn_bg", _T["button_bg"]),
-        _T.get("help_btn_hover_bg", "#115e59"),
-    )
+    faq_data = [
+        (
+            "Q: Do I enter the initial money disbursed to my bank account here?",
+            "A: No! After creating the Loan Master here, go to Data Entry -> Bank and log a Deposit (Entry Type = TRANSFER, Module = LOAN) to accurately reflect the money entering your savings account."
+        )
+    ]
+    show_standard_help(win, "Add Loan Master Help", guide_lines, faq_data)
 
 
 # ---------------------------------------------------------------------------
@@ -342,11 +267,11 @@ def _show_session_viewer(win: tk.Toplevel, session_entries: list, on_escape) -> 
 
     def _close_viewer(_e=None):
         safe_close_modal(viewer, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+        win.bind("<Control-Return>", lambda e: None)
         win.bind("<Escape>", on_escape)
         return "break"
 
-    viewer.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    viewer.bind("<Control-Return>", lambda e: None)
     viewer.bind("<Escape>", _close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", _close_viewer)
     viewer.bind("<Return>", _close_viewer)
@@ -423,9 +348,9 @@ def add_loan_master_main(
     def on_escape(_event=None):
         return cleanup_and_close()
 
-    win.bind("<F1>", lambda e: _show_help(win, on_escape))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (_show_help(win, on_escape)))
     win.bind("<F2>", lambda e: _show_session_viewer(win, session_records, on_escape))
-    win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    win.bind("<Control-Return>", lambda e: None)
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", on_escape)
 

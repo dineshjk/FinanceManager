@@ -11,7 +11,8 @@ import tkinter as tk
 from tkinter import ttk
 import sqlite3
 from tkcalendar import DateEntry
-from datetime import timedelta, datetime
+from Shared.help_utils import show_standard_help
+from datetime import datetime
 
 from Shared.globals import get_db_connection, logger
 from Shared.dialog_utils import (
@@ -20,8 +21,8 @@ from Shared.dialog_utils import (
     show_colorful_yesno,
 )
 from .trade_utils import compute_avg_price, fetch_holding_on_date
-from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.modal_utils import disable_parent
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 from Shared.gui_utils import (
     bind_tooltip,
@@ -31,7 +32,6 @@ from Shared.gui_utils import (
     setup_footer_tooltip,
     bind_date_spin,
 )
-from Shared.validation_utils import validate_positive_numeric
 
 
 def add_split_share(
@@ -49,12 +49,10 @@ def add_split_share(
     ratiofrbg = "#c7d2fe"  # Indigo 200
     notefrbg = "#f8fafc"  # Slate 50
     btnfrbg = "#eff6ff"  # Blue 50
-    submitusualbg = "#2563eb"  # Blue 600
-    submitactivebg = "#1d4ed8"  # Blue 700
     cancelusualbg = "#475569"  # Slate 600
     cancelactivebg = "#334155"  # Slate 700
 
-    modal_id = disable_parent(parent, calling_button=calling_button)
+    disable_parent(parent, calling_button=calling_button)
     split_win = tk.Toplevel(parent)
     split_win.title("✨ Stock Split Entry ✨")
     split_win.geometry("960x700")
@@ -70,7 +68,6 @@ def add_split_share(
 
     companies = []
     company_to_data = {}
-    current_session_splits = {}
 
     def _refresh_company_data(combo_widget=None):
         companies.clear()
@@ -414,6 +411,39 @@ def add_split_share(
 
     def close_split(_event=None):
         return safe_close_modal(split_win, parent, calling_button)
+
+    def show_help(e=None):
+        guide_lines = [
+            "This form tracks corporate Stock Splits that divide existing shares into multiple new shares.",
+            "",
+            "Fields:",
+            "• Company Name: Choose the company undergoing the split.",
+            "• Face Value: Enter the Old Face Value and the New Face Value. The ratio of the split is calculated automatically. (E.g., A split from ₹10 to ₹5 means your quantity doubles).",
+            "• Record Date: The cutoff date to be eligible for the split.",
+            "• Record Qty (Held): Automatically calculated based on the Record Date.",
+            "• New Allotted Shares: Automatically calculated based on the Face Value change and Held Qty.",
+            "",
+            "Hotkeys:",
+            "• Esc: Cancel and Close",
+            "• Enter: Advance cursor or execute button",
+            "• Ctrl+Enter: Save Entry"
+        ]
+        
+        faq_data = [
+            (
+                "Q: Does a stock split affect my total invested value?",
+                "A: No. A stock split multiplies your holding quantity and proportionally reduces your average holding cost per share. Your total invested capital remains exactly the same."
+            )
+        ]
+        
+        show_standard_help(
+            parent=split_win,
+            title="Stock Split Entry Help",
+            guide_lines=guide_lines,
+            faq_data=faq_data
+        )
+
+    split_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else show_help(e))
 
     # --- UI LAYOUT ---
     header_frame = tk.Frame(split_win, bg=headbg, relief="raised", bd=3)
@@ -766,6 +796,9 @@ def add_split_share(
     parent.wait_window(split_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

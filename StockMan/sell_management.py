@@ -16,11 +16,11 @@ Entry point: ``show_sell_management_modal(parent)``
 
 from typing import Union
 import tkinter as tk
+from Shared.help_utils import show_standard_help
 
 from Shared.globals import logger
 from Shared.dialog_utils import (
     show_colorful_error,
-    show_colorful_info,
     show_colorful_yesno,
 )
 from .trade_utils import (
@@ -28,7 +28,6 @@ from .trade_utils import (
     select_stocks_for_sell_management,
 )
 from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window
 
 # ---------------------------------------------------------------------------
 # Result summary dialog
@@ -221,6 +220,19 @@ def _show_mode_selection(
     ).pack(pady=(14, 0))
 
     mode_win.bind("<Escape>", lambda _e: mode_win.destroy())
+    def _show_help(e=None):
+        guide_lines = [
+            "This utility mathematically rebuilds the FIFO (First-In, First-Out) allocations for your sold shares.",
+            "",
+            "• All Stocks: Automatically scans your entire portfolio and rebuilds the sell ledger for any stock containing a SELL trade.",
+            "• Select Stock(s): Allows you to target specific companies to rebuild.",
+            "",
+            "Why do this?",
+            "If you manually edit or delete historical BUY trades, the existing SELL allocations might point to invalid or shifted lots. Rebuilding ensures your Capital Gains tax reports remain perfectly accurate."
+        ]
+        show_standard_help(mode_win, "FIFO Sell Management Help", guide_lines, [])
+
+    mode_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
     parent_win.wait_window(mode_win)
     return choice[0]
 

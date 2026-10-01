@@ -41,6 +41,7 @@ from Shared.dialog_utils import (
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_utils import apply_button_animations, universal_tree_sort
+from Shared.help_utils import show_standard_help
 
 # ---------------------------------------------------------------------------
 
@@ -82,6 +83,17 @@ def show_fd_manager(
     mgr_win.transient(parent)
     mgr_win.grab_set()
     mgr_win.focus_set()
+    
+    def _show_help(_e=None):
+        guide = [
+            "This screen lists all Fixed Deposit Master records.",
+            "• Sort: Click any column heading to sort.",
+            "• Color Codes: Green = Active, Red = Closed/Matured.",
+            "• Delete: System blocks deletion if there are linked transactions."
+        ]
+        show_standard_help(mgr_win, "FD Master Manager Help", guide, [])
+    mgr_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+    
     push_window(mgr_win, parent)
 
     # ------------------------------------------------------------------
@@ -413,7 +425,10 @@ def show_fd_manager(
     # CRITICAL: Restore grab to the caller so it stays in focus.
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass
 
@@ -456,6 +471,16 @@ def show_fd_transactions_manager(
     mgr_win.transient(parent)
     mgr_win.grab_set()
     mgr_win.focus_set()
+    
+    def _show_help(_e=None):
+        guide = [
+            "This screen lists all Fixed Deposit transactions.",
+            "• Color Codes: Green = Deposit/Interest, Red = Withdrawal/Maturity.",
+            "• Delete: Safely removes the row, cascades to linked bank transactions, and corrects running balances."
+        ]
+        show_standard_help(mgr_win, "FD Transactions Manager Help", guide, [])
+    mgr_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+    
     push_window(mgr_win, parent)
 
     # ------------------------------------------------------------------
@@ -847,6 +872,9 @@ def show_fd_transactions_manager(
     # CRITICAL: Restore grab to the calling window so it stays in focus.
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

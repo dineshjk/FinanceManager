@@ -36,6 +36,7 @@ from Shared.dialog_utils import (
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     add_budget_head as _db_add_budget_head,
     get_all_budget_heads as _db_get_budget_heads,
@@ -79,96 +80,39 @@ def _load_parent_choices(filter_type: str | None = None) -> list[tuple[str, int 
 
 
 def show_help(win: tk.Toplevel, on_escape) -> None:
-    """Launch the help sub-window for the Budget Category Entry dialog."""
-    win.unbind("<Escape>")
-
-    help_win = tk.Toplevel(win)
-    try:
-        help_win.transient(win)
-    except (tk.TclError, AttributeError) as _exc:
-        logger.debug("help_win.transient failed: %s", _exc)
-    help_win.title("Help — Budget Category Entry")
-    help_win.configure(bg=ACCOUNT_TYPE_ADD_UI_THEME["help_bg"])
-    help_win.geometry("660x600")
-    help_win.resizable(False, False)
-    help_win.grab_set()
-    push_window(help_win, win)
-    try:
-        help_win.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        help_win,
-        text="Budget Category Entry Help",
-        font=("Helvetica", 16, "bold"),
-        bg=ACCOUNT_TYPE_ADD_UI_THEME["help_header_bg"],
-        fg="white",
-        pady=8,
-    ).pack(fill="x")
-    body = tk.Frame(
-        help_win,
-        bg=ACCOUNT_TYPE_ADD_UI_THEME["help_bg"],
-        padx=12,
-        pady=12,
-    )
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg=ACCOUNT_TYPE_ADD_UI_THEME["help_bg"],
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=16,
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "• This form adds a new budget category to the database.",
-        "• Budget categories label transactions as INCOME or EXPENSE.",
-        "• Categories can be nested: choose a Parent Category to create a "
-        "sub-category under an existing top-level entry.",
+    """Launch the standardized help sub-window for the Budget Category Entry dialog."""
+    
+    guide_lines = [
+        "This form creates new income or expense tags that you can apply to your bank transactions for accurate cash-flow reporting.",
         "",
         "Fields:",
-        "  Description (required): Name of the category,",
-        "    e.g. 'Salary', 'Freelance', 'Groceries', 'Dining Out'.",
-        "  Type (required): INCOME or EXPENSE.",
-        "  Parent Category (optional): Leave as '(None — top level)'",
-        "    for a root category, or pick a parent for a sub-category.",
+        "• Description (Required): The name of the category (e.g., 'Salary', 'Groceries', 'Internet & Broadband').",
+        "• Type (Required): Defines the directional flow of money. Must be either INCOME (money received) or EXPENSE (money spent permanently).",
+        "• Parent Category (Optional): Budget Heads can be nested! Leave as '(None — top level)' for a primary category, or pick an existing parent to make this a sub-category.",
         "",
         "Hotkeys:",
-        "  F1: This screen (Help)",
-        "  F2: Session Budget Categories",
-        "  Escape: Close this window without saving",
-        "  Enter: Advance to next field / activate button",
+        "• F2: View Session Budget Categories (Entries added during this session)",
+        "• Escape: Cancel and Close",
+        "• Ctrl+Enter: Submit Form"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(help_win, win)
-        win.bind("<Control-Return>", lambda e: submit_button.invoke())
-        win.bind("<Escape>", on_escape)
-        return "break"
-
-    help_win.bind("<Control-Return>", lambda e: submit_button.invoke())
-    help_win.bind("<Escape>", close_help)
-    help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-    tk.Button(
-        help_win,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=ACCOUNT_TYPE_ADD_UI_THEME["help_btn_bg"],
-        fg="white",
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    ).pack(side="bottom", pady=10)
+    
+    faq_data = [
+        (
+            "Q: Should I create a Budget Head for transferring money between my own accounts?",
+            "A: No. Money moving between your own accounts, investments (FD, PPF, MF, StockMan), or loan repayments is classified as a TRANSFER. When logging a TRANSFER, you simply set the Budget Head to '(none)'. Budget Heads are strictly for tracking money entering or leaving your ecosystem."
+        ),
+        (
+            "Q: Can I change a parent category later?",
+            "A: Yes! You can manage and edit existing Budget Heads by going to the main BankMan menu and clicking 'Manage Budget Heads'."
+        )
+    ]
+    
+    show_standard_help(
+        parent=win,
+        title="Budget Category Entry Help",
+        guide_lines=guide_lines,
+        faq_data=faq_data
+    )
 
 
 def show_session_budget_heads(
@@ -399,10 +343,6 @@ def add_account_type_main(
     table (which no longer exists in the BankMan schema).
     """
     # --- Button colour constants ---
-    submitusualbg = "#22c55e"
-    submitactivebg = "#16a34a"
-    cancelusualbg = "#ef4444"
-    cancelactivebg = "#b91c1c"
 
     # --- Window setup ---
     disable_parent(parent, calling_button=calling_button)
@@ -664,7 +604,7 @@ def add_account_type_main(
         ),
     )
 
-    win.bind("<F1>", lambda e: show_help(win, on_escape))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (show_help(win, on_escape)))
     win.bind(
         "<F2>",
         lambda e: show_session_budget_heads(

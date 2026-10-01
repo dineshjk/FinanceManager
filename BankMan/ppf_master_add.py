@@ -40,6 +40,7 @@ from .bank_db_utils import (
 )
 from Shared.globals import logger
 from Shared.gui_progressive import progressive_selection
+from Shared.help_utils import show_standard_help
 from .accounts_add import add_account_main as _add_account
 
 # ---------------------------------------------------------------------------
@@ -90,105 +91,39 @@ def _band_label(parent, text, bg, font=("Helvetica", 14), padx=0):
 
 
 def _show_help(win: tk.Toplevel, on_escape) -> None:
-    """Launch the Help sub-window for Add PPF Master."""
-    win.unbind("<Escape>")
-
-    help_win = tk.Toplevel(win)
-    try:
-        help_win.transient(win)
-    except (tk.TclError, AttributeError) as exc:
-        logger.debug("help_win.transient failed: %s", exc)
-    help_win.title("Help — Add PPF Master Account")
-    help_win.configure(bg="#013220")
-    help_win.geometry("680x680")
-    help_win.resizable(False, False)
-    help_win.grab_set()
-    push_window(help_win, win)
-    try:
-        help_win.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        help_win,
-        text="Add PPF Master Account  —  Help",
-        font=("Helvetica", 16, "bold"),
-        bg="#013220",
-        fg="#FFD700",
-        pady=8,
-    ).pack(fill="x")
-
-    body = tk.Frame(help_win, bg="#0D1117", padx=12, pady=12)
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg="#0D1117",
-        fg="#FFD700",
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=28,
-        insertbackground="#FFD700",
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "\u2022 This form registers a new PPF (Public Provident Fund) account.",
+    """Launch the standardized help sub-window for Add PPF Master."""
+    
+    guide_lines = [
+        "This form registers a new Public Provident Fund (PPF) account.",
         "",
         "Fields:",
-        "  Account         \u2014 The linked bank / post-office savings account",
-        "                    through which PPF deposits are routed.",
-        "  PPF Account No  \u2014 The PPF account number issued by the bank or",
-        "                    post office (leading zeros are preserved).",
-        "  Holder Name     \u2014 Full name of the PPF account holder.",
-        "                    May differ from the primary account holder",
-        "                    (e.g. for minor / HUF PPF accounts).",
-        "  Open Date       \u2014 The date the PPF account was opened.",
-        "  Maturity Date   \u2014 Automatically set to Open Date + 15 years.",
-        "                    You may adjust it if the account has been",
-        "                    extended in 5-year blocks.",
-        "  Is Active       \u2014 Tick to mark the account as active (default).",
-        "                    Untick only for closed / fully withdrawn accounts.",
+        "• Linked Account: The savings account through which PPF deposits are usually routed.",
+        "• PPF Account No: The account number issued by the bank or post office.",
+        "• Holder Name: Useful if you manage PPF accounts for minors or a HUF.",
+        "• Open / Maturity Dates: The Maturity Date auto-calculates to 15 years after the Open Date. Adjust manually for 5-year block extensions.",
+        "• Active: Tick to mark the account as active.",
         "",
-        "PPF Rules (for reference):",
-        "  \u2022 Lock-in period: 15 years from opening.",
-        "  \u2022 Extension blocks: 5 years each, unlimited times.",
-        "  \u2022 Minimum deposit: \u20b9500 per financial year.",
-        "  \u2022 Maximum deposit: \u20b91,50,000 per financial year.",
-        "  \u2022 Interest is tax-free under EEE (Exempt-Exempt-Exempt) status.",
+        "PPF Rules (Reference):",
+        "• Lock-in period: 15 years from opening. Extensions in 5-year blocks.",
+        "• Deposits: Minimum ₹500/year. Maximum ₹1,50,000/year.",
+        "• Tax Status: Interest is tax-free under EEE.",
         "",
-        "Hotkeys:",
-        "  F1  : This help screen",
-        "  F2  : Session viewer (PPF accounts added in this session)",
-        "  Esc : Close without saving",
+        "Hotkeys: F2 (Session Viewer), Esc (Close), Ctrl+Enter (Save)"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(help_win, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-        win.bind("<Escape>", on_escape)
-        return "break"
-
-    help_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-    help_win.bind("<Escape>", close_help)
-    help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-    tk.Button(
-        help_win,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=_T["button_bg"],
-        fg=_T["button_fg"],
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    ).pack(side="bottom", pady=10)
+    
+    faq_data = [
+        (
+            "Q: Do I enter my initial or yearly PPF deposits here?",
+            "A: No! After creating the PPF account here, go to Data Entry -> Bank and log a Withdrawal (Entry Type = TRANSFER, Module = PPF) to accurately reflect the money leaving your savings account."
+        )
+    ]
+    
+    show_standard_help(
+        parent=win,
+        title="Add PPF Master Help",
+        guide_lines=guide_lines,
+        faq_data=faq_data
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -313,11 +248,11 @@ def _show_session_viewer(
 
     def _close_viewer(_e=None):
         safe_close_modal(viewer, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+        win.bind("<Control-Return>", lambda e: None)
         win.bind("<Escape>", on_escape)
         return "break"
 
-    viewer.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    viewer.bind("<Control-Return>", lambda e: None)
     viewer.bind("<Escape>", _close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", _close_viewer)
     viewer.bind("<Return>", _close_viewer)
@@ -387,9 +322,9 @@ def add_ppf_master_main(
         return cleanup_and_close()
 
     # ── F1 / F2 bindings ─────────────────────────────────────────────────
-    win.bind("<F1>", lambda e: _show_help(win, on_escape))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (_show_help(win, on_escape)))
     win.bind("<F2>", lambda e: _show_session_viewer(win, session_records, on_escape))
-    win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    win.bind("<Control-Return>", lambda e: None)
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", on_escape)
 

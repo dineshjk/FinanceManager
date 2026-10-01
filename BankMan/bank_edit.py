@@ -527,6 +527,9 @@ def edit_bank(
     # Restore grab to caller so it doesn't fall out of focus.
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

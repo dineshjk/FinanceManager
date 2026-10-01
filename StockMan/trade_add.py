@@ -20,6 +20,7 @@ exchange tables.
 from typing import Union
 import tkinter as tk
 from tkinter import ttk
+from Shared.help_utils import show_standard_help
 import sqlite3
 from datetime import datetime
 from tkcalendar import DateEntry
@@ -47,8 +48,8 @@ from Shared.gui_utils import (
 )
 
 from .date_utils import next_working_day
-from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.modal_utils import disable_parent
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 from .company_add import add_company
 from .company_ex_import import export_company
@@ -806,7 +807,7 @@ def add_trade(
     cancelactivebg = "#b91c1c"
     hintbg = "#f8fafc"
 
-    modal_id = disable_parent(parent, calling_button=calling_button)
+    disable_parent(parent, calling_button=calling_button)
 
     # Data Initialization
     data = {
@@ -1184,126 +1185,46 @@ def add_trade(
     int_vcmd = (rat_win.register(validate_int), "%P")
 
     def show_help(_event=None):
-        rat_win.unbind("<Escape>")
-        help_win = tk.Toplevel(rat_win)
-        try:
-            help_win.transient(rat_win)
-        except (tk.TclError, AttributeError) as _exc:
-            logger.debug("help_win.transient failed: %s", _exc)
-        help_win.title("Help — Trade Entry")
-        help_win.configure(bg="#fffaf0")
-        help_win.geometry("640x620")
-        help_win.resizable(False, False)
-        help_win.grab_set()
-        push_window(help_win, rat_win)
-        try:
-            help_win.focus_set()
-        except tk.TclError:
-            pass
-
-        header = tk.Label(
-            help_win,
-            text="Trade Entry Help",
-            font=("Helvetica", 16, "bold"),
-            bg="#ff7f50",
-            fg="white",
-            pady=8,
-        )
-        header.pack(fill="x")
-
-        body = tk.Frame(help_win, bg="#fffaf0", padx=12, pady=12)
-        body.pack(fill="both", expand=True)
-
-        text = tk.Text(
-            body,
-            wrap="word",
-            bg="#fffaf0",
-            bd=0,
-            padx=6,
-            pady=6,
-            font=("Helvetica", 11),
-            height=12,
-        )
-        text.pack(fill="both", expand=True)
-
-        help_lines = [
-            "• This is a data entry form for new trade.",
-            "• In one contract, there may be more than one trade and in one",
-            "  trade, there may be more than one exchange order.",
+        guide_lines = [
+            "This is the primary data entry form for logging new trades.",
             "",
-            "Please pay attention while entering the data into the following fields:",
-            "  - Number of Trades: Trades within one contract.",
-            "  - Company (Press first letter to filter or type initial chars)",
-            "  - Buy/Sell Buttons: In SELL trade, do select SELL.",
-            "  - Qty Trade (After moving from this field many fields will be locked)",
-            "  - Rate EO : Please enter positive value.",
+            "• Hierarchy: In one contract, there may be more than one trade. In one trade, there may be more than one exchange order.",
+            "• Critical Fields:",
+            "  - Number of Trades: Set this correctly. It determines how many trades are expected within this contract.",
+            "  - Company: Press the first letter to filter or type initial characters.",
+            "  - Buy/Sell Buttons: In a SELL trade, be absolutely sure you select SELL.",
+            "  - Qty Trade: After moving from this field, many preceding fields will be permanently locked for data integrity.",
+            "  - Rate EO: Please enter a positive value.",
             "",
-            "The following fields are read only:",
-            "  > Current Trade No.",
-            "  > ISIN",
-            "  > Sell Charge (if trade is a 'BUY' Trade)",
-            "  > Applicable Framework (Mathematical checks against broker charges)",
+            "The following fields are strictly read-only:",
+            "• Current Trade No. and ISIN",
+            "• Sell Charge (locked if trade is a 'BUY')",
+            "• Applicable Framework (Mathematical checks against broker charges)",
             "",
             "Hotkeys:",
-            "  F1: This screen (Help)",
-            "  F2: Session Trades",
-            "  Escape: Rollback the trade",
-            "  Enter/Space: Execute button or Advance field",
+            "• F2: View Session Trades (Trades completed so far)",
+            "• Escape: Rollback the trade (Clears unsaved data)",
+            "• Enter/Space: Advance field or Execute button",
+            "• Ctrl+Enter: Submit Trade"
         ]
-
-        full_text = "\n".join(help_lines)
-        text.insert("1.0", full_text)
-
-        highlights = {
-            "Number of Trades": "#d2691e",
-            "Company": "#2e8b57",
-            "Buy/Sell": "#4682b4",
-            "Qty Trade": "#b22222",
-            "Rate EO": "#8b008b",
-            "Applicable Framework": "#8b0000",
-        }
-        for word, color in highlights.items():
-            start = "1.0"
-            while True:
-                pos = text.search(word, start, stopindex="end")
-                if not pos:
-                    break
-                end_pos = f"{pos}+{len(word)}c"
-                tag_name = f"tag_{word.replace(' ', '_')}"
-                text.tag_add(tag_name, pos, end_pos)
-                text.tag_config(
-                    tag_name, foreground=color, font=("Helvetica", 11, "bold")
-                )
-                start = end_pos
-
-        text.config(state="disabled")
-
-        def close_help(e=None):
-            safe_close_modal(help_win, rat_win)
-            rat_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-            rat_win.bind("<Escape>", on_escape)
-            return "break"
-
-        help_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-        help_win.bind("<Escape>", close_help)
-        help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-        btn = tk.Button(
-            help_win,
-            text="Close",
-            command=close_help,
-            font=("Helvetica", 11, "bold"),
-            bg="#4682b4",
-            fg="white",
-            padx=12,
-            pady=6,
-            cursor="hand2",
+        
+        faq_data = [
+            (
+                "Q: What happens if I press Escape while entering a contract?",
+                "A: Pressing Escape acts as a Rollback. If you haven't saved any trades for the current contract, the system will completely abort the entry and clean up any empty contract headers."
+            ),
+            (
+                "Q: Why does the form lock fields after I enter the Quantity?",
+                "A: Once the trade quantity and direction are set, the system locks the header fields (Contract No, Date, Company) to prevent accidental modification while you are entering the granular exchange orders."
+            )
+        ]
+        
+        show_standard_help(
+            parent=rat_win,
+            title="Trade Entry Help",
+            guide_lines=guide_lines,
+            faq_data=faq_data
         )
-        btn.pack(side="bottom", pady=10)
-        try:
-            btn.focus_set()
-        except tk.TclError:
-            pass
 
     def show_session_trades(_event=None):
         if not current_session_trades:
@@ -3500,7 +3421,7 @@ def add_trade(
     rat_win.bind("<Return>", on_enter)
     rat_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
     rat_win.bind("<Escape>", on_escape)
-    rat_win.bind("<F1>", show_help)
+    rat_win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else show_help(e) if getattr(show_help, "__code__", None) and show_help.__code__.co_argcount > 0 else show_help())
     rat_win.bind("<F2>", show_session_trades)
 
     for widget in entries.values():
@@ -3513,6 +3434,9 @@ def add_trade(
     parent.wait_window(rat_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

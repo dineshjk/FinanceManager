@@ -13,9 +13,25 @@ from .trade_from_file import trade_entry_from_file
 from .watchlist_from_file import import_watchlist_from_file
 from .export_trades import export_trades
 from Shared.globals import logger
-from Shared.dialog_utils import show_colorful_info
+from Shared.help_utils import show_standard_help
 
 DEFAULT_GEOMETRY = "400x300"
+
+def _get_maint_menu_help_data():
+    guide_lines = [
+        "This menu provides database maintenance and data migration utilities for your stock portfolio.",
+        "",
+        "• Export Trades: Back up your entire trade ledger to an external file.",
+        "• Import Trades: Migrate historical trade records from a legacy database.",
+        "• Import Watchlist: Restore or migrate your saved stock watchlists."
+    ]
+    faq_data = [
+        (
+            "Q: When should I use these import/export tools?",
+            "A: Use Export regularly to back up your trade history. Use Import only when migrating data from an older 'mystocks_old.db' legacy database."
+        )
+    ]
+    return guide_lines, faq_data
 
 
 def show_maint_menu_modal(
@@ -67,11 +83,30 @@ def show_maint_menu_modal(
         "come_back_index": come_back_index,
     }
     modal_win, btn_widgets = create_menu_window(menu_config)
+    
+    def _show_help(e=None):
+        guide, faq = _get_maint_menu_help_data()
+        show_standard_help(
+            parent=modal_win,
+            title="Maintenance Menu Help",
+            guide_lines=guide,
+            faq_data=faq
+        )
+        
+    # Explicitly enforce Escape key to close modal and return to parent
+    modal_win.bind("<Escape>", lambda e: close_modal())
+    
+    # The bitmask 0x0004 strictly checks for the Control key to prevent double-triggering global help
+    modal_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+
     push_window(modal_win, parent)
     parent.wait_window(modal_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")
     enable_parent(modal_id)

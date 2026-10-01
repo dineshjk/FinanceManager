@@ -10,11 +10,9 @@ Structural pattern:
   - Distinct deep-indigo / gold window theme (REWARDS_ADD_UI_THEME)
 """
 
-from datetime import timedelta as _timedelta
 from typing import Union
 import tkinter as tk
 from tkinter import ttk
-import tkinter.font as tkfont
 from tkcalendar import DateEntry
 
 from Shared.gui_utils import (
@@ -30,10 +28,10 @@ from Shared.gui_utils import (
 from Shared.dialog_utils import (
     show_colorful_info,
     show_colorful_error,
-    show_colorful_yesno,
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     get_all_card_masters,
     db_add_rewards_points,
@@ -43,54 +41,40 @@ from .bank_db_utils import (
 
 
 def show_master_help(parent_win, escape_callback):
-    """Displays the F1 Help window for Rewards Points Entry."""
-    help_win = tk.Toplevel(parent_win)
-    help_win.title("Rewards Points Entry - Help (F1)")
-    help_win.geometry("650x400")
-    help_win.configure(bg="#2e1065")
-    push_window(help_win, parent_win)
-
-    def _close(_e=None):
-        safe_close_modal(help_win, parent_win)
-
-    help_win.bind("<Control-Return>", lambda e: save_btn.invoke())
-    help_win.bind("<Escape>", _close)
-    help_win.bind("<F1>", _close)
-    help_win.protocol("WM_DELETE_WINDOW", _close)
-
-    text_w = tk.Text(
-        help_win,
-        wrap="word",
-        bg="#1e1b4b",
-        fg="#e0e7ff",
-        font=("Helvetica", 11),
-        padx=15,
-        pady=15,
-        relief="flat",
-    )
-    text_w.pack(fill="both", expand=True, padx=10, pady=10)
-
-    lines = [
-        "Rewards Points Entry Guide\n",
-        "This module tracks credit card loyalty points at the STATEMENT "
-        "level. Do not enter points per-transaction.\n",
+    """Launch the standardized help sub-window for Rewards Points Entry."""
+    
+    guide_lines = [
+        "This module tracks credit card loyalty points at the STATEMENT level.",
+        "",
         "Fields:",
-        "  Card           — Select the specific physical credit card.",
-        "  Statement Date — The date printed on the generated bill.",
-        "  Points Earned  — Total points earned in this billing cycle.",
-        "  Points Redeemed— Points used for statement credit or rewards.\n",
-        "Note: You do not need to calculate the running balance. The "
-        "background automation script will calculate the current balance for "
-        "you, even if statements are entered out of chronological order.\n",
+        "• Card: Select the specific physical credit card.",
+        "• Statement Date: The date printed on the generated bill.",
+        "• Points Earned: Total points earned in this billing cycle.",
+        "• Points Redeemed: Points used for statement credit or rewards.",
+        "",
         "Hotkeys:",
-        "  <F1>     : Show/Hide this help.",
-        "  <F2>     : Show current session entries.",
-        "  <Up/Down>: Change the Statement Date by one day.",
-        "  <Enter>  : Move to next field or Save.",
-        "  <Escape> : Close the main window.",
+        "• F2: View Session Rewards (Entries added during this session)",
+        "• Escape: Cancel and Close",
+        "• Ctrl+Enter: Save Changes"
     ]
-    text_w.insert("1.0", "\n".join(lines))
-    text_w.config(state="disabled")
+    
+    faq_data = [
+        (
+            "Q: Do I need to calculate the running balance of my points?",
+            "A: No! The background automation script will calculate the current balance for you, even if statements are entered out of chronological order."
+        ),
+        (
+            "Q: Should I enter points for every single card swipe?",
+            "A: No. It is highly recommended to enter points aggregated at the statement level (once a month per card) to save time and align with your physical statements."
+        )
+    ]
+    
+    show_standard_help(
+        parent=parent_win,
+        title="Rewards Points Entry Help",
+        guide_lines=guide_lines,
+        faq_data=faq_data
+    )
 
 
 def show_session_transactions(parent_win, records, escape_callback):
@@ -110,7 +94,7 @@ def show_session_transactions(parent_win, records, escape_callback):
     def _close(_e=None):
         safe_close_modal(view_win, parent_win)
 
-    view_win.bind("<Control-Return>", lambda e: save_btn.invoke())
+    view_win.bind("<Control-Return>", lambda e: None)
     view_win.bind("<Escape>", _close)
     view_win.bind("<F2>", _close)
     view_win.protocol("WM_DELETE_WINDOW", _close)
@@ -173,7 +157,7 @@ def add_rewards_points_main(
     _state = {"card_master_id": None, "account_id": None}
 
     # ── Window Setup ──
-    modal_id = disable_parent(parent)
+    disable_parent(parent)
     win = tk.Toplevel(parent)
     win.title("Rewards Points Entry")
     win.geometry("750x450")
@@ -196,7 +180,7 @@ def add_rewards_points_main(
             calling_button.focus_set()
 
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
-    win.bind("<Control-Return>", lambda e: save_btn.invoke())
+    win.bind("<Control-Return>", lambda e: None)
     win.bind("<Escape>", cleanup_and_close)
 
     # ── Header ──
@@ -486,7 +470,7 @@ def add_rewards_points_main(
         ),
     )
 
-    win.bind("<F1>", lambda e: show_master_help(win, cleanup_and_close))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (show_master_help(win, cleanup_and_close)))
     win.bind(
         "<F2>",
         lambda e: show_session_transactions(win, session_records, cleanup_and_close),

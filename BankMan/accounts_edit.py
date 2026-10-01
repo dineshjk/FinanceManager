@@ -47,6 +47,7 @@ from Shared.gui_utils import (
 from Shared.dialog_utils import show_colorful_error, show_colorful_info
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from Shared.globals import logger
 from Shared.gui_progressive import progressive_selection
 from .bank_db_utils import (
@@ -109,6 +110,36 @@ def edit_account(
 
     def cleanup_and_close(_event=None):
         return safe_close_modal(win, parent, calling_button)
+
+    def show_help(win: tk.Toplevel) -> None:
+        """Launch the standardized help sub-window for the Account Edit dialog."""
+        guide_lines = [
+            "This screen allows you to modify the master details of your registered bank and credit card accounts.",
+            "",
+            "• Selection: Click any row in the top grid to load its details into the editable form below. (The grid is sortable by clicking column headers).",
+            "• Fields: You can safely modify the Bank Name, Account Type, Account Number, and Dates.",
+            "• Active vs Closed: If you close a bank account, simply uncheck the 'Active' box and save. This hides it from daily dropdowns while preserving its historical ledger.",
+            "",
+            "Hotkeys:",
+            "• Escape: Cancel and Close",
+            "• Ctrl+Enter: Save Changes"
+        ]
+        faq_data = [
+            (
+                "Q: Will changing the starting 'Current Balance' affect my existing transactions?",
+                "A: Yes. BankMan calculates your running balance dynamically. If you change the starting balance here, all subsequent passbook transactions associated with this account will automatically adjust their running balance to reflect the new starting anchor."
+            ),
+            (
+                "Q: Can I delete an account here if I made a mistake?",
+                "A: No. To safely delete an account, you must navigate to the main menu -> 'Manage Master' -> 'Bank' (or Credit Card). The deletion manager ensures no orphaned transactions are left behind before allowing removal."
+            )
+        ]
+        show_standard_help(
+            parent=win,
+            title="Account Edit Help",
+            guide_lines=guide_lines,
+            faq_data=faq_data
+        )
 
     # ── Header ────────────────────────────────────────────────────────────
     hdr = tk.Frame(win, bg=_THEME["header_bg"], relief="raised", bd=3)
@@ -537,6 +568,7 @@ def edit_account(
     apply_button_animations(cancel_btn, _THEME["cancel_bg"], _THEME["cancel_hover_bg"])
 
     # ── Keyboard bindings ─────────────────────────────────────────────────
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else show_help(win))
     win.bind("<Control-Return>", lambda e: save_btn.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
@@ -559,6 +591,9 @@ def edit_account(
     # Restore grab so the caller stays in focus
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

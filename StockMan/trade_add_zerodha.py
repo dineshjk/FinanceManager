@@ -24,7 +24,6 @@ from tkcalendar import DateEntry
 from Shared.globals import (
     get_db_connection,
     logger,
-    BROK,
     GST,
     SEBI,
     STT,
@@ -42,9 +41,10 @@ from Shared.gui_utils import (
     universal_tree_sort,
     apply_button_animations,
 )
-from Shared.modal_utils import disable_parent, enable_parent
+from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
+from Shared.help_utils import show_standard_help
 from .date_utils import next_working_day
 from .company_add import add_company
 from .company_ex_import import export_company
@@ -86,11 +86,10 @@ def add_trade_zerodha(
     bg_header = "#1e3a8a"
     fg_title = "#ffd700"
     bg_section = "#e0f2fe"
-    bg_sub_sec = "#f8fafc"
     bg_table = "#ffffff"
     fg_label = "#1e293b"
 
-    modal_id = disable_parent(parent, calling_button=calling_button)
+    disable_parent(parent, calling_button=calling_button)
 
     win = tk.Toplevel(parent)
     win.title("✨ Data Entry - Trade (Zerodha Contract) ✨")
@@ -111,6 +110,31 @@ def add_trade_zerodha(
 
     def cleanup_and_close(_event=None):
         return safe_close_modal(win, parent, calling_button)
+
+    def _show_help(e=None):
+        guide_lines = [
+            "This dedicated form accurately captures the consolidated format of Zerodha Contract Notes.",
+            "",
+            "Workflow:",
+            "1. Enter the contract header details (Contract No., Dates).",
+            "2. Add each traded ISIN (company, quantity, WAP) sequentially to the 'Trades in this Contract' grid.",
+            "3. The bottom section automatically aggregates and calculates the statutory levies (STT, Stamp Duty, ETC, GST).",
+            "",
+            "When you save, BankMan's background engine mathematically bifurcates the consolidated levies and appropriately assigns them to the individual trades.",
+            "",
+            "Hotkeys:",
+            "• Escape: Cancel and Close (Rollback)",
+            "• Ctrl+Enter: Execute & Save Contract"
+        ]
+        faq_data = [
+            (
+                "Q: Why does Zerodha have a separate entry form from ICICI?",
+                "A: Zerodha contract notes are consolidated. They provide a single sum for all taxes and levies at the bottom of the PDF, rather than breaking them down trade-by-trade like ICICI. This specialized form matches that structure exactly."
+            )
+        ]
+        show_standard_help(win, "Zerodha Contract Entry Help", guide_lines, faq_data)
+
+    win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
 
     # ── State ─────────────────────────────────────────────────────────────
     # List of trades currently added to this contract: each is a dict

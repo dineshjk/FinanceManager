@@ -13,10 +13,11 @@ if PROJECT_ROOT not in sys.path:
 
 from .bank_database_setup import create_bankman_database
 from Shared.dialog_utils import show_colorful_info
-from Shared.globals import BANK_APP_TITLE, BANK_DB_PATH
+from Shared.globals import BANK_APP_TITLE
 from Shared.menu_factory import create_menu_window
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
+from Shared.help_utils import show_standard_help
 
 from .data_entry_menu import show_top_data_entry_menu
 from .import_menu import show_import_menu
@@ -77,6 +78,30 @@ def create_bank_database_gui(parent):
         show_colorful_info(parent, "Database Status", message, icon="error")
 
 
+def _get_banks_help_data():
+    guide_lines = [
+        "Welcome to the BankMan Main Menu.",
+        "",
+        "• Create Bank Database: Initializes or safely migrates your SQLite database.",
+        "• Data Entry: The gateway to adding new passbook transactions or financial products.",
+        "• Import / Export: Tools for bulk loading CSV statements or backing up your ledgers.",
+        "• Manage Budget Heads: Organise your income and expense categories.",
+        "• Manage Master: View, edit, or safely delete structural records (Banks, Accounts, MFs, etc.).",
+        "• Manage Transactions: The central viewer grid to search, edit, or delete passbook entries."
+    ]
+    faq_data = [
+        (
+            "Q: Where do I start if I am setting up BankMan for the first time?",
+            "A: 1. Click 'Create Bank Database'.\n2. Go to 'Manage Master' to add your Banks and Accounts.\n3. Go to 'Data Entry' to start logging your transactions."
+        ),
+        (
+            "Q: What is the difference between 'Data Entry' and 'Manage Master'?",
+            "A: 'Data Entry' is for logging new events. 'Manage Master' allows you to view, edit, or safely delete the underlying structure (like correcting a misspelled bank name)."
+        )
+    ]
+    return guide_lines, faq_data
+
+
 def show_bank_main_menu(parent, come_back_index=None):
     """
     Shows the bank management menu as a modal window.
@@ -117,9 +142,21 @@ def show_bank_main_menu(parent, come_back_index=None):
 
     bank_menu_window.protocol("WM_DELETE_WINDOW", close_modal)
 
+    bank_menu_window.bind(
+        "<F1>",
+        lambda e: show_standard_help(
+            bank_menu_window,
+            "BankMan Main Menu Help",
+            *_get_banks_help_data()
+        )
+    )
+
     push_window(bank_menu_window, parent)
     parent.wait_window(bank_menu_window)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(modal_id)
 
 
@@ -147,6 +184,16 @@ def main():
     }
 
     create_menu_window(menu_config)
+
+    root.bind(
+        "<F1>",
+        lambda e: show_standard_help(
+            root,
+            "BankMan Main Menu Help",
+            *_get_banks_help_data()
+        )
+    )
+
     root.mainloop()
 
 

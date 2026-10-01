@@ -24,7 +24,7 @@ from .company_add import add_company
 from .company_ex_import import export_company
 from .trade_utils import compute_avg_price, process_allotment
 from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 from Shared.gui_utils import (
     bind_tooltip,
@@ -57,7 +57,6 @@ def rights(
     notefrbg = "#f3f4f6"  # Gray 100
     btnfrbg = "#fffbeb"  # Amber 50
     submitusualbg = "#ea580c"  # Orange 600
-    submitactivebg = "#c2410c"  # Orange 700
     cancelusualbg = "#475569"  # Slate 600
     cancelactivebg = "#334155"  # Slate 700
 
@@ -1115,7 +1114,7 @@ def rights(
     # Global Hotkeys
     rights_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     rights_win.bind("<Escape>", _close_rights)
-    rights_win.bind("<F1>", show_help)
+    rights_win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else show_help(e) if getattr(show_help, "__code__", None) and show_help.__code__.co_argcount > 0 else show_help())
     rights_win.bind("<F2>", show_session_rights)
     rights_win.bind(
         "<Return>",
@@ -1129,6 +1128,9 @@ def rights(
     parent.wait_window(rights_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

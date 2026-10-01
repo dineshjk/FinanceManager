@@ -15,7 +15,7 @@ from typing import Optional
 from Shared.globals import get_db_connection
 from .date_utils import validate_iso_date_or_raise
 from .validation_utils import ValidationError
-from .trade_utils import compute_avg_price, process_allotment
+from .trade_utils import process_allotment
 
 
 def add_primary_offer(

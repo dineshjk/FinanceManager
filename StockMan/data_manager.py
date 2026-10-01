@@ -2,7 +2,6 @@
 # StockMan/data_manager.py
 import os
 import yfinance as yf
-import pandas as pd
 from datetime import date
 
 # Import central directory path

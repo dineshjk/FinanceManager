@@ -31,6 +31,7 @@ from Shared.dialog_utils import (
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     add_account as _db_add_account,
     get_all_banks,
@@ -45,98 +46,42 @@ _ACCOUNT_TYPES = ["SAVINGS", "CURRENT", "OVERDRAFT", "CREDIT_CARD"]
 
 
 def show_help(win: tk.Toplevel, on_escape) -> None:
-    """Launch the help sub-window for the Add Account dialog."""
-    win.unbind("<Escape>")
-
-    help_win = tk.Toplevel(win)
-    try:
-        help_win.transient(win)
-    except (tk.TclError, AttributeError) as _exc:
-        logger.debug("help_win.transient failed: %s", _exc)
-    help_win.title("Help — Add Account")
-    help_win.configure(bg=ACCOUNTS_ADD_UI_THEME["help_bg"])
-    help_win.geometry("640x600")
-    help_win.resizable(False, False)
-    help_win.grab_set()
-    push_window(help_win, win)
-    try:
-        help_win.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        help_win,
-        text="Add Account Help",
-        font=("Helvetica", 16, "bold"),
-        bg=ACCOUNTS_ADD_UI_THEME["help_header_bg"],
-        fg="white",
-        pady=8,
-    ).pack(fill="x")
-
-    body = tk.Frame(
-        help_win, bg=ACCOUNTS_ADD_UI_THEME["help_bg"], padx=12, pady=12
-    )
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg=ACCOUNTS_ADD_UI_THEME["help_bg"],
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=14,
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "• This form adds a new bank or credit card account to the database.",
-        "• Once added, you can post transactions, record interests, "
-        "or track EMIs on it.",
+    """Launch the standardized help sub-window for the Add Account dialog."""
+    
+    guide_lines = [
+        "This form links a new bank or credit card account to an existing Bank Master record.",
         "",
         "Fields:",
-        "  Select Bank (required): Pick the institution (e.g. SBI, HDFC).",
-        "    If the bank is not in the list, type it to add it.",
-        "  Select Account Type (required): SAVINGS, CURRENT, OVERDRAFT, "
-        "or CREDIT_CARD.",
-        "  Account Number (required): Unique identifier within the bank.",
-        "  Opening Date (required): Date the account was opened.",
-        "  Current Balance (required): Starting balance snapshot (INR).",
-        "  Balance Date (required): Date of the balance snapshot.",
-        "  Joint Account (optional): Check if this is a joint account.",
-        "  Active Account (optional): Keep checked. Uncheck only if closed.",
+        "• Select Bank (Required): Pick the parent institution. If it doesn't exist, type the name to open the 'Add Bank' dialog on the fly!",
+        "• Account Type (Required): Choose between SAVINGS, CURRENT, OVERDRAFT, or CREDIT_CARD.",
+        "• Account Number (Required): The unique identifier for this account.",
+        "• Opening Date (Required): The date the account was originally opened.",
+        "• Current Balance & Date (Required): The starting snapshot of your balance. Future transactions calculate their running totals dynamically from this anchor.",
+        "• Joint & Active: Check if the account is jointly held. Leave 'Active' checked unless recording a closed account.",
         "",
         "Hotkeys:",
-        "  F1: This screen (Help)",
-        "  F2: Session Accounts",
-        "  Escape: Close this window without saving",
-        "  Enter: Advance to next field / activate button",
+        "• F2: View Session Accounts (Entries added during this session)",
+        "• Escape: Cancel and Close",
+        "• Ctrl+Enter: Submit Form"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(help_win, win)
-        win.bind("<Control-Return>", lambda e: submit_button.invoke())
-        win.bind("<Escape>", on_escape)
-        return "break"
-
-    help_win.bind("<Control-Return>", lambda e: submit_button.invoke())
-    help_win.bind("<Escape>", close_help)
-    help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-    tk.Button(
-        help_win,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=ACCOUNTS_ADD_UI_THEME["help_btn_bg"],
-        fg="white",
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    ).pack(side="bottom", pady=10)
+    
+    faq_data = [
+        (
+            "Q: Can I add a cash wallet, digital wallet, or suspense account here?",
+            "A: Yes! Select your pseudo-bank (e.g., 'My Home' or 'Wallets') and create an account named 'Petty Cash', 'Paytm', or 'ReverseEntry'. Set the type to SAVINGS or CURRENT."
+        ),
+        (
+            "Q: Do I need to enter the exact opening balance from the day I opened the account years ago?",
+            "A: Not necessarily. You can enter the balance from the exact date you intend to start tracking in BankMan, and set the Balance Date to match. BankMan will calculate running totals forward from that date."
+        )
+    ]
+    
+    show_standard_help(
+        parent=win,
+        title="Add Account Help",
+        guide_lines=guide_lines,
+        faq_data=faq_data
+    )
 
 
 def show_session_accounts(
@@ -718,7 +663,7 @@ def add_account_main(
         ),
     )
 
-    win.bind("<F1>", lambda e: show_help(win, on_escape))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (show_help(win, on_escape)))
     win.bind(
         "<F2>",
         lambda e: show_session_accounts(

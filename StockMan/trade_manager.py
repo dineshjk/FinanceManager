@@ -20,8 +20,8 @@ from Shared.dialog_utils import (
 from .rollback_manager import delete_trade
 from .trade_update import update_trade
 from .trade_utils import rebuild_sell_allocations
-from Shared.modal_utils import disable_parent, add_escape_binding
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.modal_utils import disable_parent
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_utils import apply_button_animations, universal_tree_sort
 
 
@@ -32,7 +32,7 @@ def show_trade_manager(
     Opens a modal window displaying all trades with options to delete/rollback.
     """
     # Centralized modal management: Disable parent window to prevent interaction
-    modal_id = disable_parent(parent, calling_button=calling_button)
+    disable_parent(parent, calling_button=calling_button)
 
     mgr_win = tk.Toplevel(parent)
     mgr_win.title("Trade Manager — Manage / Edit / Remove")
@@ -302,6 +302,9 @@ def show_trade_manager(
     # CRITICAL: Restore grab to the Trade Menu so it doesn't fall out of focus
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

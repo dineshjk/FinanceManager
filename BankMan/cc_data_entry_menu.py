@@ -5,13 +5,29 @@
 Credit Card Data Entry menu for the BankMan application.
 """
 
-import tkinter as tk
 from Shared.menu_factory import create_menu_window
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
 from .cc_master_add import add_cc_master_main
 from .cc_transactions_add import add_cc_transaction_main
 from .rewards_points_add import add_rewards_points_main
+from Shared.help_utils import show_standard_help
+
+def _get_cc_data_entry_help_data():
+    guide_lines = [
+        "This menu manages the data entry for your Credit Card ecosystem.",
+        "",
+        "• Credit Card Master: Register a new credit card (set billing cycle, limits, linked bank account).",
+        "• Credit Card Transactions: Log individual card swipes, merchant refunds, and annual fees.",
+        "• Rewards Points Entry: Track the accumulation and redemption of credit card reward points."
+    ]
+    faq_data = [
+        (
+            "Q: How do I record my monthly credit card bill payment?",
+            "A: Do NOT enter the payment here! Go to 'Data Entry' -> 'Bank' -> 'Add Transaction'. Record a Withdrawal from your Savings account, set the Entry Type to TRANSFER, select 'CC' as the Module Type, and pick your card. This moves cash out of your bank and automatically pays down the card's outstanding balance."
+        )
+    ]
+    return guide_lines, faq_data
 
 def show_cc_data_entry_menu(parent, come_back_index=None):
     """
@@ -65,7 +81,20 @@ def show_cc_data_entry_menu(parent, come_back_index=None):
     # When the modal window's close button (X) is clicked, handle it gracefully
     cc_menu_window.protocol("WM_DELETE_WINDOW", close_modal)
 
+    def _show_help(_e=None):
+        guide, faq = _get_cc_data_entry_help_data()
+        show_standard_help(
+            parent=cc_menu_window,
+            title="CC Data Entry Help",
+            guide_lines=guide,
+            faq_data=faq
+        )
+    cc_menu_window.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+
     push_window(cc_menu_window, parent)
     parent.wait_window(cc_menu_window)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(parent, modal_id)

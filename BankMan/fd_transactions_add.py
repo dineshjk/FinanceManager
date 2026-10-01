@@ -33,6 +33,7 @@ from Shared.dialog_utils import (
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     get_all_fd_masters_for_display,
     db_add_fd_transaction as _db_add_fd_transaction,
@@ -94,115 +95,26 @@ def _band_label(parent, text, bg, font=("Helvetica", 14), padx=0):
 
 
 def _show_help(win: tk.Toplevel, on_escape) -> None:
-    """Launch the Help sub-window for Add FD Transaction."""
-    win.unbind("<Escape>")
-
-    help_win = tk.Toplevel(win)
-    try:
-        help_win.transient(win)
-    except (tk.TclError, AttributeError) as exc:
-        logger.debug("help_win.transient failed: %s", exc)
-    help_win.title("Help — Add FD Transaction")
-    help_win.configure(bg=_T["header_bg"])
-    help_win.geometry("720x680")
-    help_win.resizable(False, False)
-    help_win.grab_set()
-    push_window(help_win, win)
-    try:
-        help_win.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        help_win,
-        text="Add FD Transaction  —  Help",
-        font=("Helvetica", 16, "bold"),
-        bg=_T["header_bg"],
-        fg=_T["header_fg"],
-        pady=8,
-    ).pack(fill="x")
-
-    body = tk.Frame(help_win, bg=_T["main_bg"], padx=12, pady=12)
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg=_T["main_bg"],
-        fg=_T["header_fg"],
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=32,
-        insertbackground=_T["header_fg"],
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "\u2022 This form records a new entry in the fd_transactions table.",
+    guide_lines = [
+        "This form records events that happen *inside* the FD wrapper (like yearly interest accruals) that do not immediately hit your bank passbook.",
         "",
-        "Fields:",
-        "  FD Account       \u2014 Select the Fixed Deposit from the dropdown.",
-        "                     Only active FDs are listed.",
-        "  Linked Account   \u2014 Auto-filled from the selected FD master.",
-        "  Trans Date       \u2014 Date of this FD event (DD-MM-YYYY).",
-        "  Trans Type       \u2014 DEPOSIT         : Initial deposit or top-up.",
-        "                     INTEREST_CREDIT : Periodic interest payout.",
-        "                     MATURITY        : FD matured; proceeds credited.",
-        "                     PREMATURE_CLOSURE: Closed before maturity.",
-        "  FD Saving (\u20b9)    \u2014 Amount deposited / added to the FD.",
-        "                     Fill for DEPOSIT. Leave 0 otherwise.",
-        "  FD Withdrawal(\u20b9) \u2014 Amount withdrawn (MATURITY / PREMATURE_CLOSURE).",
-        "  FD Principal(\u20b9)  \u2014 Principal component of this event.",
-        "                     Fill for MATURITY / PREMATURE_CLOSURE breakdowns.",
-        "  FD Interest (\u20b9)  \u2014 Interest component credited in this event.",
-        "                     Fill for INTEREST_CREDIT and MATURITY.",
+        "Transaction Types:",
+        "• INTEREST_CREDIT: Periodic interest payout. (Fill 'FD Interest' field).",
+        "• PREMATURE_CLOSURE: Closed before maturity. (Fill 'FD Withdrawal' and 'FD Principal' fields).",
         "",
-        "Typical patterns:",
-        "  DEPOSIT          : fd_saving > 0, others 0.",
-        "  INTEREST_CREDIT  : fd_int > 0, others 0.",
-        "  MATURITY         : fd_withdrawal = principal + interest;",
-        "                     fd_principal + fd_int filled for breakdown.",
-        "  PREMATURE_CLOSURE: fd_withdrawal > 0; fd_principal filled.",
-        "",
-        "Hotkeys:",
-        "  F1  : This help screen",
-        "  F2  : Session viewer (transactions added this session)",
-        "  Esc : Close without saving",
-        "  Enter on last field : Submit",
+        "Hotkeys: F2 (Session Viewer), Esc (Close), Ctrl+Enter (Save)"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(help_win, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-        win.bind("<Escape>", on_escape)
-        return "break"
-
-    help_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-    help_win.bind("<Escape>", close_help)
-    help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-    help_close_btn = tk.Button(
-        help_win,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=_T.get("help_btn_bg", _T["button_bg"]),
-        fg=_T.get("button_fg", "white"),
-        activeforeground=_T.get("button_fg", "white"),
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    )
-    help_close_btn.pack(side="bottom", pady=10)
-    apply_button_animations(
-        help_close_btn,
-        _T.get("help_btn_bg", _T["button_bg"]),
-        _T.get("help_btn_hover_bg", "#115e59"),
-    )
+    faq_data = [
+        (
+            "Q: Should I log my final maturity payout here?",
+            "A: No! When the FD matures and the money hits your bank, go to Data Entry -> Bank and log a Deposit (Entry Type = TRANSFER, Module = FD). BankMan will automatically handle the principal/interest breakdown and close out the FD."
+        ),
+        (
+            "Q: When do I use DEPOSIT?",
+            "A: Only use DEPOSIT here if you are logging a historical top-up to a flexible FD without tracking the source bank account."
+        )
+    ]
+    show_standard_help(win, "Add FD Transaction Help", guide_lines, faq_data)
 
 
 # ---------------------------------------------------------------------------
@@ -358,11 +270,11 @@ def _show_session_viewer(
 
     def _close_viewer(_e=None):
         safe_close_modal(viewer, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+        win.bind("<Control-Return>", lambda e: None)
         win.bind("<Escape>", on_escape)
         return "break"
 
-    viewer.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    viewer.bind("<Control-Return>", lambda e: None)
     viewer.bind("<Escape>", _close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", _close_viewer)
     viewer.bind("<Return>", _close_viewer)
@@ -445,12 +357,12 @@ def add_fd_transaction_main(
     def on_escape(_event=None):
         return cleanup_and_close()
 
-    win.bind("<F1>", lambda e: _show_help(win, on_escape))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (_show_help(win, on_escape)))
     win.bind(
         "<F2>",
         lambda e: _show_session_viewer(win, session_records, on_escape),
     )
-    win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    win.bind("<Control-Return>", lambda e: None)
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", on_escape)
 

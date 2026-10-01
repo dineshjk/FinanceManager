@@ -107,7 +107,7 @@ def get_market_insight(scrip_name, technical_signal, api_key=None):
                             config=types.GenerateContentConfig(tools=[{"google_search": {}}]),
                         )
                         return response.text
-                    except Exception as e3:
+                    except Exception:
                         return "[System] API Rate limit exceeded on Pro, 2.5 Flash, and 1.5 Flash. Please wait a minute and try again."
                 return f"[System] Error in 2.5 Flash Fallback: {e2}"
         elif (
@@ -190,7 +190,7 @@ def get_portfolio_sell_advice(scrip_list, api_key=None):
                             config=types.GenerateContentConfig(tools=[{"google_search": {}}]),
                         )
                         return response.text or "[System] Gemini returned an empty response. This can happen if safety filters blocked the output or if search grounding yielded no results."
-                    except Exception as e3:
+                    except Exception:
                         return "[System] API Rate limit exceeded on Pro, 2.5 Flash, and 1.5 Flash. Please wait a minute and try again."
                 return f"[System] Error in 2.5 Flash Fallback: {e2}"
         elif (
@@ -272,7 +272,7 @@ def get_portfolio_buy_advice(scrip_list, api_key=None):
                             config=types.GenerateContentConfig(tools=[{"google_search": {}}]),
                         )
                         return response.text or "[System] Gemini returned an empty response. This can happen if safety filters blocked the output or if search grounding yielded no results."
-                    except Exception as e3:
+                    except Exception:
                         return "[System] API Rate limit exceeded on Pro, 2.5 Flash, and 1.5 Flash. Please wait a minute and try again."
                 return f"[System] Error in 2.5 Flash Fallback: {e2}"
         elif (

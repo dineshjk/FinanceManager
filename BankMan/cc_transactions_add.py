@@ -35,6 +35,7 @@ from Shared.dialog_utils import (
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     get_all_card_masters,
     get_all_budget_heads,
@@ -99,110 +100,39 @@ def _band_label(parent, text, bg, font=("Helvetica", 14), padx=0):
 
 
 def _show_help(win: tk.Toplevel, on_escape) -> None:
-    """Launch the Help sub-window for Add CC Transaction."""
-    win.unbind("<Escape>")
-
-    help_win = tk.Toplevel(win)
-    try:
-        help_win.transient(win)
-    except (tk.TclError, AttributeError) as exc:
-        logger.debug("help_win.transient failed: %s", exc)
-    help_win.title("Help — Add CC Transaction")
-    help_win.configure(bg=_T.get("help_bg", _T["main_bg"]))
-    help_win.geometry("720x660")
-    help_win.resizable(False, False)
-    help_win.grab_set()
-    push_window(help_win, win)
-    try:
-        help_win.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        help_win,
-        text="Add CC Transaction  —  Help",
-        font=("Helvetica", 16, "bold"),
-        bg=_T.get("help_header_bg", _T["header_bg"]),
-        fg=_T["header_fg"],
-        pady=8,
-    ).pack(fill="x")
-
-    body = tk.Frame(help_win, bg=_T.get("help_bg", _T["main_bg"]), padx=12, pady=12)
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg=_T.get("help_bg", _T["main_bg"]),
-        fg=_T.get("help_text_fg", _T.get("header_fg", "black")),
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=30,
-        insertbackground=_T.get("help_text_fg", _T.get("header_fg", "black")),
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "\u2022 This form records a new entry in the cc_transactions table.",
+    """Launch the standardized help sub-window for Add CC Transaction."""
+    
+    guide_lines = [
+        "This form records individual card swipes and credits into the credit card ledger.",
         "",
         "Fields:",
-        "  Credit Card      \u2014 Select the credit card from the dropdown.",
-        "                     Only active cards are listed.",
-        "  Linked Account   \u2014 Auto-filled from the selected card master.",
-        "  Trans Date       \u2014 Date the transaction posted to the card " "account.",
-        "  Party / Merchant \u2014 Merchant name or description",
-        "                     (e.g. 'SWIGGY', 'AMAZON', 'Bill Payment').",
-        "  Trans Type       \u2014 EXPENSE  : Purchase/charge on the card.",
-        "                     PAYMENT  : Bill payment credited to the card.",
-        "                     CASHBACK : Cashback or reward credit.",
-        "                     REVERSAL : Merchant reversal / refund.",
-        "  Expense (\u20b9)       \u2014 Amount charged (positive for EXPENSE rows).",
-        "                     Leave 0 for PAYMENT / CASHBACK / REVERSAL.",
-        "  CC Credit (\u20b9)     \u2014 Amount credited (positive for PAYMENT,",
-        "                     CASHBACK, REVERSAL). Leave 0 for EXPENSE.",
-        "",
-        "Validation Rules:",
-        "  \u2022 EXPENSE: Expense > 0 and CC Credit = 0.",
-        "  \u2022 PAYMENT / CASHBACK / REVERSAL: CC Credit > 0 and Expense = 0.",
+        "• Credit Card: Select the active card. The linked bank account will auto-fill.",
+        "• Trans Date: The date the transaction posted to your card.",
+        "• Party / Merchant: Merchant name or description (e.g., 'Swiggy', 'Amazon').",
+        "• Trans Type:",
+        "    - EXPENSE: A standard purchase (Expense > 0, Credit = 0).",
+        "    - PAYMENT: A bill payment credited to the card.",
+        "    - CASHBACK: Rewards or cashback credit.",
+        "    - REVERSAL: A merchant refund.",
         "",
         "Hotkeys:",
-        "  F1  : This help screen",
-        "  F2  : Session viewer (transactions added this session)",
-        "  Esc : Close without saving",
-        "  Enter on last field : Submit",
+        "• F2: View Session Transactions (Swipes added during this session)",
+        "• Escape: Cancel and Close",
+        "• Ctrl+Enter: Save Changes"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(help_win, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-        win.bind("<Escape>", on_escape)
-        return "break"
-
-    help_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-    help_win.bind("<Escape>", close_help)
-    help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-    help_close_btn = tk.Button(
-        help_win,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=_T.get("help_btn_bg", _T["button_bg"]),
-        fg=_T.get("button_fg", "white"),
-        activeforeground=_T.get("button_fg", "white"),
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    )
-    help_close_btn.pack(side="bottom", pady=10)
-    apply_button_animations(
-        help_close_btn,
-        _T.get("help_btn_bg", _T["button_bg"]),
-        _T.get("help_btn_hover_bg", "#008b8b"),
+    
+    faq_data = [
+        (
+            "Q: Should I log my monthly credit card bill payment here?",
+            "A: No! You should log the payment as a Withdrawal in the main 'Bank Transactions' screen and link it to this credit card. Doing so will automatically generate the PAYMENT row in this ledger for you, keeping both your bank balance and credit card balance synced."
+        )
+    ]
+    
+    show_standard_help(
+        parent=win,
+        title="Add CC Transaction Help",
+        guide_lines=guide_lines,
+        faq_data=faq_data
     )
 
 
@@ -372,11 +302,11 @@ def _show_session_viewer(
 
     def _close_viewer(_e=None):
         safe_close_modal(viewer, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+        win.bind("<Control-Return>", lambda e: None)
         win.bind("<Escape>", on_escape)
         return "break"
 
-    viewer.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    viewer.bind("<Control-Return>", lambda e: None)
     viewer.bind("<Escape>", _close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", _close_viewer)
     viewer.bind("<Return>", _close_viewer)
@@ -461,12 +391,12 @@ def add_cc_transaction_main(
     def on_escape(_event=None):
         return cleanup_and_close()
 
-    win.bind("<F1>", lambda e: _show_help(win, on_escape))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (_show_help(win, on_escape)))
     win.bind(
         "<F2>",
         lambda e: _show_session_viewer(win, session_records, on_escape),
     )
-    win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    win.bind("<Control-Return>", lambda e: None)
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", on_escape)
 

@@ -28,6 +28,7 @@ from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_utils import apply_button_animations, universal_tree_sort
 from .bank_edit import edit_bank
 from .bank_transaction_edit import edit_bank_transaction
+from Shared.help_utils import show_standard_help
 
 
 def show_bank_manager(
@@ -52,6 +53,22 @@ def show_bank_manager(
     mgr_win.grab_set()
     mgr_win.focus_set()
     push_window(mgr_win, parent)
+
+    def _show_help(_e=None):
+        guide_lines = [
+            "This screen lists all the Bank Master records in your database.",
+            "",
+            "• Sort: Click any column heading (e.g., Name, Branch, IFSC) to sort the list.",
+            "• Edit: Select a bank and click 'Edit Selected' to modify its name, branch, IFSC, MICR, or Customer ID.",
+            "• Delete: Select a bank and click 'Delete Selected'. Note: The system will block the deletion if any accounts are currently linked to this bank. You must delete or reassign the accounts first.",
+        ]
+        show_standard_help(
+            parent=mgr_win,
+            title="Bank Master Manager Help",
+            guide_lines=guide_lines,
+            faq_data=[]
+        )
+    mgr_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
 
     # ------------------------------------------------------------------
     # Header banner
@@ -347,7 +364,10 @@ def show_bank_manager(
     # CRITICAL: Restore grab to the caller so it doesn't fall out of focus.
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass
 
@@ -389,6 +409,15 @@ def show_bank_transactions_manager(
     mgr_win.transient(parent)
     mgr_win.grab_set()
     mgr_win.focus_set()
+    def _show_help(_e=None):
+        guide = [
+            "This screen is your master bank passbook ledger, listing all transactions.",
+            "• Sort: Click any column heading to sort.",
+            "• Color Codes: Green = INCOME, Red = EXPENSE, Amber = TRANSFER.",
+            "• Delete: Safely removes the row, deletes linked sub-ledger entries (FD/CC/Loan), clears transfer pair references, and recalculates all subsequent running balances for this account."
+        ]
+        show_standard_help(mgr_win, "Bank Transactions Manager Help", guide, [])
+    mgr_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
     push_window(mgr_win, parent)
 
     # ------------------------------------------------------------------
@@ -508,7 +537,12 @@ def show_bank_transactions_manager(
                     SELECT  bt.trans_id,
                             bt.trans_date,
                             b.name || '  —  ' || a.ac_number,
-                            COALESCE(bt.bank_desc, bt.user_desc, ''),
+                            CASE 
+                                WHEN bt.module_type != 'NONE' THEN 
+                                    COALESCE(bt.bank_desc, bt.user_desc, '') || ' [' || bt.module_type || ']'
+                                ELSE 
+                                    COALESCE(bt.bank_desc, bt.user_desc, '')
+                            END,
                             bt.withdrawal_amount,
                             bt.deposit_amount,
                             bt.balance_after,
@@ -799,6 +833,9 @@ def show_bank_transactions_manager(
     # CRITICAL: Restore grab to the calling window so it stays in focus.
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

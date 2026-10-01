@@ -14,7 +14,6 @@ from typing import Union
 import sqlite3
 import tkinter as tk
 from tkinter import ttk
-from tkinter import font as tkfont
 from tkcalendar import DateEntry
 
 from Shared.gui_utils import (
@@ -29,16 +28,22 @@ from Shared.gui_utils import (
 from Shared.dialog_utils import show_colorful_error, show_colorful_info, show_colorful_yesno
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from Shared.globals import get_db_connection, BANK_DB_PATH, logger
 from Shared.gui_progressive import progressive_selection
 from .bank_db_utils import (
     db_update_bank_transaction,
     get_all_budget_heads,
-    get_all_accounts,
     get_all_user_descriptions,
     get_active_fd_masters,
     get_all_card_masters as _db_get_all_card_masters,
-    get_single_ppf_master_id as _db_get_ppf_master_id,
+    get_active_ppf_masters as get_all_ppf_masters,
+    get_all_loan_masters_for_display,
+    get_stock_computed_bank_entries,
+    get_stock_actual_bank_entries,
+    get_active_mf_masters,
+    get_active_ins_masters,
+    get_budget_heads_with_parents as _db_get_bh_with_parents,
 )
 
 # ---------------------------------------------------------------------------
@@ -54,6 +59,7 @@ _MODULE_TYPES = [
     "STOCK_COMP",
     "STOCK_ACTU",
     "MF",
+    "INS",
 ]
 _ENTRY_TYPES = ["INCOME", "EXPENSE", "TRANSFER"]
 
@@ -219,6 +225,30 @@ def _create_subledger_row(conn, module_type, master_id, account_id, trans_date, 
             (master_id, account_id, trans_date, ppf_saving, ppf_withdrawal),
         )
         return cursor.lastrowid
+    elif module_type == "MF":
+        mf_purchase = withdrawal_amount if withdrawal_amount > 0 else 0.0
+        mf_redemption = deposit_amount if deposit_amount > 0 else 0.0
+        cursor.execute(
+            """
+            INSERT INTO mf_transactions (mf_master_id, account_id, mf_trans_dt, mf_purchase, mf_redemption, nav, units, balance_units)
+            VALUES (?, ?, ?, ?, ?, 0.0, 0.0, 0.0)
+            """,
+            (master_id, account_id, trans_date, mf_purchase, mf_redemption),
+        )
+        return cursor.lastrowid
+    elif module_type == "INS":
+        ins_premium = withdrawal_amount if withdrawal_amount > 0 else 0.0
+        ins_payout = deposit_amount if deposit_amount > 0 else 0.0
+        cursor.execute(
+            """
+            INSERT INTO ins_transactions (ins_master_id, account_id, ins_trans_dt, ins_premium, ins_payout)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (master_id, account_id, trans_date, ins_premium, ins_payout),
+        )
+        return cursor.lastrowid
+    elif module_type in ("STOCK_COMP", "STOCK_ACTU"):
+        return master_id
     return None
 
 
@@ -247,12 +277,18 @@ def edit_bank_transaction(
     # ── Lookup data ───────────────────────────────────────────────────────
     bh_rows = sorted(get_all_budget_heads(), key=lambda r: r[1])
     budget_map = {r[1]: r[0] for r in bh_rows}
-    bh_type_map = {r[1]: r[2] for r in bh_rows}
+    {r[1]: r[2] for r in bh_rows}
     bh_id_to_name = {r[0]: r[1] for r in bh_rows}
     bh_values = ["(none)"] + [r[1] for r in bh_rows]
 
     fd_map: dict = {}  # fd_number → fd_master_id
-    cc_map: dict = {}  # display_label → card_master_id
+    cc_map: dict = {}
+    ppf_map: dict = {}
+    loan_map: dict = {}
+    stock_comp_map: dict = {}
+    stock_actu_map: dict = {}
+    mf_map: dict = {}
+    ins_map: dict = {}
 
     # Find initial FD / CC selections if applicable
     initial_fd_number = ""
@@ -295,6 +331,103 @@ def edit_bank_transaction(
                     initial_cc_label = f"{name} ({str(num)[-4:] if num else 'N/A'})"
         except Exception as exc:
             logger.debug("Failed to fetch initial CC: %s", exc)
+
+    initial_ppf_label = ""
+    if data["module_type"] == "PPF" and data["module_ref_id"]:
+        try:
+            with get_db_connection(BANK_DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT pm.ppf_account_number, pm.holder_name, pm.is_active FROM ppf_transactions pt JOIN ppf_master pm ON pt.ppf_master_id = pm.ppf_master_id WHERE pt.ppf_trans_id = ?",
+                    (data["module_ref_id"],)
+                )
+                r = cursor.fetchone()
+                if r:
+                    initial_ppf_label = f"{r[0]} - {r[1]} ({'Active' if r[2] else 'Closed'})"
+        except Exception:
+            pass
+
+    initial_loan_label = ""
+    if data["module_type"] == "LOAN" and data["module_ref_id"]:
+        try:
+            with get_db_connection(BANK_DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT lm.loan_type, lm.loan_account_number, b.name FROM loan_transactions lt JOIN loan_master lm ON lt.loan_master_id = lm.loan_master_id JOIN accounts a ON lm.loan_account_id = a.ac_id JOIN banks b ON a.b_id = b.b_id WHERE lt.loan_trans_id = ?",
+                    (data["module_ref_id"],)
+                )
+                r = cursor.fetchone()
+                if r:
+                    initial_loan_label = f"{r[0]} [{r[1]}] - {r[2]}"
+        except Exception:
+            pass
+
+    initial_stock_comp_label = ""
+    if data["module_type"] == "STOCK_COMP" and data["module_ref_id"]:
+        from Shared.globals import STOCK_DB_PATH
+        import os
+        if os.path.exists(STOCK_DB_PATH):
+            try:
+                with get_db_connection(STOCK_DB_PATH) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT id_comp_bt, comp_bt_dt, comp_bt_type, comp_bt_amt, cont_no, comp_bt_desc FROM computed_bank WHERE id_comp_bt = ?",
+                        (data["module_ref_id"],)
+                    )
+                    r = cursor.fetchone()
+                    if r:
+                        initial_stock_comp_label = f"#{r[0]} | {r[1]} | {r[2]} \u20b9{r[3]:.2f} | {r[4] or ''} {r[5] or ''}".strip()
+            except Exception:
+                pass
+
+    initial_stock_actu_label = ""
+    if data["module_type"] == "STOCK_ACTU" and data["module_ref_id"]:
+        from Shared.globals import STOCK_DB_PATH
+        import os
+        if os.path.exists(STOCK_DB_PATH):
+            try:
+                with get_db_connection(STOCK_DB_PATH) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT id_actu_bt, actu_bt_dt, actu_bt_type, actu_bt_amt, actu_bt_desc FROM actual_bank WHERE id_actu_bt = ?",
+                        (data["module_ref_id"],)
+                    )
+                    r = cursor.fetchone()
+                    if r:
+                        initial_stock_actu_label = f"#{r[0]} | {r[1]} | {r[2]} \u20b9{r[3]:.2f} | {r[4] or ''}".strip()
+            except Exception:
+                pass
+
+    initial_mf_label = ""
+    if data["module_type"] == "MF" and data["module_ref_id"]:
+        try:
+            with get_db_connection(BANK_DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT mm.amc_name, mm.scheme_name, mm.folio_number, mm.rta_name FROM mf_transactions mt JOIN mf_master mm ON mt.mf_master_id = mm.mf_master_id WHERE mt.mf_trans_id = ?",
+                    (data["module_ref_id"],)
+                )
+                r = cursor.fetchone()
+                if r:
+                    initial_mf_label = f"{r[0]} | {r[1]} [Folio: {r[2]} - {r[3]}]"
+        except Exception:
+            pass
+
+    initial_ins_label = ""
+    if data["module_type"] == "INS" and data["module_ref_id"]:
+        try:
+            with get_db_connection(BANK_DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT im.company_name, im.ins_category, im.policy_number, im.assured_item FROM ins_transactions it JOIN ins_master im ON it.ins_master_id = im.ins_master_id WHERE it.ins_trans_id = ?",
+                    (data["module_ref_id"],)
+                )
+                r = cursor.fetchone()
+                if r:
+                    initial_ins_label = f"{r[0]} ({r[1]}) | Pol: {r[2]} | Assured: {r[3]}"
+        except Exception:
+            pass
+
 
     # ── Modal window ──────────────────────────────────────────────────────
     disable_parent(parent, calling_button=calling_button)
@@ -567,14 +700,18 @@ def edit_bank_transaction(
     module_ref_cell = tk.Frame(mod_ref_erow, bg=_C_MOD)
     module_ref_cell.pack(side="left", fill="x", expand=True)
 
-    # General entry
+    # Plain entry - disabled placeholder when Module Type is NONE
     module_ref_entry = tk.Entry(module_ref_cell, width=50, font=_F)
-    module_ref_entry.insert(0, str(data["module_ref_id"]) if data["module_ref_id"] else "")
     module_ref_entry.pack(side="left")
-    apply_entry_theme(module_ref_entry)
-    bind_tooltip(module_ref_entry, tooltip_var, "Integer product ID. Leave blank if not required.")
+    apply_entry_theme(module_ref_entry, is_readonly=True)
+    module_ref_entry.config(state="disabled")
+    bind_tooltip(
+        module_ref_entry,
+        tooltip_var,
+        "Not required when Module Type is NONE. Select a Module Type above to choose from a dropdown.",
+    )
 
-    # FD cell
+    # FD sub-frame
     fd_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
     fd_combo = ttk.Combobox(fd_cell, width=40)
     fd_combo.pack(side="left", padx=(0, 6))
@@ -588,7 +725,7 @@ def edit_bank_transaction(
         fd_combo["values"] = list(fd_map.keys())
         progressive_selection(fd_combo, list(fd_map.keys()))
 
-    # CC cell
+    # CC sub-frame
     cc_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
     cc_combo = ttk.Combobox(cc_cell, width=40)
     cc_combo.pack(side="left", padx=(0, 6))
@@ -602,28 +739,175 @@ def edit_bank_transaction(
         cc_combo["values"] = list(cc_map.keys())
         progressive_selection(cc_combo, list(cc_map.keys()))
 
+    # PPF sub-frame
+    ppf_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+    ppf_combo = ttk.Combobox(ppf_cell, width=40)
+    ppf_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(ppf_combo)
+    bind_tooltip(ppf_combo, tooltip_var, "Select an active PPF Account.")
+
+    def _rebuild_ppf_combo():
+        nonlocal ppf_map
+        ppf_rows = get_all_ppf_masters()
+        ppf_map = {
+            f"{r[1]} - {r[2]} ({'Active' if r[4] else 'Closed'})": r[0] for r in ppf_rows
+        }
+        ppf_combo["values"] = list(ppf_map.keys())
+        progressive_selection(ppf_combo, list(ppf_map.keys()))
+
+    # LOAN sub-frame
+    loan_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+    loan_combo = ttk.Combobox(loan_cell, width=40)
+    loan_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(loan_combo)
+    bind_tooltip(loan_combo, tooltip_var, "Select an active Loan Account.")
+
+    def _rebuild_loan_combo():
+        nonlocal loan_map
+        loan_rows = get_all_loan_masters_for_display()
+        loan_map = {
+            f"{r[1]} [{r[2]}] - {r[5]}": r[0] for r in loan_rows
+        }
+        loan_combo["values"] = list(loan_map.keys())
+        progressive_selection(loan_combo, list(loan_map.keys()))
+
+    # STOCK_COMP sub-frame
+    stock_comp_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+    stock_comp_combo = ttk.Combobox(stock_comp_cell, width=52)
+    stock_comp_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(stock_comp_combo)
+    bind_tooltip(stock_comp_combo, tooltip_var, "Select a Computed Bank Entry from StockMan.")
+
+    def _rebuild_stock_comp_combo():
+        nonlocal stock_comp_map
+        rows = get_stock_computed_bank_entries()
+        stock_comp_map = {
+            f"#{r[0]} | {r[1]} | {r[2]} ?{r[3]:.2f} | {r[4] or ''} {r[5] or ''}".strip(): r[0]
+            for r in rows
+        }
+        stock_comp_combo["values"] = list(stock_comp_map.keys())
+        progressive_selection(stock_comp_combo, list(stock_comp_map.keys()))
+
+    # STOCK_ACTU sub-frame
+    stock_actu_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+    stock_actu_combo = ttk.Combobox(stock_actu_cell, width=44)
+    stock_actu_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(stock_actu_combo)
+    bind_tooltip(stock_actu_combo, tooltip_var, "Select an Actual Bank Entry from StockMan.")
+
+    def _rebuild_stock_actu_combo():
+        nonlocal stock_actu_map
+        rows = get_stock_actual_bank_entries()
+        stock_actu_map = {
+            f"#{r[0]} | {r[1]} | {r[2]} ?{r[3]:.2f} | {r[4] or ''}".strip(): r[0]
+            for r in rows
+        }
+        stock_actu_combo["values"] = list(stock_actu_map.keys())
+        progressive_selection(stock_actu_combo, list(stock_actu_map.keys()))
+
+    # MF sub-frame
+    mf_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+    mf_combo = ttk.Combobox(mf_cell, width=44)
+    mf_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(mf_combo)
+    bind_tooltip(mf_combo, tooltip_var, "Select an active Mutual Fund folio.")
+
+    def _rebuild_mf_combo():
+        nonlocal mf_map
+        rows = get_active_mf_masters()
+        mf_map = {
+            f"{r[1]} | {r[4]} [Folio: {r[3]} - {r[2]}]": r[0]
+            for r in rows
+        }
+        mf_combo["values"] = list(mf_map.keys())
+        progressive_selection(mf_combo, list(mf_map.keys()))
+
+    # INS sub-frame
+    ins_cell = tk.Frame(module_ref_cell, bg=_C_MOD)
+    ins_combo = ttk.Combobox(ins_cell, width=44)
+    ins_combo.pack(side="left", padx=(0, 6))
+    apply_entry_theme(ins_combo)
+    bind_tooltip(ins_combo, tooltip_var, "Select an active Insurance policy.")
+
+    def _rebuild_ins_combo():
+        nonlocal ins_map
+        rows = get_active_ins_masters()
+        ins_map = {
+            f"{r[1]} ({r[2]}) | Pol: {r[3]} | Assured: {r[6]}": r[0]
+            for r in rows
+        }
+        ins_combo["values"] = list(ins_map.keys())
+        progressive_selection(ins_combo, list(ins_map.keys()))
+
     def _on_module_type_change(*_):
-        if module_type_var.get() == "FD":
-            module_ref_entry.pack_forget()
-            cc_cell.pack_forget()
+        module_ref_entry.pack_forget()
+        fd_cell.pack_forget()
+        cc_cell.pack_forget()
+        ppf_cell.pack_forget()
+        loan_cell.pack_forget()
+        stock_comp_cell.pack_forget()
+        stock_actu_cell.pack_forget()
+        mf_cell.pack_forget()
+        ins_cell.pack_forget()
+
+        mt = module_type_var.get()
+        if mt == "FD":
             _rebuild_fd_combo()
             fd_cell.pack(side="left")
             if initial_fd_number and initial_fd_number in fd_combo["values"]:
                 fd_combo.set(initial_fd_number)
             elif fd_combo["values"]:
                 fd_combo.set(fd_combo["values"][0])
-        elif module_type_var.get() == "CC":
-            module_ref_entry.pack_forget()
-            fd_cell.pack_forget()
+        elif mt == "CC":
             _rebuild_cc_combo()
             cc_cell.pack(side="left")
             if initial_cc_label and initial_cc_label in cc_combo["values"]:
                 cc_combo.set(initial_cc_label)
             elif cc_combo["values"]:
                 cc_combo.set(cc_combo["values"][0])
+        elif mt == "PPF":
+            _rebuild_ppf_combo()
+            ppf_cell.pack(side="left")
+            if initial_ppf_label and initial_ppf_label in ppf_combo["values"]:
+                ppf_combo.set(initial_ppf_label)
+            elif ppf_combo["values"]:
+                ppf_combo.set(ppf_combo["values"][0])
+        elif mt == "LOAN":
+            _rebuild_loan_combo()
+            loan_cell.pack(side="left")
+            if initial_loan_label and initial_loan_label in loan_combo["values"]:
+                loan_combo.set(initial_loan_label)
+            elif loan_combo["values"]:
+                loan_combo.set(loan_combo["values"][0])
+        elif mt == "STOCK_COMP":
+            _rebuild_stock_comp_combo()
+            stock_comp_cell.pack(side="left")
+            if initial_stock_comp_label and initial_stock_comp_label in stock_comp_combo["values"]:
+                stock_comp_combo.set(initial_stock_comp_label)
+            elif stock_comp_combo["values"]:
+                stock_comp_combo.set(stock_comp_combo["values"][0])
+        elif mt == "STOCK_ACTU":
+            _rebuild_stock_actu_combo()
+            stock_actu_cell.pack(side="left")
+            if initial_stock_actu_label and initial_stock_actu_label in stock_actu_combo["values"]:
+                stock_actu_combo.set(initial_stock_actu_label)
+            elif stock_actu_combo["values"]:
+                stock_actu_combo.set(stock_actu_combo["values"][0])
+        elif mt == "MF":
+            _rebuild_mf_combo()
+            mf_cell.pack(side="left")
+            if initial_mf_label and initial_mf_label in mf_combo["values"]:
+                mf_combo.set(initial_mf_label)
+            elif mf_combo["values"]:
+                mf_combo.set(mf_combo["values"][0])
+        elif mt == "INS":
+            _rebuild_ins_combo()
+            ins_cell.pack(side="left")
+            if initial_ins_label and initial_ins_label in ins_combo["values"]:
+                ins_combo.set(initial_ins_label)
+            elif ins_combo["values"]:
+                ins_combo.set(ins_combo["values"][0])
         else:
-            fd_cell.pack_forget()
-            cc_cell.pack_forget()
             module_ref_entry.pack(side="left")
 
     module_type_var.trace_add("write", _on_module_type_change)
@@ -737,10 +1021,41 @@ def edit_bank_transaction(
                 return
             master_id = cc_map[cc_lbl]
         elif new_module_type == "PPF":
-            master_id = _db_get_ppf_master_id()
-            if master_id is None:
-                show_colorful_error(win, "Validation Error", "No active PPF master found.")
+            ppf_lbl = ppf_combo.get().strip()
+            if not ppf_lbl or ppf_lbl not in ppf_map:
+                show_colorful_error(win, "Validation Error", "Please select a valid PPF Account.")
                 return
+            master_id = ppf_map[ppf_lbl]
+        elif new_module_type == "LOAN":
+            loan_lbl = loan_combo.get().strip()
+            if not loan_lbl or loan_lbl not in loan_map:
+                show_colorful_error(win, "Validation Error", "Please select a valid Loan Account.")
+                return
+            master_id = loan_map[loan_lbl]
+        elif new_module_type == "STOCK_COMP":
+            stock_lbl = stock_comp_combo.get().strip()
+            if not stock_lbl or stock_lbl not in stock_comp_map:
+                show_colorful_error(win, "Validation Error", "Please select a Computed Bank entry.")
+                return
+            master_id = stock_comp_map[stock_lbl]
+        elif new_module_type == "STOCK_ACTU":
+            stock_lbl = stock_actu_combo.get().strip()
+            if not stock_lbl or stock_lbl not in stock_actu_map:
+                show_colorful_error(win, "Validation Error", "Please select an Actual Bank entry.")
+                return
+            master_id = stock_actu_map[stock_lbl]
+        elif new_module_type == "MF":
+            mf_lbl = mf_combo.get().strip()
+            if not mf_lbl or mf_lbl not in mf_map:
+                show_colorful_error(win, "Validation Error", "Please select a valid Mutual Fund.")
+                return
+            master_id = mf_map[mf_lbl]
+        elif new_module_type == "INS":
+            ins_lbl = ins_combo.get().strip()
+            if not ins_lbl or ins_lbl not in ins_map:
+                show_colorful_error(win, "Validation Error", "Please select a valid Insurance policy.")
+                return
+            master_id = ins_map[ins_lbl]
         elif new_module_type != "NONE":
             ref_raw = module_ref_entry.get().strip()
             if not ref_raw:
@@ -880,6 +1195,7 @@ def edit_bank_transaction(
     apply_button_animations(cancel_btn, _THEME["cancel_bg"], _THEME["cancel_hover_bg"])
 
     # ── Keyboard and traversal bindings ───────────────────────────────────
+    win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else show_edit_help(win))
     win.bind("<Control-Return>", lambda e: submit_button.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
@@ -907,6 +1223,98 @@ def edit_bank_transaction(
     # Restore grab so caller remains in focus
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass
+
+
+
+def show_edit_help(win: tk.Toplevel) -> None:
+    guide_lines = [
+        "This form allows you to edit a previously saved bank transaction.",
+        "",
+        "Fields:",
+        "  Account      - Locked. You cannot change the account on edit.",
+        "  Amounts      - Modifying Withdrawal or Deposit will auto-recalculate downstream balances.",
+        "  Dates        - Modifying dates will correctly reorder your ledger.",
+        "  Module Type  - You can change the sub-ledger product type. For instance, linking an existing standalone entry to an FD.",
+        "",
+        "Cascading effects are handled automatically. Sub-ledger balances are updated seamlessly."
+    ]
+
+    faq_data = [
+        (
+            "What exactly happens to downstream balances when I change an amount?",
+            "The system automatically scans all transactions in this account with a 'Trans Dt' strictly greater than this one. It applies the difference in balance forward, so you don't need to manually fix subsequent rows."
+        ),
+        (
+            "What happens if I change the Pair ID or unlink a transfer?",
+            "If you clear the Pair ID, the opposite partner transaction is automatically unlinked and becomes a standalone entry. If you assign a new Pair ID, the new partner is bi-directionally linked to this transaction."
+        ),
+        (
+            "What happens to the sub-ledger if I change the Module Type?",
+            "If you completely change the Module Type (e.g., from FD to CC), the old sub-ledger row (FD) is left as an orphaned record and must be manually deleted or fixed. If you keep the same Module Type but change the amounts or dates, the existing sub-ledger row is seamlessly updated in place."
+        )
+    ]
+
+    def inject_budget_heads_tab(notebook):
+        try:
+            bh_rows = _db_get_bh_with_parents()
+        except Exception as exc:
+            logger.warning("budget heads fetch failed: %s", exc)
+            bh_rows = []
+            
+        tab_budget = tk.Frame(notebook, bg="#f0f9ff")
+        notebook.add(tab_budget, text="Budget Heads Reference")
+
+        search_frame = tk.Frame(tab_budget, bg="#e0f2fe", pady=5)
+        search_frame.pack(fill="x", padx=10, pady=(6, 0))
+        tk.Label(search_frame, text="Search:", font=("Helvetica", 11, "bold"), bg="#e0f2fe", fg="#0369a1").pack(side="left", padx=(6, 4))
+        
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(search_frame, textvariable=search_var, font=("Helvetica", 12), width=32, bg="#fff", fg="#0c4a6e", insertbackground="#0369a1", relief="solid", bd=1)
+        search_entry.pack(side="left", padx=4)
+
+        clear_btn = tk.Button(search_frame, text="✕", font=("Helvetica", 10, "bold"), bg="#bae6fd", fg="#0369a1", cursor="hand2", relief="flat", padx=8)
+        clear_btn.pack(side="left", padx=4)
+
+        bh_text = tk.Text(tab_budget, wrap="none", font=("Consolas", 11), bg="#f8fafc", bd=0, padx=6, pady=6)
+        bh_text.pack(fill="both", expand=True, padx=10, pady=(4, 10))
+        bh_text.tag_configure("highlight", background="#fef08a", foreground="#b45309", font=("Consolas", 11, "bold"))
+        
+        def _render_bh():
+            bh_text.config(state="normal")
+            bh_text.delete("1.0", "end")
+            bh_text.insert("end", f"{'ID':<6} | {'Budget Head':<35} | {'Parent'}\n", "header")
+            bh_text.insert("end", "-"*80 + "\n")
+            for r in bh_rows:
+                bh_text.insert("end", f"{r[0]:<6} | {r[1]:<35} | {r[3] or ''}\n")
+            bh_text.config(state="disabled")
+            
+        _render_bh()
+
+        def _do_search(*_):
+            q = search_var.get().strip().lower()
+            bh_text.tag_remove("highlight", "1.0", "end")
+            if not q: return
+            start_idx = "1.0"
+            while True:
+                pos = bh_text.search(q, start_idx, stopindex="end", nocase=True)
+                if not pos: break
+                end_pos = f"{pos}+{len(q)}c"
+                bh_text.tag_add("highlight", pos, end_pos)
+                start_idx = end_pos
+
+        search_var.trace_add("write", _do_search)
+        clear_btn.config(command=lambda: search_var.set(""))
+
+    show_standard_help(
+        parent=win,
+        title="Edit Bank Transaction Help",
+        guide_lines=guide_lines,
+        faq_data=faq_data,
+        extra_tabs_callback=inject_budget_heads_tab
+    )

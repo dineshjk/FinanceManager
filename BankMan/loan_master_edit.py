@@ -42,6 +42,7 @@ from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
 from Shared.globals import logger
 from Shared.gui_progressive import progressive_selection
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     db_get_all_loan_masters_for_edit,
     db_update_loan_master,
@@ -146,6 +147,24 @@ def edit_loan_master(
 
     def cleanup_and_close(_event=None):
         return safe_close_modal(win, parent, calling_button)
+
+    def show_help(win: tk.Toplevel) -> None:
+        guide_lines = [
+            "This screen allows you to modify the structural details of an existing loan.",
+            "",
+            "• Selection: Click any row in the top grid to load its details into the editable form below. (The grid is sortable by clicking column headers).",
+            "• Fields: You can safely modify the Principal, EMI, Interest Rate, Dates, and Linked Account.",
+            "• Active vs Closed: If a loan is fully paid off, uncheck the 'Active' box and save to hide it from daily dropdowns while preserving its history.",
+            "",
+            "Hotkeys: Esc (Close), Ctrl+Enter (Save Changes)"
+        ]
+        faq_data = [
+            (
+                "Q: Should I use this screen to record changes in my floating interest rate?",
+                "A: Yes! If your bank revises your floating interest rate or EMI schedule, you should update the 'Interest Rate' and 'EMI Amount' fields here so your future auto-splits remain accurate."
+            )
+        ]
+        show_standard_help(parent=win, title="Loan Master Edit Help", guide_lines=guide_lines, faq_data=faq_data)
 
     # ── Header ────────────────────────────────────────────────────────────
     hdr = tk.Frame(win, bg=_T["header_bg"], relief="raised", bd=3)
@@ -657,10 +676,15 @@ def edit_loan_master(
     # ── Initial focus — treeview ──────────────────────────────────────────
     tree.focus_set()
 
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (show_help(win)))
+
     parent.wait_window(win)
 
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

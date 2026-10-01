@@ -22,7 +22,7 @@ from .rollback_manager import (
     delete_merger,
     delete_demerger,
 )
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_utils import apply_button_animations, universal_tree_sort
 
 

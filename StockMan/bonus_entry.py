@@ -8,6 +8,7 @@ within the stock portfolio.
 
 from typing import Union
 import tkinter as tk
+from Shared.help_utils import show_standard_help
 from tkinter import ttk
 import sqlite3
 from tkcalendar import DateEntry
@@ -62,7 +63,7 @@ def bonus_shares(
     cancelusualbg = "#475569"  # Slate 600
     cancelactivebg = "#334155"  # Slate 700
 
-    modal_id = disable_parent(parent, calling_button=calling_button)
+    disable_parent(parent, calling_button=calling_button)
     bonus_win = tk.Toplevel(parent)
     bonus_win.title("✨ Bonus Shares Entry ✨")
 
@@ -313,102 +314,38 @@ def bonus_shares(
             pass
         update_view()
 
-    def show_help(_event=None):
-        help_win = tk.Toplevel(bonus_win)
-        help_win.transient(bonus_win)
-        help_win.grab_set()
-        help_win.title("Help - Bonus Issue Entry")
-        help_win.configure(bg="#fffaf0")
-        help_win.geometry("640x620")
-        help_win.resizable(False, False)
-        push_window(help_win, bonus_win)
-
-        header = tk.Label(
-            help_win,
-            text="Bonus Issue Entry Help",
-            font=("Helvetica", 16, "bold"),
-            bg=submitusualbg,
-            fg="white",
-            pady=8,
-        )
-        header.pack(fill="x")
-
-        body = tk.Frame(help_win, bg="#fffaf0", padx=15, pady=15)
-        body.pack(fill="both", expand=True)
-
-        text = tk.Text(
-            body, wrap="word", bg="#fffaf0", bd=0, font=("Helvetica", 11)
-        )
-        text.pack(fill="both", expand=True)
-
-        help_lines = [
-            "This form tracks Bonus Shares received from a company.\n",
+    def show_help(e=None):
+        guide_lines = [
+            "This form tracks free Bonus Shares received from a company.",
+            "",
+            "Fields:",
             "• Company Name: Choose the company issuing the bonus.",
-            "• Ratio: Read carefully! Enter how many shares you must HOLD, and how many NEW shares you receive.",
-            "  (E.g. A 1:1 Bonus means For every 1 Held, you receive 1 Bonus).",
+            "• Ratio: Read carefully! Enter how many shares you must HOLD, and how many NEW shares you receive. (E.g., A 1:1 Bonus means 'For every 1 Held, you receive 1 Bonus').",
             "• Record Date: The cutoff date to be eligible for the bonus.",
             "• Record Qty (Held): The number of shares you held on the Record Date.",
-            "• Bonus Qty: Automatically calculated based on the Ratio and Held Qty.\n",
-            "Notes on Data Handling:",
-            "Bonus shares act as a free 'BUY' trade. This automatically reduces your average holding cost per share. It does not deduct any money from your bank balance.\n",
+            "• Bonus Qty: Automatically calculated based on the Ratio and Held Qty.",
+            "",
             "Hotkeys:",
-            "  F1: Show this help window.",
-            "  F2: Show session entries.",
-            "  Esc: Close help or close the main entry window.",
-            "  Enter: Advance cursor or execute focused button.",
+            "• F2: View Session Entries",
+            "• Esc: Cancel and Close",
+            "• Enter: Advance cursor or execute button",
+            "• Ctrl+Enter: Save Entry"
         ]
-
-        text.insert("1.0", "\n".join(help_lines))
-        highlights = {
-            "Company Name:": "#d2691e",
-            "Ratio:": "#2e8b57",
-            "Record Date:": "#4682b4",
-            "Record Qty (Held):": "#b22222",
-            "Bonus Qty:": "#8b008b",
-            "Notes on Data Handling:": "#000000",
-            "Hotkeys:": "#000000",
-        }
-        for word, color in highlights.items():
-            start = "1.0"
-            while True:
-                pos = text.search(word, start, stopindex="end")
-                if not pos:
-                    break
-                end_pos = f"{pos}+{len(word)}c"
-                text.tag_add(word, pos, end_pos)
-                text.tag_config(
-                    word, foreground=color, font=("Helvetica", 11, "bold")
-                )
-                start = end_pos
-
-        text.config(state="disabled")
-
-        def close_help(_ev=None):
-            return safe_close_modal(help_win, bonus_win)
-
-        # # Dedicated frame for the button to enforce layout sizing
-        # btn_frame = tk.Frame(help_win, bg="#fffaf0")
-        # btn_frame.pack(side="bottom", pady=(10, 20))
-
-        btn = tk.Button(
-            help_win,
-            text="Close",
-            command=close_help,
-            font=("Helvetica", 11, "bold"),
-            bg="#475569",
-            fg="white",
-            padx=15,
-            pady=6,
-            cursor="hand2",
+        
+        faq_data = [
+            (
+                "Q: Does this transaction affect my bank balance?",
+                "A: No. Bonus shares act as a free 'BUY' trade. This automatically reduces your average holding cost per share in your portfolio reports, but it does not deduct any money from your bank ledger."
+            )
+        ]
+        
+        show_standard_help(
+            parent=bonus_win,
+            title="Bonus Issue Entry Help",
+            guide_lines=guide_lines,
+            faq_data=faq_data
         )
-        btn.pack(side="bottom", pady=10)
 
-        help_win.bind("<Control-Return>", lambda e: save_btn.invoke())
-        help_win.bind("<Escape>", close_help)
-        help_win.bind("<Return>", close_help)
-        btn.focus_set()
-
-    # --- Submission Logic ---
     def _on_submit(_event=None):
         company = company_name_var.get().strip()
         if company not in company_to_id:
@@ -1018,7 +955,7 @@ def bonus_shares(
     # Global Hotkeys
     bonus_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     bonus_win.bind("<Escape>", close_bonus)
-    bonus_win.bind("<F1>", show_help)
+    bonus_win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else show_help(e) if getattr(show_help, "__code__", None) and show_help.__code__.co_argcount > 0 else show_help())
     bonus_win.bind("<F2>", show_session_bonus)
     bonus_win.bind(
         "<Return>",
@@ -1089,6 +1026,9 @@ def bonus_shares(
     parent.wait_window(bonus_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

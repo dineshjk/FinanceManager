@@ -6,13 +6,11 @@ delay so logs are produced for verification."""
 
 import os
 import sqlite3
-import time
 import tkinter as tk
 from unittest import mock
 
 # Add project root to the Python path
 import sys
-import os
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:

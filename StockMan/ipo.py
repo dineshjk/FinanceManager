@@ -35,7 +35,7 @@ from .company_add import add_company
 from .company_ex_import import export_company
 from .trade_utils import compute_avg_price, process_allotment
 from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 
 
@@ -1010,7 +1010,7 @@ def ipo(
     # Global Hotkeys
     ipo_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     ipo_win.bind("<Escape>", _close_ipo)
-    ipo_win.bind("<F1>", show_help)
+    ipo_win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else show_help(e) if getattr(show_help, "__code__", None) and show_help.__code__.co_argcount > 0 else show_help())
     ipo_win.bind("<F2>", show_session_ipos)
     ipo_win.bind(
         "<Return>",
@@ -1024,6 +1024,9 @@ def ipo(
     parent.wait_window(ipo_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

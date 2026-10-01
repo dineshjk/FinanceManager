@@ -299,6 +299,9 @@ def remove_primary_offer(
     parent.wait_window(rm_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

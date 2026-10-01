@@ -14,23 +14,29 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import tkinter as tk
+import pytest
 from StockMan.trade_from_file import trade_entry_from_file
 
-print("Starting importer UI test")
-root = tk.Tk()
-root.withdraw()
-try:
-    trade_entry_from_file(root, src_db_path="mystocks_old.db", auto_close=True)
-    print("trade_entry_from_file returned normally")
-except Exception as e:
-    print("trade_entry_from_file raised:", e)
-    import traceback
-
-    traceback.print_exc()
-finally:
+def test_importer_ui():
+    print("Starting importer UI test")
     try:
-        root.destroy()
-    except Exception:
-        pass
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("Tkinter not available")
+    
+    root.withdraw()
+    try:
+        trade_entry_from_file(root, src_db_path="mystocks_old.db")
+        print("trade_entry_from_file returned normally")
+    except Exception as e:
+        print("trade_entry_from_file raised:", e)
+        import traceback
+        traceback.print_exc()
+        raise e
+    finally:
+        try:
+            root.destroy()
+        except Exception:
+            pass
 
-print("Test finished")
+    print("Test finished")

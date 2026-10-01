@@ -18,8 +18,32 @@ from .direct_trade_menu import show_direct_trade_menu_modal
 from .trade_from_file import trade_entry_from_file
 from .sell_management import show_sell_management_modal
 from Shared.globals import logger
+from Shared.help_utils import show_standard_help
 
 DEFAULT_GEOMETRY = "400x450"
+
+def _get_trade_menu_help_data():
+    guide_lines = [
+        "This menu is your central hub for recording and managing your stock transactions.",
+        "",
+        "• Add Trade (ICICI / Auto): Log your standard secondary market buy and sell orders.",
+        "• Add Trade (Zerodha): Log your secondary market buy and sell orders from Zerodha.",
+        "• Direct Trading: Record primary market transactions like IPO allotments and Rights issues.",
+        "• Manage / Edit / Remove: View your trade ledger, and safely delete or edit historical transactions.",
+        "• Sell Management (FIFO): Process sell orders using the First-In, First-Out accounting method.",
+        "• Import Trades: Batch import historical trades from a legacy database or file."
+    ]
+    faq_data = [
+        (
+            "Q: Why are there different buttons for ICICI and Zerodha?",
+            "A: Each broker has slightly different contract note structures and charge calculations. The specific buttons ensure accurate calculation of brokerage, STT, and other statutory charges based on the exact platform you used."
+        ),
+        (
+            "Q: What does Sell Management (FIFO) do?",
+            "A: To calculate capital gains accurately, sold shares must be matched against specific past purchase lots. The system uses FIFO (First-In, First-Out) to ensure the oldest shares are always 'sold' first for tax reporting purposes."
+        )
+    ]
+    return guide_lines, faq_data
 
 
 def show_trade_menu_modal(
@@ -88,11 +112,27 @@ def show_trade_menu_modal(
         "come_back_index": come_back_index,
     }
     modal_win, btn_widgets = create_menu_window(menu_config)
+    
+    def _show_help(e=None):
+        if e and (getattr(e, "state", 0) & 0x0004):
+            return  # Let global handler process Ctrl+F1
+        guide, faq = _get_trade_menu_help_data()
+        show_standard_help(
+            parent=modal_win,
+            title="Trade Menu Help",
+            guide_lines=guide,
+            faq_data=faq
+        )
+    modal_win.bind("<F1>", _show_help)
+
     push_window(modal_win, parent)
     parent.wait_window(modal_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")
     enable_parent(modal_id)

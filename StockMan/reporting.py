@@ -8,6 +8,7 @@ Show various financial reports.
 
 from typing import Union
 import tkinter as tk
+from Shared.help_utils import show_standard_help
 from tkinter import ttk
 import tkinter.font as tkfont
 from datetime import datetime
@@ -595,6 +596,15 @@ def latest_trade(
 
     lt_win.bind("<Left>", lambda e: go_prev())
     lt_win.bind("<Right>", lambda e: go_next())
+    def _show_help(e=None):
+        guide = [
+            "This window lets you quickly review your raw transaction history one trade at a time.",
+            "• Navigation: Use the 'Older' and 'Newer' buttons or the Left/Right arrow keys to scroll through your ledger.",
+            "• Display: Shows the exact Contract No, Trade Date, Quantity, WAP, and Net Amount saved in the database."
+        ]
+        show_standard_help(lt_win, "Latest Trade Viewer Help", guide, [])
+
+    lt_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
     lt_win.bind("<Escape>", cleanup_and_close)
 
     # Configure window close protocol to use cleanup function
@@ -898,12 +908,32 @@ def p_and_l(
 
     push_window(pnl_win, parent)
 
+    def _show_help(e=None):
+        guide = [
+            "Welcome to the Master Portfolio Analytics Dashboard.",
+            "",
+            "• Stock-wise Analysis: Select a stock on the left to see its narrative report, ledgers, and intraday chart.",
+            "• Portfolio Summary: View aggregate Capital Gains, XIRR, and Capital Flow statistics by Financial Year.",
+            "• Current Holdings: Live mark-to-market valuation of your active positions.",
+            "• Portfolio Allocation: See your portfolio's concentration by sector and stock weighting.",
+            "• Portfolio Ledgers: A master view of all trades, dividends, and corporate actions across all stocks."
+        ]
+        faq = [
+            (
+                "Q: How is the 'Estimated Post-Tax Profit' calculated?",
+                "A: The system automatically checks the holding period of sold shares. It applies Long-Term Capital Gains (LTCG) tax rates if held for >1 year, or Short-Term (STCG) rates otherwise."
+            )
+        ]
+        show_standard_help(pnl_win, "Portfolio Analytics Help", guide, faq)
+
     def cleanup_and_close():
         pop_window()
         enable_parent(modal_id)
         pnl_win.destroy()
 
     pnl_win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
+    pnl_win.bind("<Escape>", lambda e: cleanup_and_close())
+    pnl_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
 
     # Creates a styling engine object to customize the visual
     # appearance of modern ttk widgets within the pnl_win window.

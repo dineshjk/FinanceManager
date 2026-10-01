@@ -23,6 +23,7 @@ from Shared.gui_utils import (
 from Shared.dialog_utils import show_colorful_error, show_colorful_info, show_colorful_yesno
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import get_all_accounts
 from Shared.globals import logger, get_db_connection, BANK_DB_PATH
 
@@ -70,6 +71,36 @@ def edit_cc_master(
     # ------------------------------------------------------------------
     def cleanup_and_close(_event=None):
         return safe_close_modal(win, parent, calling_button)
+
+    def show_help(win: tk.Toplevel) -> None:
+        """Launch the standardized help sub-window for the Credit Card Edit dialog."""
+        guide_lines = [
+            "This screen allows you to modify the structural details of your registered credit cards.",
+            "",
+            "• Selection: Click any row in the top grid to load its details into the editable form below. (The grid is sortable by clicking column headers).",
+            "• Fields: You can modify the Card Name, Card Number (masked), Credit Limit, Billing Cycle Day, and the linked Bank Account.",
+            "• Active vs Closed: If you cancel a credit card, uncheck the 'Active' box and save. This hides it from daily dropdowns while preserving its historical swipe ledger.",
+            "",
+            "Hotkeys:",
+            "• Escape: Cancel and Close",
+            "• Ctrl+Enter: Save Changes"
+        ]
+        faq_data = [
+            (
+                "Q: Can I delete a credit card here?",
+                "A: Yes, use the 'Delete Selected' button. However, the system will actively block the deletion if you have any historical card swipes linked to it, ensuring you don't corrupt your ledger."
+            ),
+            (
+                "Q: Will changing the Linked Account move my old bill payments?",
+                "A: No. Changing the linked account only affects defaults going forward. Historical payments remain linked to the bank account from which they were actually paid."
+            )
+        ]
+        show_standard_help(
+            parent=win,
+            title="Credit Card Edit Help",
+            guide_lines=guide_lines,
+            faq_data=faq_data
+        )
 
     # ------------------------------------------------------------------
     # Header
@@ -388,7 +419,7 @@ def edit_cc_master(
         credit_limit_str = vals[5].replace("₹", "").replace(",", "").strip() if vals[5] else ""
         billing_day = vals[6]
         is_active = True if vals[7] == "Yes" else False
-        account_id = vals[8]
+        vals[8]
 
         selected_id["card_master_id"] = card_id
         
@@ -683,12 +714,17 @@ def edit_cc_master(
     win.bind("<Control-Return>", lambda e: save_btn.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
+    
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (show_help(win)))
 
     parent.wait_window(win)
 
     # Restore grab to caller so it doesn't fall out of focus.
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

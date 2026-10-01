@@ -6,7 +6,6 @@ Manage Transactions menu for the BankMan application.
 Provides navigation to module-specific transaction-management sub-menus.
 """
 
-import tkinter as tk
 from Shared.menu_factory import create_menu_window
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
@@ -78,5 +77,8 @@ def show_manage_transactions_menu(parent, come_back_index=None):
 
     push_window(menu_window, parent)
     parent.wait_window(menu_window)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(parent, modal_id)

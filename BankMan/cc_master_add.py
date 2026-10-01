@@ -31,6 +31,7 @@ from Shared.dialog_utils import (
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     get_all_accounts,
     add_card_master as _db_add_card_master,
@@ -88,106 +89,42 @@ def _field_label(parent, text, bg, font=("Helvetica", 13)):
 
 
 def _show_help(win: tk.Toplevel, on_escape) -> None:
-    """Launch the Help sub-window for Add CC Master."""
-    win.unbind("<Escape>")
-
-    help_win = tk.Toplevel(win)
-    try:
-        help_win.transient(win)
-    except (tk.TclError, AttributeError) as exc:
-        logger.debug("help_win.transient failed: %s", exc)
-    help_win.title("Help — Add Credit Card Master")
-    help_win.configure(bg=_T["help_bg"])
-    help_win.geometry("700x620")
-    help_win.resizable(False, False)
-    help_win.grab_set()
-    push_window(help_win, win)
-    try:
-        help_win.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        help_win,
-        text="Add Credit Card Master  —  Help",
-        font=("Helvetica", 16, "bold"),
-        bg=_T["header_bg"],
-        fg=_T["header_fg"],
-        pady=8,
-    ).pack(fill="x")
-
-    body = tk.Frame(help_win, bg=_T["help_bg"], padx=12, pady=12)
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg=_T["help_bg"],
-        fg=_T.get("help_text_fg", "#2d0000"),
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=28,
-        insertbackground=_T.get("help_text_fg", "#2d0000"),
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "\u2022 This form registers a new Credit Card (card_master) record.",
+    """Launch the standardized help sub-window for the Add CC Master dialog."""
+    
+    guide_lines = [
+        "This form registers a new Credit Card product in your database.",
         "",
         "Fields:",
-        "  Linked Account     \u2014 The bank account to which this card's monthly",
-        "                       bill payments are debited (e.g. the salary",
-        "                       account linked to the card).",
-        "  Card Name          \u2014 Descriptive product name, e.g. 'HDFC Regalia',",
-        "                       'SBI SimplyCLICK', 'Axis Magnus'.",
-        "  Card Number        \u2014 For security, store only the last 4 digits",
-        "                       (e.g. '4321'). Full 16-digit numbers are",
-        "                       accepted but not recommended.",
-        "  Credit Limit (\u20b9)   \u2014 Approved credit limit on this card in INR.",
-        "  Billing Cycle Day  \u2014 Day of the month (1\u201331) on which the billing",
-        "                       cycle closes and the statement is generated.",
-        "                       E.g. enter 20 if your statement date is the",
-        "                       20th of each month.",
-        "  Is Active          \u2014 Tick = card is valid and in use.",
-        "                       Untick only for cancelled/expired cards.",
-        "",
-        "Tips:",
-        "  \u2022 One card_master row per physical card product.",
-        "  \u2022 Spending transactions are recorded in cc_transactions.",
-        "  \u2022 The Billing Cycle Day drives automatic due-date reminders.",
+        "• Linked Account: The bank account from which this card's monthly bill payments are usually debited.",
+        "• Card Name: A descriptive product name, e.g., 'HDFC Regalia', 'SBI SimplyCLICK'.",
+        "• Card Number: For security, store only the last 4 digits. Full 16-digit numbers are accepted but not recommended.",
+        "• Credit Limit: The approved limit in INR.",
+        "• Billing Cycle Day: The day of the month (1-31) on which the billing cycle closes and statement is generated.",
+        "• Active: Leave checked to indicate the card is valid and in use.",
         "",
         "Hotkeys:",
-        "  F1  : This help screen",
-        "  F2  : Session viewer (cards added in this session)",
-        "  Esc : Close without saving",
-        "  Enter on last field : Submit",
+        "• F2: View Session Cards (Cards added during this session)",
+        "• Escape: Cancel and Close",
+        "• Ctrl+Enter: Save Changes"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(help_win, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-        win.bind("<Escape>", on_escape)
-        return "break"
-
-    help_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-    help_win.bind("<Escape>", close_help)
-    help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-    tk.Button(
-        help_win,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=_T["button_bg"],
-        fg=_T["button_fg"],
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    ).pack(side="bottom", pady=10)
+    
+    faq_data = [
+        (
+            "Q: What if I have multiple cards from the same bank?",
+            "A: That is perfectly fine! The system differentiates cards by their product name and the last 4 digits. They can all share the same 'Linked Account' for billing purposes."
+        ),
+        (
+            "Q: Where do I log my card expenses (swipes)?",
+            "A: You log individual card swipes in the 'Credit Card Transactions' screen (which is right next to the 'Credit Card Master' button on the CC Data Entry Menu)."
+        )
+    ]
+    
+    show_standard_help(
+        parent=win,
+        title="Add Credit Card Master Help",
+        guide_lines=guide_lines,
+        faq_data=faq_data
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -327,11 +264,11 @@ def _show_session_viewer(
 
     def _close_viewer(_e=None):
         safe_close_modal(viewer, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+        win.bind("<Control-Return>", lambda e: None)
         win.bind("<Escape>", on_escape)
         return "break"
 
-    viewer.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    viewer.bind("<Control-Return>", lambda e: None)
     viewer.bind("<Escape>", _close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", _close_viewer)
     viewer.bind("<Return>", _close_viewer)
@@ -400,12 +337,12 @@ def add_cc_master_main(
         return cleanup_and_close()
 
     # ── F1 / F2 / Escape bindings ─────────────────────────────────────────
-    win.bind("<F1>", lambda e: _show_help(win, on_escape))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (_show_help(win, on_escape)))
     win.bind(
         "<F2>",
         lambda e: _show_session_viewer(win, session_records, on_escape),
     )
-    win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    win.bind("<Control-Return>", lambda e: None)
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", on_escape)
 

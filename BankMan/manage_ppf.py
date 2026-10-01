@@ -28,6 +28,7 @@ Two public functions are exposed:
 """
 
 import tkinter as tk
+from Shared.help_utils import show_standard_help
 from tkinter import ttk
 import sqlite3
 from typing import Union
@@ -78,6 +79,23 @@ def show_ppf_manager(
     mgr_win.transient(parent)
     mgr_win.grab_set()
     mgr_win.focus_set()
+    def _show_help(_e=None):
+        guide = [
+            "This screen lists all Public Provident Fund (PPF) Master records.",
+            "• Sort: Click any column heading to sort.",
+            "• Color Codes: Green = Active, Red = Closed/Matured.",
+            "• Delete: System blocks deletion if there are linked transactions."
+        ]
+        show_standard_help(mgr_win, "PPF Master Manager Help", guide, [])
+    mgr_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+    def _show_help(_e=None):
+        guide = [
+            "This screen lists all Public Provident Fund (PPF) transactions.",
+            "• Color Codes: Green = Deposit/Interest, Red = Withdrawal/Maturity.",
+            "• Delete: Safely removes the row, cascades to linked bank transactions, and corrects running balances."
+        ]
+        show_standard_help(mgr_win, "PPF Transactions Manager Help", guide, [])
+    mgr_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
     push_window(mgr_win, parent)
 
     tk.Label(
@@ -223,13 +241,9 @@ def show_ppf_manager(
         ppf_id, _ = _get_selected()
         if ppf_id is None:
             return
-        show_colorful_info(
-            mgr_win,
-            "Edit Not Yet Available",
-            "Inline editing of PPF master records is not yet implemented.\n\n"
-            "To correct a record, delete it and re-enter with the correct "
-            "values.",
-        )
+        from .ppf_master_edit import edit_ppf_master
+        edit_ppf_master(mgr_win)
+        load_data()
 
     def _on_delete() -> None:
         ppf_id, ppf_acct = _get_selected()
@@ -363,7 +377,10 @@ def show_ppf_manager(
 
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass
 
@@ -403,6 +420,14 @@ def show_ppf_transactions_manager(
     mgr_win.transient(parent)
     mgr_win.grab_set()
     mgr_win.focus_set()
+    def _show_help(_e=None):
+        guide = [
+            "This screen lists all Public Provident Fund (PPF) transactions.",
+            "• Color Codes: Green = Deposit/Interest, Red = Withdrawal/Maturity.",
+            "• Delete: Safely removes the row, cascades to linked bank transactions, and corrects running balances."
+        ]
+        show_standard_help(mgr_win, "PPF Transactions Manager Help", guide, [])
+    mgr_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
     push_window(mgr_win, parent)
 
     tk.Label(
@@ -759,6 +784,9 @@ def show_ppf_transactions_manager(
 
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

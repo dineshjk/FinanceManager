@@ -12,30 +12,26 @@ import tkinter as tk
 from tkinter import ttk
 import sqlite3
 from tkcalendar import DateEntry
-from datetime import datetime
 import math
+from Shared.help_utils import show_standard_help
 
 from Shared.globals import get_db_connection, logger
 from Shared.dialog_utils import (
-    show_colorful_info,
     show_colorful_error,
     show_colorful_yesno,
 )
 from .company_add import add_company
-from .company_ex_import import export_company
 from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 from Shared.gui_utils import (
     bind_tooltip,
-    bind_entry_hover,
     on_enter_focus_next,
     apply_button_animations,
     apply_entry_theme,
     setup_footer_tooltip,
     bind_date_spin,
 )
-from Shared.validation_utils import validate_positive_numeric
 from .trade_utils import compute_avg_price, manage_sell
 
 
@@ -79,7 +75,6 @@ def add_merger(
     notefrbg = "#f8fafc"  # Slate 50
     btnfrbg = "#faf5ff"  # Purple 50
     submitusualbg = "#7c3aed"  # Purple 600
-    submitactivebg = "#6d28d9"  # Purple 700
     cancelusualbg = "#475569"  # Slate 600
     cancelactivebg = "#334155"  # Slate 700
 
@@ -790,6 +785,37 @@ def add_merger(
     apply_button_animations(save_btn, "#22c55e", "#2563eb")
     apply_button_animations(cancel_btn, cancelusualbg, cancelactivebg)
 
+    def show_help(e=None):
+        guide_lines = [
+            "This form handles corporate mergers, automatically extinguishing old shares and allotting new ones.",
+            "",
+            "Fields:",
+            "• Companies: Select the old company (Target) and the new company (Acquirer).",
+            "• Swap Ratio: Enter how many old shares are required, and how many new shares are given in return.",
+            "• Fractional Cash Refund: If the swap ratio results in fractional shares, enter the cash payout received in your bank.",
+            "",
+            "Hotkeys:",
+            "• Esc: Cancel and Close",
+            "• Enter: Advance cursor or execute button",
+            "• Ctrl+Enter: Execute Merger"
+        ]
+        
+        faq_data = [
+            (
+                "Q: How does a merger affect my portfolio's invested value?",
+                "A: BankMan marks the old company as inactive. It then takes the historical invested amount of the old company, subtracts any fractional cash refund you received, and seamlessly transfers the remainder as the new 'cost basis' for your newly allotted shares."
+            )
+        ]
+        
+        show_standard_help(
+            parent=merg_win,
+            title="Merger Entry Help",
+            guide_lines=guide_lines,
+            faq_data=faq_data
+        )
+
+    # Key Bindings
+    merg_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else show_help(e))
     merg_win.bind(
         "<Return>",
         lambda e: on_enter_focus_next(e, merg_win, save_btn, cancel_btn),
@@ -802,6 +828,9 @@ def add_merger(
     parent.wait_window(merg_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

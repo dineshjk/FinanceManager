@@ -14,18 +14,18 @@ from tkinter import ttk
 import sqlite3
 from tkcalendar import DateEntry
 import math
+from Shared.help_utils import show_standard_help
 
 from Shared.globals import get_db_connection, logger
 from Shared.dialog_utils import (
-    show_colorful_info,
     show_colorful_error,
     show_colorful_yesno,
 )
 from .company_add import add_company
 from .company_ex_import import export_company
 from .trade_utils import compute_avg_price
-from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.modal_utils import disable_parent
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_progressive import progressive_selection
 from Shared.gui_utils import (
     apply_entry_theme,
@@ -72,11 +72,10 @@ def add_demerger(
     childfrbg = "#f8fafc"  # Slate 50
     btnfrbg = "#fffbeb"  # Amber 50
     submitusualbg = "#d97706"  # Amber 600
-    submitactivebg = "#b45309"  # Amber 700
     cancelusualbg = "#475569"  # Slate 600
     cancelactivebg = "#334155"  # Slate 700
 
-    modal_id = disable_parent(parent, calling_button=calling_button)
+    disable_parent(parent, calling_button=calling_button)
     dem_win = tk.Toplevel(parent)
     dem_win.title("✂️ Corporate Demerger Entry ✂️")
     tooltip_var = setup_footer_tooltip(
@@ -1030,6 +1029,39 @@ def add_demerger(
             e.widget.tk_focusNext().focus()
             return "break"
 
+    def show_help(e=None):
+        guide_lines = [
+            "This form handles corporate demergers, where a parent company spins off one or more new child companies.",
+            "",
+            "Fields:",
+            "• Parent Company: Select the original company undergoing the demerger.",
+            "• Dates: Set the Record Date (for eligibility) and Ex-Date/Allotment Date.",
+            "• Child Companies: Add up to 5 spun-off companies. For each, specify the allotment ratio (Parent : Child).",
+            "• CoA % (Cost of Acquisition): The official percentage of the parent's invested capital that transfers to the child company. The total CoA across all children cannot exceed 100%.",
+            "• Refund: Any fractional shares settled in cash.",
+            "",
+            "Hotkeys:",
+            "• Esc: Cancel and Close",
+            "• Enter: Advance cursor",
+            "• Ctrl+Enter: Execute Demerger"
+        ]
+        
+        faq_data = [
+            (
+                "Q: How is my invested capital adjusted?",
+                "A: BankMan automatically reduces the parent company's cost basis by the specified CoA percentage and applies that exact value as the starting invested capital for the new child company."
+            )
+        ]
+        
+        show_standard_help(
+            parent=dem_win,
+            title="Demerger Entry Help",
+            guide_lines=guide_lines,
+            faq_data=faq_data
+        )
+
+    # Key Bindings
+    dem_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else show_help(e))
     dem_win.bind("<Return>", _focus_next)
     dem_win.bind("<Control-Return>", lambda e: save_btn.invoke())
     dem_win.bind("<Escape>", _close_demerger)

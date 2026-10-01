@@ -6,15 +6,32 @@ Top-level Data Entry menu for the BankMan application.
 Provides navigation to module-specific data-entry sub-menus.
 """
 
-import tkinter as tk
 from Shared.menu_factory import create_menu_window
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
+from Shared.help_utils import show_standard_help
 from .bank_data_entry_menu import show_data_entry_menu as show_bank_data_entry_menu
 from .cc_data_entry_menu import show_cc_data_entry_menu
 from .fd_data_entry_menu import show_fd_data_entry_menu
 from .loan_data_entry_menu import show_loan_data_entry_menu
 from .ppf_data_entry_menu import show_ppf_data_entry_menu
+
+
+def _get_data_entry_help_data():
+    guide_lines = [
+        "This is your primary hub for logging new financial transactions.",
+        "",
+        "• Bank: Opens the passbook entry screen to log all savings/current account movements (including MFs, Insurance, and StockMan links).",
+        "• Credit Card: Record independent credit card expenses or statement generations.",
+        "• Fixed Deposit / Loan / PPF: Log standalone events that do not directly hit your bank passbook (e.g., yearly PPF interest accrual or loan rate changes)."
+    ]
+    faq_data = [
+        (
+            "Q: Where are the Mutual Fund and Insurance data entry buttons?",
+            "A: You can log Mutual Fund purchases/redemptions and Insurance premium payments directly from the 'Bank' Data Entry screen! Just select 'MF' or 'INS' under the Module Type dropdown when logging your bank withdrawal/deposit."
+        )
+    ]
+    return guide_lines, faq_data
 
 
 def show_top_data_entry_menu(parent, come_back_index=None):
@@ -84,7 +101,20 @@ def show_top_data_entry_menu(parent, come_back_index=None):
     # When the modal window's close button (X) is clicked, handle it gracefully
     menu_window.protocol("WM_DELETE_WINDOW", close_modal)
 
+    def _show_help(_e=None):
+        guide, faq = _get_data_entry_help_data()
+        show_standard_help(
+            parent=menu_window,
+            title="Data Entry Menu Help",
+            guide_lines=guide,
+            faq_data=faq
+        )
+    menu_window.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+
     push_window(menu_window, parent)
     parent.wait_window(menu_window)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(modal_id)

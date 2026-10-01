@@ -41,6 +41,7 @@ from Shared.dialog_utils import (
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_utils import apply_button_animations, universal_tree_sort
+from Shared.help_utils import show_standard_help
 
 # ---------------------------------------------------------------------------
 
@@ -78,6 +79,16 @@ def show_loan_manager(
     mgr_win.transient(parent)
     mgr_win.grab_set()
     mgr_win.focus_set()
+    
+    def _show_help(_e=None):
+        guide = [
+            "This screen lists all Loan Master records.",
+            "• Color Codes: Green = Active, Red = Closed.",
+            "• Delete: Deletion is blocked if the loan has linked transactions."
+        ]
+        show_standard_help(mgr_win, "Loan Master Manager Help", guide, [])
+    mgr_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+    
     push_window(mgr_win, parent)
 
     tk.Label(
@@ -238,13 +249,9 @@ def show_loan_manager(
         loan_id, _ = _get_selected()
         if loan_id is None:
             return
-        show_colorful_info(
-            mgr_win,
-            "Edit Not Yet Available",
-            "Inline editing of loan master records is not yet implemented.\n\n"
-            "To correct a record, delete it and re-enter with the correct "
-            "values.",
-        )
+        from .loan_master_edit import edit_loan_master
+        edit_loan_master(mgr_win)
+        load_data()
 
     def _on_delete() -> None:
         loan_id, loan_acct = _get_selected()
@@ -378,7 +385,10 @@ def show_loan_manager(
 
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass
 
@@ -418,6 +428,16 @@ def show_loan_transactions_manager(
     mgr_win.transient(parent)
     mgr_win.grab_set()
     mgr_win.focus_set()
+    
+    def _show_help(_e=None):
+        guide = [
+            "This screen lists all Loan transactions (EMIs, Interest, Prepayments).",
+            "• Color Codes: Red = Payment/EMI, Green = Credit/Subsidy.",
+            "• Delete: Deleting an EMI row removes the linked bank withdrawal and corrects your bank passbook balance."
+        ]
+        show_standard_help(mgr_win, "Loan Transactions Manager Help", guide, [])
+    mgr_win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))
+    
     push_window(mgr_win, parent)
 
     tk.Label(
@@ -792,6 +812,9 @@ def show_loan_transactions_manager(
 
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         pass

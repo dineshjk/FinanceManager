@@ -16,9 +16,9 @@ from tkinter import ttk
 from typing import Union
 from datetime import datetime
 
-from Shared.globals import STOCK_DB_PATH, get_db_connection, logger, PROJECT_ROOT
+from Shared.globals import get_db_connection, logger, PROJECT_ROOT
 from Shared.dialog_utils import show_colorful_info, show_colorful_error
-from Shared.window_manager import push_window, pop_window, safe_close_modal
+from Shared.window_manager import push_window, safe_close_modal
 from Shared.modal_utils import disable_parent, enable_parent
 from .trade_utils import (
     compute_avg_price,

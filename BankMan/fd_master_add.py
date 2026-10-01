@@ -33,6 +33,7 @@ from Shared.dialog_utils import (
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
+from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     get_all_accounts,
     db_add_fd_master as _db_add_fd_master,
@@ -86,113 +87,26 @@ def _band_label(parent, text, bg, font=("Helvetica", 14), padx=0):
 
 
 def _show_help(win: tk.Toplevel, on_escape) -> None:
-    """Launch the Help sub-window for Add FD Master."""
-    win.unbind("<Escape>")
-
-    help_win = tk.Toplevel(win)
-    try:
-        help_win.transient(win)
-    except (tk.TclError, AttributeError) as exc:
-        logger.debug("help_win.transient failed: %s", exc)
-    help_win.title("Help — Add FD Master")
-    help_win.configure(bg=_T["header_bg"])
-    help_win.geometry("700x620")
-    help_win.resizable(False, False)
-    help_win.grab_set()
-    push_window(help_win, win)
-    try:
-        help_win.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        help_win,
-        text="Add FD Master  —  Help",
-        font=("Helvetica", 16, "bold"),
-        bg=_T["header_bg"],
-        fg=_T["header_fg"],
-        pady=8,
-    ).pack(fill="x")
-
-    body = tk.Frame(help_win, bg=_T["main_bg"], padx=12, pady=12)
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg=_T["main_bg"],
-        fg=_T["header_fg"],
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=28,
-        insertbackground=_T["header_fg"],
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "\u2022 This form registers a new Fixed Deposit (fd_master) record.",
+    guide_lines = [
+        "This form registers a new Fixed Deposit product in your database.",
         "",
         "Fields:",
-        "  Linked Account     \u2014 The savings/current account from which this FD",
-        "                       was funded and to which maturity proceeds",
-        "                       are credited.",
-        "  FD Number          \u2014 Bank-assigned FD reference or receipt number",
-        "                       (e.g. 'FD/2024/00123'). Alphanumeric.",
-        "  Principal (\u20b9)      \u2014 Amount originally deposited to open this FD.",
-        "  Interest Rate (%)  \u2014 Annual interest rate, e.g. enter 7.25 for",
-        "                       7.25% per annum.",
-        "  Open Date          \u2014 Date on which the FD was opened.",
-        "  Maturity Date      \u2014 Date on which the FD matures and proceeds",
-        "                       are credited back to the linked account.",
-        "  Is Active          \u2014 Tick = FD is currently active.",
-        "                       Untick only for matured or prematurely",
-        "                       closed FDs.",
+        "• Linked Account: The savings/current account from which this FD was funded.",
+        "• FD Number: Bank-assigned FD reference or receipt number.",
+        "• Principal: Amount originally deposited to open this FD.",
+        "• Interest Rate (%): Annual interest rate (e.g., 7.25).",
+        "• Open / Maturity Dates: The lifecycle dates of the FD.",
+        "• Active: Tick to indicate the FD is currently active.",
         "",
-        "Tips:",
-        "  \u2022 One fd_master row per Fixed Deposit product.",
-        "  \u2022 Periodic interest and maturity events are recorded in",
-        "    fd_transactions.",
-        "  \u2022 Maturity date must be later than the open date.",
-        "",
-        "Hotkeys:",
-        "  F1  : This help screen",
-        "  F2  : Session viewer (FDs added in this session)",
-        "  Esc : Close without saving",
-        "  Enter on last field : Submit",
+        "Hotkeys: F2 (Session Viewer), Esc (Close), Ctrl+Enter (Save)"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(help_win, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-        win.bind("<Escape>", on_escape)
-        return "break"
-
-    help_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-    help_win.bind("<Escape>", close_help)
-    help_win.protocol("WM_DELETE_WINDOW", close_help)
-
-    help_close_btn = tk.Button(
-        help_win,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=_T.get("help_btn_bg", _T["button_bg"]),
-        fg=_T.get("button_fg", "white"),
-        activeforeground=_T.get("button_fg", "white"),
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    )
-    help_close_btn.pack(side="bottom", pady=10)
-    apply_button_animations(
-        help_close_btn,
-        _T.get("help_btn_bg", _T["button_bg"]),
-        _T.get("help_btn_hover_bg", "#115e59"),
-    )
+    faq_data = [
+        (
+            "Q: Do I enter the money leaving my bank account here?",
+            "A: No! After creating the FD here, go to Data Entry -> Bank and log a Withdrawal (Entry Type = TRANSFER, Module = FD) to accurately reflect the money leaving your savings account."
+        )
+    ]
+    show_standard_help(win, "Add FD Master Help", guide_lines, faq_data)
 
 
 # ---------------------------------------------------------------------------
@@ -353,11 +267,11 @@ def _show_session_viewer(
 
     def _close_viewer(_e=None):
         safe_close_modal(viewer, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+        win.bind("<Control-Return>", lambda e: None)
         win.bind("<Escape>", on_escape)
         return "break"
 
-    viewer.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    viewer.bind("<Control-Return>", lambda e: None)
     viewer.bind("<Escape>", _close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", _close_viewer)
     viewer.bind("<Return>", _close_viewer)
@@ -431,12 +345,12 @@ def add_fd_master_main(
     def on_escape(_event=None):
         return cleanup_and_close()
 
-    win.bind("<F1>", lambda e: _show_help(win, on_escape))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (_show_help(win, on_escape)))
     win.bind(
         "<F2>",
         lambda e: _show_session_viewer(win, session_records, on_escape),
     )
-    win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    win.bind("<Control-Return>", lambda e: None)
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", on_escape)
 

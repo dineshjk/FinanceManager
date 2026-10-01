@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import unittest
-from datetime import datetime
 from Shared.gui_utils import universal_tree_sort
 
 class MockTree:

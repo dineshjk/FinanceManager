@@ -17,7 +17,7 @@ from typing import Union
 import tkinter as tk
 from tkinter import ttk
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from tkcalendar import DateEntry
 
 # Local imports using new package structure
@@ -45,10 +45,8 @@ from Shared.gui_utils import (
     bind_date_spin,
 )
 
-from .date_utils import next_working_day
 from Shared.modal_utils import disable_parent, enable_parent
-from Shared.window_manager import push_window, pop_window, safe_close_modal
-from Shared.gui_progressive import progressive_selection
+from Shared.window_manager import push_window, safe_close_modal
 from .trade_utils import (
     compute_avg_price,
     enforce_no_oversell_for_stock,
@@ -96,9 +94,6 @@ def update_trade(
     gssbg = "#f0fdf4"
     submitusualbg = "#22c55e"
     submitactivebg = "#16a34a"
-    okactivebg = "#1e40af"
-    cancelusualbg = "#ef4444"
-    cancelactivebg = "#b91c1c"
     hintbg = "#f8fafc"
 
     modal_id = disable_parent(parent, calling_button=calling_button)
@@ -113,10 +108,7 @@ def update_trade(
     exchange_orders = []
     current_eo_index = 0
     # Holds trades recorded during this add_trade session
-    current_session_trades = {}
 
-    entries = {}
-    widget_to_var = {}
 
     rat_win = tk.Toplevel(parent)
     rat_win.title("✨ Data Entry - Update Trade ✨")
@@ -1909,7 +1901,7 @@ def update_trade(
     ok_btn.config(command=on_update_trade)
     rat_win.bind("<Control-Return>", lambda e: submit_btn.invoke())
     rat_win.bind("<Escape>", on_escape)
-    rat_win.bind("<F1>", show_help)
+    rat_win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else show_help(e) if getattr(show_help, "__code__", None) and show_help.__code__.co_argcount > 0 else show_help())
 
     def _trigger_wap_calc(event=None):
         recalculate_from_wap_change(
@@ -2009,6 +2001,9 @@ def update_trade(
     parent.wait_window(rat_win)
     try:
         if parent.winfo_exists():
-            parent.grab_set()
+            try:
+                parent.grab_set()
+            except Exception:
+                pass
     except tk.TclError:
         logger.debug("parent.grab_set skipped: parent destroyed.")

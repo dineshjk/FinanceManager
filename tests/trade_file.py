@@ -1223,7 +1223,10 @@ def trade_entry_from_file(
         parent.wait_window(win)
         try:
             if parent.winfo_exists():
-                parent.grab_set()
+                try:
+                    parent.grab_set()
+                except Exception:
+                    pass
         except tk.TclError:
             logger.debug("parent.grab_set skipped: parent destroyed.")
             logger.debug("importer: wait_window returned for %s", win)

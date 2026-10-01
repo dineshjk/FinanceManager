@@ -7,7 +7,8 @@ sys.path.insert(0, str(Path(".").resolve()))
 
 from StockMan.trade_from_file import _fetch_source_transactions
 from Shared.globals import STOCK_DB_PATH
-import sqlite3, json
+import sqlite3
+import json
 
 LEGACY = r"C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\data\mystocks_old.db"
 rows = _fetch_source_transactions(LEGACY)

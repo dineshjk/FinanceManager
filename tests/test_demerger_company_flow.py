@@ -20,7 +20,10 @@ from StockMan import stock_database_setup as db_setup
 
 @pytest.fixture(scope="module")
 def tk_root():
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("Tkinter not available")
     root.withdraw()
     yield root
     try:

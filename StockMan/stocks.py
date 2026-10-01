@@ -40,7 +40,8 @@ from .corpo_menu import show_corporate_menu_modal
 from .report_menu import show_report_menu_modal
 
 from Shared.dialog_utils import show_colorful_info, show_colorful_error
-from Shared.globals import STOCK_APP_TITLE, STOCK_DB_PATH
+from Shared.help_utils import show_standard_help
+from Shared.globals import STOCK_APP_TITLE
 from Shared.menu_factory import create_menu_window
 from Shared.modal_utils import disable_parent, enable_parent
 from Shared.window_manager import push_window, pop_window
@@ -49,6 +50,25 @@ from .company_menu import show_company_menu_modal
 from .trade_menu import show_trade_menu_modal
 from .maint_menu import show_maint_menu_modal
 from .watchlist_menu import show_watchlist
+
+
+def _get_stockman_hub_help_data():
+    guide_lines = [
+        "This menu acts as the central launchpad for managing your equity portfolio.",
+        "",
+        "• Company Management: Register new stock tickers, define sectors, and update company details.",
+        "• Trade Management: Log your Buy and Sell orders to maintain your portfolio ledger.",
+        "• Corporate Actions: Record dividends, stock splits, bonuses, and rights issues.",
+        "• Maintenance: Update current market prices (CMP) and perform database backups.",
+        "• Reports: Generate capital gains statements, holding summaries, and performance metrics."
+    ]
+    faq_data = [
+        (
+            "Q: Do I need to manually update prices every day?",
+            "A: No. You only need to update the Current Market Price (CMP) via the 'Maintenance' menu when you want to view a fresh valuation of your portfolio in the Reports section."
+        )
+    ]
+    return guide_lines, faq_data
 
 
 def show_stock_portfolio_menu(parent, come_back_index=None):
@@ -131,9 +151,24 @@ def show_stock_portfolio_menu(parent, come_back_index=None):
     # When the modal window's close button (X) is clicked, handle it gracefully
     stock_menu_window.protocol("WM_DELETE_WINDOW", close_modal)
 
+    def _show_help(e=None):
+        if e and (getattr(e, "state", 0) & 0x0004):
+            return  # Let global handler process Ctrl+F1
+        guide, faq = _get_stockman_hub_help_data()
+        show_standard_help(
+            parent=stock_menu_window,
+            title="StockMan Hub Help",
+            guide_lines=guide,
+            faq_data=faq
+        )
+    stock_menu_window.bind("<F1>", _show_help)
+
     push_window(stock_menu_window, parent)
     parent.wait_window(stock_menu_window)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(modal_id)
 
 
@@ -145,7 +180,7 @@ def create_stock_database_gui(parent=None):
 
     Returns success info via colorful dialogs.
     """
-    success, msg = create_stock_database(parent)
+    success, msg = create_stockman_database(parent)
     if success:
         show_colorful_info(parent, "Success!", msg)
     else:

@@ -43,6 +43,7 @@ from .bank_db_utils import (
 )
 from Shared.globals import logger
 from Shared.gui_progressive import progressive_selection
+from Shared.help_utils import show_standard_help
 from .loan_master_add import add_loan_master_main as _add_loan
 
 # ---------------------------------------------------------------------------
@@ -85,109 +86,37 @@ def _band_label(parent, text, bg, font=("Helvetica", 14), padx=0):
 
 
 def _show_help(win: tk.Toplevel, on_escape) -> None:
-    win.unbind("<Escape>")
-
-    hw = tk.Toplevel(win)
-    try:
-        hw.transient(win)
-    except (tk.TclError, AttributeError) as exc:
-        logger.debug("hw.transient failed: %s", exc)
-    hw.title("Help — Add Loan Transaction")
-    hw.configure(bg=_T["header_bg"])
-    hw.geometry("740x720")
-    hw.resizable(False, False)
-    hw.grab_set()
-    push_window(hw, win)
-    try:
-        hw.focus_set()
-    except tk.TclError:
-        pass
-
-    tk.Label(
-        hw,
-        text="Add Loan Transaction  —  Help",
-        font=("Helvetica", 16, "bold"),
-        bg=_T["header_bg"],
-        fg=_T["header_fg"],
-        pady=8,
-    ).pack(fill="x")
-
-    body = tk.Frame(hw, bg=_T["main_bg"], padx=12, pady=12)
-    body.pack(fill="both", expand=True)
-
-    text = tk.Text(
-        body,
-        wrap="word",
-        bg=_T["main_bg"],
-        fg=_T["header_fg"],
-        bd=0,
-        padx=6,
-        pady=6,
-        font=("Helvetica", 11),
-        height=36,
-        insertbackground=_T["header_fg"],
-    )
-    text.pack(fill="both", expand=True)
-
-    help_lines = [
-        "\u2022 This form records a repayment event in loan_transactions.",
+    """Launch the standardized help sub-window for Add Loan Transaction."""
+    
+    guide_lines = [
+        "This form records a repayment event, prepayment, or adjustment directly in the loan ledger.",
         "",
         "Fields:",
-        "  Loan Account       \u2014 Select the loan from the dropdown.",
-        "                       Only active loans are listed.",
-        "  Linked Account     \u2014 Auto-filled from the selected loan master.",
-        "  Trans Date         \u2014 Date of this EMI / repayment event.",
-        "  Description        \u2014 Optional narration, e.g. 'EMI #12', 'Prepayment'.",
-        "  Prevailing Rate(%) \u2014 Interest rate for this instalment.",
-        "                       Pre-filled from the loan master; edit if the",
-        "                       rate changed (floating-rate loans).",
-        "  Principal (\u20b9)      \u2014 Principal component repaid in this instalment.",
-        "  Interest (\u20b9)       \u2014 Interest charged for this instalment period.",
-        "  Charges (\u20b9)        \u2014 Processing fees, late-payment penalties, etc.",
-        "  Loan Payment (\u20b9)   \u2014 Total cash outflow (auto-computed as",
-        "                       Principal + Interest + Charges; can be edited).",
-        "  Loan Credit (\u20b9)    \u2014 Amount credited to the loan (subsidy, reversal).",
-        "                       Leave 0 for normal EMI rows.",
-        "  Prev. Principal Due\u2014 Outstanding balance fetched from last transaction.",
-        "  New Principal Due  \u2014 Auto-computed as Prev. Due \u2212 Principal repaid.",
-        "                       Edit manually if the bank statement differs.",
+        "• Loan Account: Select the active loan. (The linked bank account auto-fills).",
+        "• Trans Date & Description: Date of the EMI and optional narration (e.g., 'EMI #12', 'Prepayment').",
+        "• Prevailing Rate (%): Pre-filled from the loan master. Edit if your floating rate changed.",
+        "• Principal & Interest: The breakdown of your instalment.",
+        "• Loan Payment: Auto-computed total cash outflow (Principal + Interest + Charges).",
+        "• New Principal Due: Auto-computed as previous outstanding balance minus the principal repaid.",
         "",
         "Hotkeys:",
-        "  F1  : This help screen",
-        "  F2  : Session viewer (transactions added this session)",
-        "  Esc : Close without saving",
-        "  Enter on last field : Submit",
+        "• F2: View Session Transactions (Entries added during this session)",
+        "• Escape: Cancel and Close",
+        "• Ctrl+Enter: Save Changes"
     ]
-    text.insert("1.0", "\n".join(help_lines))
-    text.config(state="disabled")
-
-    def close_help(_e=None):
-        safe_close_modal(hw, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
-        win.bind("<Escape>", on_escape)
-        return "break"
-
-    hw.bind("<Control-Return>", lambda e: submit_btn.invoke())
-    hw.bind("<Escape>", close_help)
-    hw.protocol("WM_DELETE_WINDOW", close_help)
-
-    help_close_btn = tk.Button(
-        hw,
-        text="Close",
-        command=close_help,
-        font=("Helvetica", 11, "bold"),
-        bg=_T.get("help_btn_bg", _T["button_bg"]),
-        fg=_T.get("button_fg", "white"),
-        activeforeground=_T.get("button_fg", "white"),
-        padx=12,
-        pady=6,
-        cursor="hand2",
-    )
-    help_close_btn.pack(side="bottom", pady=10)
-    apply_button_animations(
-        help_close_btn,
-        _T.get("help_btn_bg", _T["button_bg"]),
-        _T.get("help_btn_hover_bg", "#115e59"),
+    
+    faq_data = [
+        (
+            "Q: Do I need to manually enter my standard monthly EMI here?",
+            "A: No! The best way is to log a Withdrawal in 'Data Entry' -> 'Bank' and select 'LOAN' as the Module Type. BankMan will automatically create this ledger row for you and accurately split the principal and interest!"
+        )
+    ]
+    
+    show_standard_help(
+        parent=win,
+        title="Add Loan Transaction Help",
+        guide_lines=guide_lines,
+        faq_data=faq_data
     )
 
 
@@ -352,11 +281,11 @@ def _show_session_viewer(win: tk.Toplevel, session_entries: list, on_escape) -> 
 
     def _close_viewer(_e=None):
         safe_close_modal(viewer, win)
-        win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+        win.bind("<Control-Return>", lambda e: None)
         win.bind("<Escape>", on_escape)
         return "break"
 
-    viewer.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    viewer.bind("<Control-Return>", lambda e: None)
     viewer.bind("<Escape>", _close_viewer)
     viewer.protocol("WM_DELETE_WINDOW", _close_viewer)
     viewer.bind("<Return>", _close_viewer)
@@ -440,9 +369,9 @@ def add_loan_transaction_main(
     def on_escape(_event=None):
         return cleanup_and_close()
 
-    win.bind("<F1>", lambda e: _show_help(win, on_escape))
+    win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (_show_help(win, on_escape)))
     win.bind("<F2>", lambda e: _show_session_viewer(win, session_records, on_escape))
-    win.bind("<Control-Return>", lambda e: submit_btn.invoke())
+    win.bind("<Control-Return>", lambda e: None)
     win.bind("<Escape>", on_escape)
     win.protocol("WM_DELETE_WINDOW", on_escape)
 

@@ -140,6 +140,7 @@ def _seed_default_budget_heads(cursor: sqlite3.Cursor) -> None:
                 "Appliance Maintenance",
                 "Electronics & Appliances",
                 "Furniture & Decor",
+                "Miscellaneous Cash Expenses",
             ],
         ),
         ("Food & Dining", "EXPENSE", ["Food Delivery", "Dining Out"]),
@@ -166,7 +167,12 @@ def _seed_default_budget_heads(cursor: sqlite3.Cursor) -> None:
         (
             "Giving & Charity",
             "EXPENSE",
-            ["Medical Donations", "Education Charity", "General Charity"],
+            ["Medical Donations", "Education Charity", "General Charity", "Social Responsibilities & Occasions"],
+        ),
+        (
+            "Social & Family Obligations",
+            "EXPENSE",
+            ["Festival Blessings & Cash Gifts", "Marriage & Event Gifts", "Family Support"],
         ),
         (
             "Banking & Finance",
@@ -640,7 +646,7 @@ def create_bankman_database(_parent=None) -> Tuple[bool, str]:
                 module_type       TEXT    NOT NULL DEFAULT 'NONE'
                     CHECK(module_type IN (
                         'FD', 'CC', 'LOAN', 'PPF',
-                        'STOCK_COMP', 'STOCK_ACTU', 'MF', 'NONE'
+                        'STOCK_COMP', 'STOCK_ACTU', 'MF', 'INS', 'NONE'
                     )),
                 -- Primary key of the specialist transaction row identified
                 -- by module_type.  NULL when module_type = 'NONE'.
@@ -1002,6 +1008,72 @@ def create_bankman_database(_parent=None) -> Tuple[bool, str]:
         logger.info("All indexes created.")
 
         # --- ADD THIS LINE ---
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mf_master (
+                mf_master_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id   INTEGER NOT NULL,
+                amc_name     TEXT    NOT NULL,
+                rta_name     TEXT    NOT NULL DEFAULT 'CAMS',
+                folio_number TEXT    NOT NULL,
+                scheme_name  TEXT    NOT NULL,
+                is_active    INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),
+                UNIQUE(folio_number, scheme_name),
+                FOREIGN KEY (account_id) REFERENCES accounts(ac_id) ON DELETE RESTRICT
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ins_master (
+                ins_master_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id     INTEGER NOT NULL,
+                company_name   TEXT    NOT NULL,
+                ins_category   TEXT    NOT NULL CHECK(ins_category IN ('LIFE_TERM', 'LIFE_SAVINGS', 'HEALTH', 'VEHICLE', 'GENERAL')),
+                policy_number  TEXT    NOT NULL UNIQUE,
+                plan_name      TEXT    NOT NULL,
+                proposer_name  TEXT    NOT NULL,
+                assured_item   TEXT    NOT NULL,
+                premium_amount REAL    NOT NULL DEFAULT 0.0,
+                start_dt       TEXT    NOT NULL,
+                maturity_dt    TEXT,
+                is_active      INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),
+                FOREIGN KEY (account_id) REFERENCES accounts(ac_id) ON DELETE RESTRICT
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mf_transactions (
+                mf_trans_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+                mf_master_id   INTEGER NOT NULL,
+                account_id     INTEGER NOT NULL,
+                mf_trans_dt    TEXT    NOT NULL,
+                mf_description TEXT,
+                mf_purchase    REAL    NOT NULL DEFAULT 0.0,
+                mf_redemption  REAL    NOT NULL DEFAULT 0.0,
+                units          REAL    NOT NULL DEFAULT 0.0,
+                nav            REAL    NOT NULL DEFAULT 0.0,
+                FOREIGN KEY (mf_master_id) REFERENCES mf_master(mf_master_id) ON DELETE RESTRICT,
+                FOREIGN KEY (account_id)   REFERENCES accounts(ac_id) ON DELETE RESTRICT
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ins_transactions (
+                ins_trans_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+                ins_master_id   INTEGER NOT NULL,
+                account_id      INTEGER NOT NULL,
+                ins_trans_dt    TEXT    NOT NULL,
+                ins_description TEXT,
+                premium_paid    REAL    NOT NULL DEFAULT 0.0,
+                payout_received REAL    NOT NULL DEFAULT 0.0,
+                FOREIGN KEY (ins_master_id) REFERENCES ins_master(ins_master_id) ON DELETE RESTRICT,
+                FOREIGN KEY (account_id)    REFERENCES accounts(ac_id) ON DELETE RESTRICT
+            );
+        """)
+
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mf_trans_master ON mf_transactions(mf_master_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_ins_trans_master ON ins_transactions(ins_master_id);")
+
         _seed_default_budget_heads(cursor)
         # ---------------------
 
@@ -1165,6 +1237,130 @@ def run_bank_schema_migrations(db_path: str | None = None) -> dict:
         else:
             _skip("rewards_points table")
 
+        # Idempotently create MF and INS tables and indexes
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mf_master (
+                mf_master_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id   INTEGER NOT NULL,
+                amc_name     TEXT    NOT NULL,
+                rta_name     TEXT    NOT NULL DEFAULT 'CAMS',
+                folio_number TEXT    NOT NULL,
+                scheme_name  TEXT    NOT NULL,
+                is_active    INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),
+                UNIQUE(folio_number, scheme_name),
+                FOREIGN KEY (account_id) REFERENCES accounts(ac_id) ON DELETE RESTRICT
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ins_master (
+                ins_master_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id     INTEGER NOT NULL,
+                company_name   TEXT    NOT NULL,
+                ins_category   TEXT    NOT NULL CHECK(ins_category IN ('LIFE_TERM', 'LIFE_SAVINGS', 'HEALTH', 'VEHICLE', 'GENERAL')),
+                policy_number  TEXT    NOT NULL UNIQUE,
+                plan_name      TEXT    NOT NULL,
+                proposer_name  TEXT    NOT NULL,
+                assured_item   TEXT    NOT NULL,
+                premium_amount REAL    NOT NULL DEFAULT 0.0,
+                start_dt       TEXT    NOT NULL,
+                maturity_dt    TEXT,
+                is_active      INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),
+                FOREIGN KEY (account_id) REFERENCES accounts(ac_id) ON DELETE RESTRICT
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mf_transactions (
+                mf_trans_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+                mf_master_id   INTEGER NOT NULL,
+                account_id     INTEGER NOT NULL,
+                mf_trans_dt    TEXT    NOT NULL,
+                mf_description TEXT,
+                mf_purchase    REAL    NOT NULL DEFAULT 0.0,
+                mf_redemption  REAL    NOT NULL DEFAULT 0.0,
+                units          REAL    NOT NULL DEFAULT 0.0,
+                nav            REAL    NOT NULL DEFAULT 0.0,
+                FOREIGN KEY (mf_master_id) REFERENCES mf_master(mf_master_id) ON DELETE RESTRICT,
+                FOREIGN KEY (account_id)   REFERENCES accounts(ac_id) ON DELETE RESTRICT
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ins_transactions (
+                ins_trans_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+                ins_master_id   INTEGER NOT NULL,
+                account_id      INTEGER NOT NULL,
+                ins_trans_dt    TEXT    NOT NULL,
+                ins_description TEXT,
+                premium_paid    REAL    NOT NULL DEFAULT 0.0,
+                payout_received REAL    NOT NULL DEFAULT 0.0,
+                FOREIGN KEY (ins_master_id) REFERENCES ins_master(ins_master_id) ON DELETE RESTRICT,
+                FOREIGN KEY (account_id)    REFERENCES accounts(ac_id) ON DELETE RESTRICT
+            );
+        """)
+
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mf_trans_master ON mf_transactions(mf_master_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_ins_trans_master ON ins_transactions(ins_master_id);")
+
+        cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='bank_transactions'")
+        sql_row = cursor.fetchone()
+        if sql_row and "'INS'" not in sql_row[0]:
+            cursor.execute("PRAGMA foreign_keys = OFF;")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS bank_transactions_new (
+                    trans_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id        INTEGER NOT NULL,
+                    serial_no         INTEGER,
+                    value_date        TEXT    NOT NULL CHECK (
+                        length(value_date)    = 10 AND
+                        substr(value_date, 5, 1) = '-' AND
+                        substr(value_date, 8, 1) = '-' AND
+                        value_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                    ),
+                    trans_date        TEXT    NOT NULL CHECK (
+                        length(trans_date)    = 10 AND
+                        substr(trans_date, 5, 1) = '-' AND
+                        substr(trans_date, 8, 1) = '-' AND
+                        trans_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                    ),
+                    cheque_no         TEXT,
+                    bank_desc         TEXT,
+                    user_desc         TEXT,
+                    withdrawal_amount REAL    NOT NULL DEFAULT 0.0,
+                    deposit_amount    REAL    NOT NULL DEFAULT 0.0,
+                    balance_after     REAL    NOT NULL,
+                    pair_id           INTEGER,
+                    bh_id             INTEGER,
+                    module_type       TEXT    NOT NULL DEFAULT 'NONE'
+                        CHECK(module_type IN (
+                            'FD', 'CC', 'LOAN', 'PPF',
+                            'STOCK_COMP', 'STOCK_ACTU', 'MF', 'INS', 'NONE'
+                        )),
+                    module_ref_id     INTEGER,
+                    entry_type        TEXT    NOT NULL
+                        CHECK(entry_type IN ('INCOME', 'EXPENSE', 'TRANSFER')),
+                    FOREIGN KEY (account_id)
+                        REFERENCES accounts(ac_id) ON DELETE RESTRICT,
+                    FOREIGN KEY (bh_id)
+                        REFERENCES budget_head(bh_id) ON DELETE SET NULL
+                );
+            """)
+            cursor.execute("INSERT INTO bank_transactions_new SELECT * FROM bank_transactions;")
+            cursor.execute("DROP TABLE bank_transactions;")
+            cursor.execute("ALTER TABLE bank_transactions_new RENAME TO bank_transactions;")
+            
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_btrans_account ON bank_transactions(account_id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_btrans_valdate ON bank_transactions(value_date);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_btrans_transdate ON bank_transactions(trans_date);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_btrans_pair ON bank_transactions(pair_id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_btrans_bh ON bank_transactions(bh_id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_btrans_modref ON bank_transactions(module_type, module_ref_id);")
+            
+            cursor.execute("PRAGMA foreign_keys = ON;")
+            migrations_applied.append("Migrated bank_transactions to support 'INS' module_type.")
+
+
         # ── banks.cust_id column ──────────────────────────────────────────
         if not _column_exists(cursor, "banks", "cust_id"):
             _apply(
@@ -1173,6 +1369,50 @@ def run_bank_schema_migrations(db_path: str | None = None) -> dict:
             )
         else:
             _skip("banks.cust_id column")
+
+        # ── New Budget Heads Migration ────────────────────────────────────
+        bh_migrations = []
+
+        # 1. Social & Family Obligations
+        cursor.execute("SELECT bh_id FROM budget_head WHERE bh_description = ? AND parent_bh_id IS NULL AND bh_type = ?", ("Social & Family Obligations", "EXPENSE"))
+        row = cursor.fetchone()
+        if not row:
+            cursor.execute("INSERT INTO budget_head (bh_description, parent_bh_id, bh_type) VALUES (?, NULL, ?)", ("Social & Family Obligations", "EXPENSE"))
+            social_parent_id = cursor.lastrowid
+            bh_migrations.append("budget_head: 'Social & Family Obligations' (Parent) added")
+        else:
+            social_parent_id = row[0]
+
+        for child in ["Festival Blessings & Cash Gifts", "Marriage & Event Gifts", "Family Support"]:
+            cursor.execute("SELECT bh_id FROM budget_head WHERE bh_description = ? AND parent_bh_id = ?", (child, social_parent_id))
+            if not cursor.fetchone():
+                cursor.execute("INSERT INTO budget_head (bh_description, parent_bh_id, bh_type) VALUES (?, ?, ?)", (child, social_parent_id, "EXPENSE"))
+                bh_migrations.append(f"budget_head: '{child}' added under 'Social & Family Obligations'")
+
+        # 2. Social Responsibilities & Occasions under Giving & Charity
+        cursor.execute("SELECT bh_id FROM budget_head WHERE bh_description = ? AND parent_bh_id IS NULL AND bh_type = ?", ("Giving & Charity", "EXPENSE"))
+        charity_parent = cursor.fetchone()
+        if charity_parent:
+            cursor.execute("SELECT bh_id FROM budget_head WHERE bh_description = ? AND parent_bh_id = ?", ("Social Responsibilities & Occasions", charity_parent[0]))
+            if not cursor.fetchone():
+                cursor.execute("INSERT INTO budget_head (bh_description, parent_bh_id, bh_type) VALUES (?, ?, ?)", ("Social Responsibilities & Occasions", charity_parent[0], "EXPENSE"))
+                bh_migrations.append("budget_head: 'Social Responsibilities & Occasions' added under 'Giving & Charity'")
+
+        # 3. Miscellaneous Cash Expenses under Household & Living
+        cursor.execute("SELECT bh_id FROM budget_head WHERE bh_description = ? AND parent_bh_id IS NULL AND bh_type = ?", ("Household & Living", "EXPENSE"))
+        household_parent = cursor.fetchone()
+        if household_parent:
+            cursor.execute("SELECT bh_id FROM budget_head WHERE bh_description = ? AND parent_bh_id = ?", ("Miscellaneous Cash Expenses", household_parent[0]))
+            if not cursor.fetchone():
+                cursor.execute("INSERT INTO budget_head (bh_description, parent_bh_id, bh_type) VALUES (?, ?, ?)", ("Miscellaneous Cash Expenses", household_parent[0], "EXPENSE"))
+                bh_migrations.append("budget_head: 'Miscellaneous Cash Expenses' added under 'Household & Living'")
+
+        if bh_migrations:
+            migrations_applied.extend(bh_migrations)
+            for m in bh_migrations:
+                logger.info("Migration applied: %s", m)
+        else:
+            _skip("New budget heads for Social, Charity & Cash Expenses")
 
         conn.commit()
 

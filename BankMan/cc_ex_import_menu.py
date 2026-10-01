@@ -60,7 +60,10 @@ def show_cc_export_menu(parent, come_back_index=None):
 
     push_window(menu_window, parent)
     parent.wait_window(menu_window)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(modal_id)
 
 
@@ -112,5 +115,8 @@ def show_cc_import_menu(parent, come_back_index=None):
 
     push_window(menu_window, parent)
     parent.wait_window(menu_window)
-    parent.grab_set()
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
     enable_parent(modal_id)

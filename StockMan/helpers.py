@@ -8,16 +8,13 @@ This file provides the following helper functions.
 
 import sqlite3
 import tkinter as tk
-from tkinter import ttk
 from datetime import datetime, date
 from typing import Union
 import typing as _t
 
 # Project-specific imports
 from Shared.dialog_utils import (
-    show_colorful_info,
     show_colorful_error,
-    show_colorful_yesno,
 )
 from Shared.globals import get_db_connection
 
@@ -46,7 +43,6 @@ def list_all_id_stk(parent: Union[tk.Toplevel, tk.Tk]) -> _t.List[int]:
     return ids
 
 
-from Shared.gui_utils import universal_tree_sort
 
 
 def financial_year_label(value_date: date) -> str:
@@ -184,3 +180,5 @@ def calculate_investment_summary_stats(
         )
 
     return {"overall": overall, "yearly": yearly}
+
+from Shared.gui_utils import universal_tree_sort  # noqa: F401

@@ -33,7 +33,7 @@ def test_bifurcate_single_buy():
 
     res = bifurcate_zerodha_levies(trades, contract_levies, trd_dt="2026-01-15")
     b_trades = res["bifurcated_trades"]
-    c_totals = res["contract_totals"]
+    res["contract_totals"]
 
     assert len(b_trades) == 1
     t = b_trades[0]
@@ -199,10 +199,13 @@ def test_bifurcate_single_gst_key():
 def test_zerodha_window_launch_and_close():
     import tkinter as tk
     from unittest.mock import patch
-    from StockMan.trade_add_zerodha import add_trade_zerodha, get_current_fy_prefix
-    from datetime import datetime
+    from StockMan.trade_add_zerodha import add_trade_zerodha
+    import pytest
 
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("Tkinter not available")
     root.withdraw()
     try:
         def _check_win(win):
@@ -274,8 +277,12 @@ def test_zerodha_window_prefill_and_default_calculations():
     from unittest.mock import patch
     from StockMan.trade_add_zerodha import add_trade_zerodha, get_current_fy_prefix
     from datetime import date
+    import pytest
 
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("Tkinter not available")
     root.withdraw()
     try:
         def _check_win(win):
