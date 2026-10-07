@@ -9,20 +9,21 @@ Disables previous window when a new modal opens, re-enables when closed.
 import tkinter as tk
 from .modal_utils import disable_parent, enable_parent
 from .globals import logger
-import time
 
 _window_stack = []
 
 def suppress_parent_escape(parent):
-    """Temporarily suppress <Escape> on a parent window by intercepting it via bindtags."""
+    """Temporarily unbind <Escape> on a parent window to prevent modal bleed-through."""
     if not parent:
         return
     try:
-        if hasattr(parent, "bindtags") and "suppress_escape" not in parent.bindtags():
-            parent.bind_class("suppress_escape", "<Escape>", lambda e: "break")
-            parent.bindtags(("suppress_escape",) + parent.bindtags())
-    except (tk.TclError, AttributeError):
-        pass
+        if hasattr(parent, "winfo_exists") and parent.winfo_exists():
+            old_bind = parent.bind("<Escape>")
+            if old_bind:
+                parent._suppressed_escape = old_bind
+                parent.unbind("<Escape>")
+    except Exception as exc:
+        logger.debug("suppress_parent_escape failed: %s", exc)
 
 def restore_parent_escape(parent):
     """Restore <Escape> on a parent window after a delay to flush auto-repeat."""
@@ -31,18 +32,16 @@ def restore_parent_escape(parent):
     def _do_restore():
         try:
             if hasattr(parent, "winfo_exists") and parent.winfo_exists():
-                tags = list(parent.bindtags())
-                if "suppress_escape" in tags:
-                    tags.remove("suppress_escape")
-                    parent.bindtags(tuple(tags))
-        except (tk.TclError, AttributeError):
-            pass
+                if hasattr(parent, "_suppressed_escape") and getattr(parent, "_suppressed_escape"):
+                    parent.bind("<Escape>", parent._suppressed_escape)
+                    delattr(parent, "_suppressed_escape")
+        except Exception as exc:
+            logger.debug("restore_parent_escape failed: %s", exc)
     try:
         if hasattr(parent, "after"):
             parent.after(200, _do_restore)
-    except (tk.TclError, AttributeError):
+    except Exception:
         pass
-
 
 def activate_previous_window():
     """
@@ -136,7 +135,6 @@ def pop_window():
         except (RuntimeError, tk.TclError, IndexError) as exc:
             # Handle expected windowing/runtime errors and log for diagnosis
             logger.exception("pop_window unexpected error: %s", exc)
-
 
 
 def current_window():

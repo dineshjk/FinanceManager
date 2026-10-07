@@ -207,5 +207,3 @@ def show_standard_help(
     )
     close_help_btn.pack(side="bottom", pady=10)
     apply_button_animations(close_help_btn, STANDARD_HELP_THEME["help_btn_bg"], STANDARD_HELP_THEME["hover_bg"])
-    
-    return help_win
