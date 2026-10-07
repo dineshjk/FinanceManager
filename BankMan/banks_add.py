@@ -70,6 +70,7 @@ def show_session_banks(
     ba_win: tk.Toplevel,
     current_session_banks: dict,
     on_escape,
+    submit_button: tk.Button,
 ) -> None:
     """Launch the session-banks viewer sub-window."""
     if not current_session_banks:
@@ -478,7 +479,7 @@ def add_bank(
     ba_win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else (show_help(ba_win, on_escape)))
     ba_win.bind(
         "<F2>",
-        lambda e: show_session_banks(ba_win, current_session_banks, on_escape),
+        lambda e: show_session_banks(ba_win, current_session_banks, on_escape, submit_button),
     )
     ba_win.bind("<Control-Return>", lambda e: submit_button.invoke())
     ba_win.bind("<Escape>", on_escape)

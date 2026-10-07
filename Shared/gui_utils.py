@@ -706,7 +706,7 @@ def flash_error(widget: tk.Widget, cycles: int = 5, interval_ms: int = 100):
                 w.after(delay, blink, w, colors, delay, count + 1)
             else:
                 w.config(bg=bg_error)
-        except tk.TclError:
+        except (tk.TclError, AttributeError):
             pass
 
     blink(widget, [bg_error, bg_normal] * 5)

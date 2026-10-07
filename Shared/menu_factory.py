@@ -37,13 +37,11 @@ def create_menu_window(config):
         window = tk.Toplevel(parent)
         window.transient(parent)
         window.grab_set()
-        disable_parent(window)  # Disable parent window for true modal behavior
+        modal_id = disable_parent(window)  # Disable parent window for true modal behavior
         # Ensure parent is re-enabled when the modal is closed
         window.protocol(
             "WM_DELETE_WINDOW",
-            lambda: safe_close_modal(
-                window, cleanup_func=lambda: enable_parent(window)
-            ),
+            lambda: [enable_parent(modal_id), safe_close_modal(window)]
         )
     # Set background color if specified
     if config.get("bg"):
@@ -301,6 +299,8 @@ def create_menu_window(config):
     if is_modal and parent is not None:
 
         def on_destroy(_event=None):
+            if _event and getattr(_event, "widget", None) is not window:
+                return
             btns = getattr(parent, "_menu_buttons", None)
             come_back_index = getattr(parent, "_come_back_index", None)
             if btns is not None and come_back_index is not None:

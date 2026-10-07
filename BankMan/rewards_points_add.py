@@ -423,17 +423,17 @@ def add_rewards_points_main(
 
     save_btn = _make_button(
         btn_frame,
-        "Save  [Enter]",
+        "Save",
         _validate_and_save,
         _T["submit_bg"],
         _T["submit_hover_bg"],
     )
     _make_button(
-        btn_frame, "Reset", _reset_form, "#831843", "#4c0519"
+        btn_frame, "Clear", _reset_form, "#831843", "#4c0519"
     )  # Dark indigo-red
-    close_btn = tk.Button(
+    cancel_btn = tk.Button(
         btn_frame,
-        text="Close  [Esc]",
+        text="Cancel",
         command=cleanup_and_close,
         font=("Helvetica", 13, "bold"),
         bg=_T["cancel_bg"],
@@ -445,8 +445,8 @@ def add_rewards_points_main(
         relief="raised",
         bd=3,
     )
-    close_btn.pack(side="left", padx=12)
-    apply_button_animations(close_btn, _T["cancel_bg"], _T["cancel_hover_bg"])
+    cancel_btn.pack(side="left", padx=12)
+    apply_button_animations(cancel_btn, _T["cancel_bg"], _T["cancel_hover_bg"])
 
     # ── Keyboard Navigation & Hotkeys ──
     def _focus_next(next_widget):

@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, str(Path(".").resolve()))
 
-from StockMan.trade_from_file import _fetch_source_transactions
+from tests.trade_file import _fetch_source_transactions
 from Shared.globals import STOCK_DB_PATH
 import sqlite3
 import json

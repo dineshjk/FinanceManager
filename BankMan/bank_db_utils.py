@@ -527,7 +527,7 @@ def add_bank_transaction(data: dict) -> None:
                     master_id,
                     account_id,
                     trans_date,
-                    data.get("user_desc") or bank_desc,
+                    data.get("user_desc") or data.get("bank_desc", ""),
                     withdrawal_amount,
                     deposit_amount,
                 )
@@ -543,7 +543,7 @@ def add_bank_transaction(data: dict) -> None:
                     master_id,
                     account_id,
                     trans_date,
-                    data.get("user_desc") or bank_desc,
+                    data.get("user_desc") or data.get("bank_desc", ""),
                     withdrawal_amount,
                     deposit_amount,
                 )

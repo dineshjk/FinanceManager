@@ -5,7 +5,7 @@
 Module for adding new bank transactions to the database.
 """
 
-from datetime import date as _date, timedelta as _timedelta
+from datetime import date as _date, timedelta as _timedelta, datetime
 from typing import Union
 import tkinter as tk
 from tkinter import ttk
@@ -369,7 +369,7 @@ def show_master_help(
     def _override_escape_in_help(nb):
         pass # The standardized help binds escape properly
 
-    show_standard_help(
+    help_win = show_standard_help(
         parent=win,
         title="Bank Transaction Help Center",
         guide_lines=guide_lines,
@@ -381,6 +381,7 @@ def show_session_transactions(
     win: tk.Toplevel,
     current_session_txns: dict,
     on_escape,
+    submit_button: tk.Button,
     focus_back_widget: tk.Widget | None = None,
 ) -> None:
     """Launch the session transactions viewer sub-window."""
@@ -550,6 +551,7 @@ def show_pair_select_modal(
     account_id: int,
     pair_id_var: tk.StringVar,
     on_escape,
+    submit_button: tk.Button,
 ) -> None:
     """Modal to browse and select a historical transaction as the pair_id."""
     win.unbind("<Escape>")
@@ -692,6 +694,7 @@ def show_fd_new_modal(
     account_id: int,
     on_escape,
     on_fd_saved,  # callback(fd_master_id, fd_number)
+    submit_button: tk.Button,
 ) -> None:
     """Modal to create a new fd_master entry and auto-select it in the parent."""
     win.unbind("<Escape>")
@@ -856,6 +859,7 @@ def show_fd_partial_modal(
     deposit_amount: float,
     on_escape,
     on_confirmed,  # callback(principal_comp, interest_comp)
+    submit_button: tk.Button,
 ) -> None:
     """Prompt for principal / interest breakdown on a partial FD withdrawal."""
     win.unbind("<Escape>")
@@ -1923,7 +1927,7 @@ def add_bank_transaction_main(
                 win, "Validation", "Select an account before choosing a Pair ID."
             )
             return
-        show_pair_select_modal(win, account_map[acct_name], pair_id_var, on_escape)
+        show_pair_select_modal(win, account_map[acct_name], pair_id_var, on_escape, submit_button)
 
     select_pair_btn = tk.Button(
         amt_erow,
@@ -2209,7 +2213,7 @@ def add_bank_transaction_main(
             _rebuild_fd_combo()
             fd_combo.set(fd_number)
 
-        show_fd_new_modal(win, account_map[acct_name], on_escape, _on_fd_saved)
+        show_fd_new_modal(win, account_map[acct_name], on_escape, _on_fd_saved, submit_button)
 
     new_fd_btn = tk.Button(
         fd_cell,
@@ -3064,7 +3068,7 @@ def add_bank_transaction_main(
                         },
                     )
 
-                show_fd_partial_modal(win, deposit_amount, on_escape, _on_partial)
+                show_fd_partial_modal(win, deposit_amount, on_escape, _on_partial, submit_button)
             return
 
         # ── PPF sub-ledger routing ────────────────────────────────────────
@@ -3297,7 +3301,7 @@ def add_bank_transaction_main(
     win.bind("<F1>", lambda e: None if (getattr(e, "state", 0) & 0x0004) else show_master_help(win, on_escape, win.focus_get()))
     win.bind(
         "<F2>",
-        lambda e: show_session_transactions(win, current_session_txns, on_escape, win.focus_get()),
+        lambda e: show_session_transactions(win, current_session_txns, on_escape, submit_button, win.focus_get()),
     )
     # F3 is now obsolete since Budget Heads are inside the F1 notebook
     win.bind("<F3>", lambda e: "break")

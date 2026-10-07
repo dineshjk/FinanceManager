@@ -22,7 +22,7 @@ def main():
     # ensure project root is on sys.path and import locally
     PROJECT_ROOT = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(PROJECT_ROOT))
-    from StockMan.trade_from_file import (
+    from tests.trade_file import (
         _fetch_source_transactions,
         import_transaction,
     )

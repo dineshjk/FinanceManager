@@ -27,9 +27,9 @@ from tkinter import ttk
 import os
 
 from Shared.globals import STOCK_DB_PATH, get_db_connection, logger
-from .dialog_utils import show_colorful_info, show_colorful_error
-from .window_manager import push_window, pop_window
-from .modal_utils import disable_parent, enable_parent
+from Shared.dialog_utils import show_colorful_info, show_colorful_error
+from Shared.window_manager import push_window, pop_window
+from Shared.modal_utils import disable_parent, enable_parent
 from tkinter import filedialog
 
 # Guard to prevent multiple importer modals being opened concurrently
@@ -849,7 +849,7 @@ def trade_entry_from_file(
         _close_modal()
 
     # Prevent opening multiple importer modals (fast-path guard)
-    from .window_manager import current_window
+    from Shared.window_manager import current_window
 
     try:
         if globals().get("_importer_open", False):
@@ -1086,7 +1086,7 @@ def trade_entry_from_file(
 
     def on_commit_all():
         # Confirm and then run import for all rows
-        from .dialog_utils import show_colorful_yesno
+        from Shared.dialog_utils import show_colorful_yesno
 
         if not show_colorful_yesno(
             win,

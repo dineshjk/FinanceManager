@@ -3,7 +3,7 @@
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path('.').resolve()))
-from StockMan.trade_from_file import _fetch_source_transactions
+from tests.trade_file import _fetch_source_transactions
 import json
 
 LEGACY = r"C:\Data\Personal\Finance_and_Investment\finprog\FinanceManager\data\mystocks_old.db"

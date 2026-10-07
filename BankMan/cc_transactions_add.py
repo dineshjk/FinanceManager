@@ -868,7 +868,7 @@ def add_cc_transaction_main(
 
     save_btn = tk.Button(
         btn_frame,
-        text="Save  [Enter]",
+        text="Save",
         command=_validate_and_save,
         font=("Helvetica", 13, "bold"),
         bg=_T.get("submit_bg", _T["button_bg"]),
@@ -887,9 +887,30 @@ def add_cc_transaction_main(
         _T.get("submit_hover_bg", "#2563eb"),
     )
 
-    close_btn = tk.Button(
+    clear_btn = tk.Button(
         btn_frame,
-        text="Close  [Esc]",
+        text="Clear",
+        command=_reset_form,
+        font=("Helvetica", 13, "bold"),
+        bg=_T.get("cancel_bg", _T["button_bg"]),
+        fg=_T.get("button_fg", "white"),
+        activeforeground=_T.get("button_fg", "white"),
+        padx=18,
+        pady=6,
+        cursor="hand2",
+        relief="raised",
+        bd=3,
+    )
+    clear_btn.pack(side="left", padx=12)
+    apply_button_animations(
+        clear_btn,
+        _T.get("cancel_bg", _T["button_bg"]),
+        _T.get("cancel_hover_bg", "#991b1b"),
+    )
+
+    cancel_btn = tk.Button(
+        btn_frame,
+        text="Cancel",
         command=cleanup_and_close,
         font=("Helvetica", 13, "bold"),
         bg=_T.get("cancel_bg", _T["button_bg"]),
@@ -901,9 +922,9 @@ def add_cc_transaction_main(
         relief="raised",
         bd=3,
     )
-    close_btn.pack(side="left", padx=12)
+    cancel_btn.pack(side="left", padx=12)
     apply_button_animations(
-        close_btn,
+        cancel_btn,
         _T.get("cancel_bg", _T["button_bg"]),
         _T.get("cancel_hover_bg", "#991b1b"),
     )

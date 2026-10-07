@@ -9,8 +9,39 @@ Disables previous window when a new modal opens, re-enables when closed.
 import tkinter as tk
 from .modal_utils import disable_parent, enable_parent
 from .globals import logger
+import time
 
 _window_stack = []
+
+def suppress_parent_escape(parent):
+    """Temporarily suppress <Escape> on a parent window by intercepting it via bindtags."""
+    if not parent:
+        return
+    try:
+        if hasattr(parent, "bindtags") and "suppress_escape" not in parent.bindtags():
+            parent.bind_class("suppress_escape", "<Escape>", lambda e: "break")
+            parent.bindtags(("suppress_escape",) + parent.bindtags())
+    except (tk.TclError, AttributeError):
+        pass
+
+def restore_parent_escape(parent):
+    """Restore <Escape> on a parent window after a delay to flush auto-repeat."""
+    if not parent:
+        return
+    def _do_restore():
+        try:
+            if hasattr(parent, "winfo_exists") and parent.winfo_exists():
+                tags = list(parent.bindtags())
+                if "suppress_escape" in tags:
+                    tags.remove("suppress_escape")
+                    parent.bindtags(tuple(tags))
+        except (tk.TclError, AttributeError):
+            pass
+    try:
+        if hasattr(parent, "after"):
+            parent.after(200, _do_restore)
+    except (tk.TclError, AttributeError):
+        pass
 
 
 def activate_previous_window():
@@ -39,12 +70,15 @@ def push_window(win, parent):
     except (AttributeError, TypeError, ValueError) as exc:
         logger.debug("push_window: logger.debug failed: %s", exc)
     disable_parent(parent)
+    suppress_parent_escape(parent)
     _window_stack.append((win, parent))
 
     # Attach a safe close handler so that if the window is closed via the
     # window manager (titlebar close) or destroyed unexpectedly, the
     # stack is cleaned up and the parent is re-enabled.
     def _safe_close(_event=None):
+        if _event and getattr(_event, "widget", None) is not win:
+            return
         try:
             # Only pop if this window is the top of the stack
             if _window_stack and _window_stack[-1][0] is win:
@@ -55,6 +89,7 @@ def push_window(win, parent):
                 _window_stack.pop()
                 try:
                     enable_parent(parent)
+                    restore_parent_escape(parent)
                 except (RuntimeError, tk.TclError) as exc:
                     logger.debug("_safe_close enable_parent failed: %s", exc)
         except (RuntimeError, tk.TclError) as exc:
@@ -70,7 +105,7 @@ def push_window(win, parent):
         # Avoid rebinding if already bound
         if not getattr(win, "_wm_close_hooked", False):
             win.protocol("WM_DELETE_WINDOW", _safe_close)
-            win.bind("<Destroy>", lambda e: _safe_close())
+            win.bind("<Destroy>", lambda e: _safe_close(e))
             setattr(win, "_wm_close_hooked", True)
     except (AttributeError, tk.TclError) as exc:
         # Best-effort: ignore failures to attach handlers but log
@@ -95,11 +130,13 @@ def pop_window():
                 logger.debug("pop_window: logger failed: %s", exc)
             try:
                 enable_parent(parent)
+                restore_parent_escape(parent)
             except (RuntimeError, tk.TclError) as exc:
                 logger.debug("pop_window: enable_parent failed: %s", exc)
         except (RuntimeError, tk.TclError, IndexError) as exc:
             # Handle expected windowing/runtime errors and log for diagnosis
             logger.exception("pop_window unexpected error: %s", exc)
+
 
 
 def current_window():

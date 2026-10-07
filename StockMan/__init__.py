@@ -85,7 +85,7 @@ __all__ = [
     "show_colorful_info",
     "show_colorful_error",
     "show_colorful_yesno",
-    "apply_dark_entry_theme",
+    "apply_entry_theme",
     # Domain
     "select_trade_from_list",
     "select_company_from_list",

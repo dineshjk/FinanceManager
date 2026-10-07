@@ -21,7 +21,7 @@ def main():
     import sys
 
     sys.path.insert(0, str(PROJECT_ROOT))
-    from StockMan.trade_from_file import (
+    from tests.trade_file import (
         _fetch_source_transactions,
         import_transaction,
     )

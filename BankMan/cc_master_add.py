@@ -650,11 +650,11 @@ def add_cc_master_main(
 
     # Pack order with side="right": last packed = far right → Save on far right
     _make_button(
-        btn_frame, "Close  [Esc]", on_escape, _T["cancel_bg"], _T["cancel_hover_bg"]
+        btn_frame, "Cancel", on_escape, _T["cancel_bg"], _T["cancel_hover_bg"]
     )
-    _make_button(btn_frame, "Reset", _reset_form, "#6b2121", "#4a1515")
+    _make_button(btn_frame, "Clear", _reset_form, "#6b2121", "#4a1515")
     _make_button(
-        btn_frame, "Save  [Enter]", on_submit, _T["submit_bg"], _T["submit_hover_bg"]
+        btn_frame, "Save", on_submit, _T["submit_bg"], _T["submit_hover_bg"]
     )
 
     # ── Hotkey hint ───────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from .bank_database_setup import create_bankman_database
-from Shared.dialog_utils import show_colorful_info
+from Shared.dialog_utils import show_colorful_info, show_colorful_error
 from Shared.globals import BANK_APP_TITLE
 from Shared.menu_factory import create_menu_window
 from Shared.modal_utils import disable_parent, enable_parent
@@ -75,7 +75,7 @@ def create_bank_database_gui(parent):
     if success:
         show_colorful_info(parent, "Database Status", message)
     else:
-        show_colorful_info(parent, "Database Status", message, icon="error")
+        show_colorful_error(parent, "Database Status", message)
 
 
 def _get_banks_help_data():

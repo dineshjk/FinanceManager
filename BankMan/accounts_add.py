@@ -88,6 +88,7 @@ def show_session_accounts(
     win: tk.Toplevel,
     current_session_accounts: dict,
     on_escape,
+    submit_button: tk.Button,
 ) -> None:
     """Launch the session accounts viewer sub-window."""
     if not current_session_accounts:
@@ -667,7 +668,7 @@ def add_account_main(
     win.bind(
         "<F2>",
         lambda e: show_session_accounts(
-            win, current_session_accounts, on_escape
+            win, current_session_accounts, on_escape, submit_button
         ),
     )
     win.bind("<Control-Return>", lambda e: submit_button.invoke())

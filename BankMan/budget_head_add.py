@@ -119,6 +119,7 @@ def show_session_budget_heads(
     win: tk.Toplevel,
     current_session_heads: dict,
     on_escape,
+    submit_button: tk.Button,
 ) -> None:
     """Launch the session budget categories viewer sub-window."""
     if not current_session_heads:
@@ -608,7 +609,7 @@ def add_account_type_main(
     win.bind(
         "<F2>",
         lambda e: show_session_budget_heads(
-            win, current_session_heads, on_escape
+            win, current_session_heads, on_escape, submit_button
         ),
     )
     win.bind("<Control-Return>", lambda e: submit_button.invoke())

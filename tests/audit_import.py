@@ -55,7 +55,7 @@ def audit():
     # ensure project root is importable and import project modules locally
     ROOT = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(ROOT))
-    from StockMan.trade_from_file import _fetch_source_transactions
+    from tests.trade_file import _fetch_source_transactions
     from Shared.globals import STOCK_DB_PATH
 
     DATA_DIR = Path(STOCK_DB_PATH).resolve().parent

@@ -94,9 +94,8 @@ def run():
         return src_path
 
     with mock.patch.object(_fd, "askopenfilename", _fake_askopenfilename):
-        # Open importer; schedule an auto-close shortly after so the flow runs
-        # and auto-invoke the chooser so we exercise the full path resolution
-        trade_entry_from_file(root, auto_close=True, auto_choose=True)
+        # Open importer
+        trade_entry_from_file(root)
         # Let Tk process events so the modal can appear and log
         try:
             root.update()

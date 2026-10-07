@@ -33,6 +33,11 @@ def show_standard_help(
     try:
         if parent:
             original_focus = parent.focus_get()
+            try:
+                from Shared.window_manager import suppress_parent_escape
+                suppress_parent_escape(parent)
+            except Exception:
+                pass
     except Exception:
         pass
         
@@ -176,12 +181,17 @@ def show_standard_help(
         def _destroy_and_restore():
             if help_win.winfo_exists():
                 help_win.destroy()
-            from Shared.window_manager import activate_previous_window
+            from Shared.window_manager import activate_previous_window, restore_parent_escape
             activate_previous_window()
             
             if original_focus and original_focus.winfo_exists():
                 try:
                     original_focus.focus_set()
+                except Exception:
+                    pass
+            if parent:
+                try:
+                    restore_parent_escape(parent)
                 except Exception:
                     pass
         
@@ -197,3 +207,5 @@ def show_standard_help(
     )
     close_help_btn.pack(side="bottom", pady=10)
     apply_button_animations(close_help_btn, STANDARD_HELP_THEME["help_btn_bg"], STANDARD_HELP_THEME["hover_bg"])
+    
+    return help_win

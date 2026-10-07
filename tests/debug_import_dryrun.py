@@ -10,7 +10,7 @@ import sqlite3
 import tempfile
 import traceback
 
-from StockMan.trade_from_file import (
+from tests.trade_file import (
     _fetch_source_transactions,
     import_transaction,
 )

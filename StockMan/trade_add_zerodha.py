@@ -288,6 +288,7 @@ def add_trade_zerodha(
 
             # Estimate settlement number
             try:
+                est_settle_no = 0
                 from datetime import timedelta, date
                 with get_db_connection() as conn:
                     cursor = conn.cursor()

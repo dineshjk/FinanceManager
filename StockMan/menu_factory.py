@@ -281,6 +281,8 @@ def create_menu_window(config):
     if is_modal and parent is not None:
 
         def on_destroy(_event=None):
+            if _event and getattr(_event, "widget", None) is not window:
+                return
             btns = getattr(parent, "_menu_buttons", None)
             come_back_index = getattr(parent, "_come_back_index", None)
             if btns is not None and come_back_index is not None:

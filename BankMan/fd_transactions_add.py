@@ -12,7 +12,7 @@ Structural pattern from cc_transactions_add.py / ppf_transactions_add.py:
   - Distinct dark copper/bronze window theme (FD_TRANS_ADD_UI_THEME)
 """
 
-from typing import Union
+from typing import Union, Literal
 import tkinter as tk
 from tkinter import ttk
 from tkcalendar import DateEntry
@@ -60,7 +60,13 @@ _DEFAULT_DESC = {
 # ---------------------------------------------------------------------------
 
 
-def _make_band(container, bg, relief="ridge", padx=10, pady=6):
+def _make_band(
+    container,
+    bg,
+    relief: Literal["raised", "sunken", "flat", "ridge", "solid", "groove"] = "ridge",
+    padx=10,
+    pady=6,
+):
     """Create a coloured section band with stacked label_row / entry_row."""
     band = tk.Frame(
         container,
@@ -334,7 +340,7 @@ def add_fd_transaction_main(
 
     win = tk.Toplevel(parent)
     win.title("\U0001f3e6 Add FD Transaction \U0001f3e6")
-    win.geometry("1060x580")
+    win.geometry("1060x660")
     win.resizable(False, False)
     win.configure(bg=_T["main_bg"])
     win.transient(parent)
@@ -407,7 +413,7 @@ def add_fd_transaction_main(
     mst_band.pack(fill="x", pady=(0, 5))
 
     _band_label(mst_lrow, "Fixed Deposit", _C_MASTER, _F)
-    _band_label(mst_lrow, "Linked Account / Principal", _C_MASTER, _F, padx=110)
+    _band_label(mst_lrow, "Linked Account / Principal", _C_MASTER, _F, padx=350)
 
     fd_combo = ttk.Combobox(
         mst_erow,
@@ -480,7 +486,7 @@ def add_fd_transaction_main(
     det_band.pack(fill="x", pady=(0, 5))
 
     _band_label(det_lrow, "Trans Date", _C_DETAIL, _F)
-    _band_label(det_lrow, "Transaction Type", _C_DETAIL, _F, padx=50)
+    _band_label(det_lrow, "Transaction Type", _C_DETAIL, _F, padx=90)
 
     trans_dt = DateEntry(det_erow, date_pattern="dd-mm-yyyy", width=14, font=_F)
     trans_dt.pack(side="left", padx=(0, 8))
@@ -512,8 +518,8 @@ def add_fd_transaction_main(
     amt_band.pack(fill="x", pady=(0, 5))
 
     _band_label(amt_lrow, "FD Saving (\u20b9)", _C_AMT, _F)
-    _band_label(amt_lrow, "FD Withdrawal (\u20b9)", _C_AMT, _F, padx=30)
-    _band_label(amt_lrow, "FD Principal (\u20b9)", _C_AMT, _F, padx=30)
+    _band_label(amt_lrow, "FD Withdrawal (\u20b9)", _C_AMT, _F, padx=50)
+    _band_label(amt_lrow, "FD Principal (\u20b9)", _C_AMT, _F, padx=20)
     _band_label(amt_lrow, "FD Interest (\u20b9)", _C_AMT, _F, padx=30)
 
     fd_saving_entry = tk.Entry(amt_erow, width=14, font=_FB)
@@ -569,8 +575,6 @@ def add_fd_transaction_main(
         _on_type_change()  # Sync amounts if MATURITY or PREMATURE_CLOSURE is already selected
 
     fd_combo.bind("<<ComboboxSelected>>", _on_fd_selected)
-    if fd_map:
-        _on_fd_selected()
 
     # ── Auto-logic: trans type pre-fills amounts ──────────────────────────
     def _on_type_change(*_args):
@@ -607,6 +611,8 @@ def add_fd_transaction_main(
             fd_principal_entry.insert(0, f"{_state.get('principal', 0.0):.2f}")
 
     trans_type_var.trace_add("write", _on_type_change)
+    if fd_map:
+        _on_fd_selected()
 
     # ── Session count label ───────────────────────────────────────────────
     session_count_var = tk.StringVar(value="Session: 0 saved")
@@ -746,7 +752,7 @@ def add_fd_transaction_main(
 
     save_btn = tk.Button(
         btn_frame,
-        text="Save  [Enter]",
+        text="Save",
         command=_validate_and_save,
         font=("Helvetica", 13, "bold"),
         bg=_T.get("submit_bg", _T["button_bg"]),
@@ -765,9 +771,30 @@ def add_fd_transaction_main(
         _T.get("submit_hover_bg", "#2563eb"),
     )
 
-    close_btn = tk.Button(
+    clear_btn = tk.Button(
         btn_frame,
-        text="Close  [Esc]",
+        text="Clear",
+        command=_reset_form,
+        font=("Helvetica", 13, "bold"),
+        bg=_T.get("cancel_bg", _T["button_bg"]),
+        fg=_T.get("button_fg", "white"),
+        activeforeground=_T.get("button_fg", "white"),
+        padx=18,
+        pady=6,
+        cursor="hand2",
+        relief="raised",
+        bd=3,
+    )
+    clear_btn.pack(side="left", padx=12)
+    apply_button_animations(
+        clear_btn,
+        _T.get("cancel_bg", _T["button_bg"]),
+        _T.get("cancel_hover_bg", "#991b1b"),
+    )
+
+    cancel_btn = tk.Button(
+        btn_frame,
+        text="Cancel",
         command=cleanup_and_close,
         font=("Helvetica", 13, "bold"),
         bg=_T.get("cancel_bg", _T["button_bg"]),
@@ -779,9 +806,9 @@ def add_fd_transaction_main(
         relief="raised",
         bd=3,
     )
-    close_btn.pack(side="left", padx=12)
+    cancel_btn.pack(side="left", padx=12)
     apply_button_animations(
-        close_btn,
+        cancel_btn,
         _T.get("cancel_bg", _T["button_bg"]),
         _T.get("cancel_hover_bg", "#991b1b"),
     )

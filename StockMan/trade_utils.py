@@ -872,7 +872,9 @@ def manage_sell(
 
     try:
         if owns_connection:
-            connection = get_db_connection()
+            from Shared.globals import STOCK_DB_PATH
+            connection = sqlite3.connect(STOCK_DB_PATH)
+            connection.execute("PRAGMA foreign_keys = ON;")
             active_cursor = connection.cursor()
 
         if active_cursor is None:

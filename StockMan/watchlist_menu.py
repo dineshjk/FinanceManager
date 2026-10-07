@@ -1614,7 +1614,16 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         tree.item(item, values=vals, tags=(tag,))
 
     def _show_help(e=None):
-        guide, faq = _get_watchlist_help_data()
+        guide = [
+            "Welcome to the Watchlist & Alerts module.",
+            "",
+            "• Use this view to track target prices for buying or selling stocks.",
+            "• The system will alert you when current prices meet your target prices.",
+            "• You can add, edit, or delete items from your watchlist.",
+        ]
+        faq = [
+            ("Q: How are prices updated?", "A: You can update current prices manually or run the price updater."),
+        ]
         show_standard_help(win, "Watchlist & Alerts Help", guide, faq)
 
     win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else _show_help(e))

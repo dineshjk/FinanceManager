@@ -581,7 +581,7 @@ def edit_bank_transaction(
 
     def _open_pair_modal():
         from .bank_transactions_add import show_pair_select_modal
-        show_pair_select_modal(win, data["account_id"], pair_id_var, on_escape)
+        show_pair_select_modal(win, data["account_id"], pair_id_var, on_escape, submit_button)
 
     select_pair_btn = tk.Button(
         amt_erow,
@@ -1195,7 +1195,7 @@ def edit_bank_transaction(
     apply_button_animations(cancel_btn, _THEME["cancel_bg"], _THEME["cancel_hover_bg"])
 
     # ── Keyboard and traversal bindings ───────────────────────────────────
-    win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else show_edit_help(win))
+    win.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else show_edit_help(win, cleanup_and_close))
     win.bind("<Control-Return>", lambda e: submit_button.invoke())
     win.bind("<Escape>", cleanup_and_close)
     win.protocol("WM_DELETE_WINDOW", cleanup_and_close)
@@ -1232,7 +1232,7 @@ def edit_bank_transaction(
 
 
 
-def show_edit_help(win: tk.Toplevel) -> None:
+def show_edit_help(win: tk.Toplevel, on_escape) -> None:
     guide_lines = [
         "This form allows you to edit a previously saved bank transaction.",
         "",
@@ -1311,7 +1311,7 @@ def show_edit_help(win: tk.Toplevel) -> None:
         search_var.trace_add("write", _do_search)
         clear_btn.config(command=lambda: search_var.set(""))
 
-    show_standard_help(
+    help_win = show_standard_help(
         parent=win,
         title="Edit Bank Transaction Help",
         guide_lines=guide_lines,
