@@ -312,11 +312,16 @@ def on_submit(
             "Type": bh_type,
             "Parent": parent_display,
         }
-        show_colorful_info(
+        _yes = show_colorful_yesno(
             win,
             "Success",
-            f"Budget category '{description}' added successfully.",
+            f"Budget category '{description}' added successfully.\n\nDo you want to add another record?",
         )
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
         desc_entry.delete(0, tk.END)
         type_combo.set("")
         refresh_callback()

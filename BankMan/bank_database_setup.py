@@ -405,8 +405,8 @@ def create_bankman_database(_parent=None) -> Tuple[bool, str]:
                 -- Amount originally deposited to open this FD (in INR).
                 principal_amount REAL   NOT NULL,
                 -- Annual interest rate applicable to this FD (percentage,
-                -- e.g. 7.25 represents 7.25 % p.a.).
-                interest_rate   REAL    NOT NULL,
+                -- e.g. 7.25 represents 7.25 % p.a.).  NULL if unknown.
+                interest_rate   REAL,
                 -- Date on which the FD was opened; YYYY-MM-DD.
                 open_dt         TEXT    NOT NULL CHECK (
                     length(open_dt)    = 10 AND
@@ -415,12 +415,14 @@ def create_bankman_database(_parent=None) -> Tuple[bool, str]:
                     open_dt GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
                 ),
                 -- Date on which the FD matures and the principal + interest
-                -- are credited back to the linked account; YYYY-MM-DD.
-                maturity_dt     TEXT    NOT NULL CHECK (
-                    length(maturity_dt)    = 10 AND
-                    substr(maturity_dt, 5, 1) = '-' AND
-                    substr(maturity_dt, 8, 1) = '-' AND
-                    maturity_dt GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                -- are credited back to the linked account; YYYY-MM-DD.  NULL if unknown.
+                maturity_dt     TEXT    CHECK (
+                    maturity_dt IS NULL OR (
+                        length(maturity_dt)    = 10 AND
+                        substr(maturity_dt, 5, 1) = '-' AND
+                        substr(maturity_dt, 8, 1) = '-' AND
+                        maturity_dt GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                    )
                 ),
                 -- 1 while the FD is active (not yet matured or prematurely
                 -- closed); 0 after closure.
@@ -1033,6 +1035,7 @@ def create_bankman_database(_parent=None) -> Tuple[bool, str]:
                 plan_name      TEXT    NOT NULL,
                 proposer_name  TEXT    NOT NULL,
                 assured_item   TEXT    NOT NULL,
+                sum_assured    REAL,
                 premium_amount REAL    NOT NULL DEFAULT 0.0,
                 start_dt       TEXT    NOT NULL,
                 maturity_dt    TEXT,
@@ -1073,6 +1076,37 @@ def create_bankman_database(_parent=None) -> Tuple[bool, str]:
 
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_mf_trans_master ON mf_transactions(mf_master_id);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_ins_trans_master ON ins_transactions(ins_master_id);")
+
+        # ----------------------------------------------------------------
+        # Table: income_tax
+        # Tax ledger recording TDS deductions, direct tax payments, and refunds.
+        # ----------------------------------------------------------------
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS income_tax (
+                tax_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                tax_date        TEXT    NOT NULL CHECK (
+                    length(tax_date)    = 10 AND
+                    substr(tax_date, 5, 1) = '-' AND
+                    substr(tax_date, 8, 1) = '-' AND
+                    tax_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                ),
+                source_type     TEXT    NOT NULL DEFAULT 'BANK'
+                    CHECK(source_type IN ('BANK', 'SALARY', 'MANUAL')),
+                source_ref_id   INTEGER,
+                trans_id        INTEGER,
+                tax_amount      REAL    NOT NULL DEFAULT 0.0,
+                refund_amount   REAL    NOT NULL DEFAULT 0.0,
+                financial_year  TEXT,
+                assessment_year TEXT,
+                tax_section     TEXT,
+                remarks         TEXT,
+                FOREIGN KEY (trans_id)
+                    REFERENCES bank_transactions(trans_id) ON DELETE CASCADE
+            );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_income_tax_trans ON income_tax(trans_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_income_tax_date ON income_tax(tax_date);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_income_tax_fy ON income_tax(financial_year);")
 
         _seed_default_budget_heads(cursor)
         # ---------------------
@@ -1262,6 +1296,7 @@ def run_bank_schema_migrations(db_path: str | None = None) -> dict:
                 plan_name      TEXT    NOT NULL,
                 proposer_name  TEXT    NOT NULL,
                 assured_item   TEXT    NOT NULL,
+                sum_assured    REAL,
                 premium_amount REAL    NOT NULL DEFAULT 0.0,
                 start_dt       TEXT    NOT NULL,
                 maturity_dt    TEXT,
@@ -1362,6 +1397,14 @@ def run_bank_schema_migrations(db_path: str | None = None) -> dict:
 
 
         # ── banks.cust_id column ──────────────────────────────────────────
+        
+        if not _column_exists(cursor, "ins_master", "sum_assured"):
+            _apply(
+                "ins_master.sum_assured column added",
+                "ALTER TABLE ins_master ADD COLUMN sum_assured REAL;",
+            )
+        else:
+            _skip("ins_master.sum_assured column")
         if not _column_exists(cursor, "banks", "cust_id"):
             _apply(
                 "banks.cust_id column added",
@@ -1369,6 +1412,38 @@ def run_bank_schema_migrations(db_path: str | None = None) -> dict:
             )
         else:
             _skip("banks.cust_id column")
+
+        # ── income_tax table ──────────────────────────────────────────────
+        if not _table_exists(cursor, "income_tax"):
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS income_tax (
+                    tax_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tax_date        TEXT    NOT NULL CHECK (
+                        length(tax_date)    = 10 AND
+                        substr(tax_date, 5, 1) = '-' AND
+                        substr(tax_date, 8, 1) = '-' AND
+                        tax_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                    ),
+                    source_type     TEXT    NOT NULL DEFAULT 'BANK'
+                        CHECK(source_type IN ('BANK', 'SALARY', 'MANUAL')),
+                    source_ref_id   INTEGER,
+                    trans_id        INTEGER,
+                    tax_amount      REAL    NOT NULL DEFAULT 0.0,
+                    refund_amount   REAL    NOT NULL DEFAULT 0.0,
+                    financial_year  TEXT,
+                    assessment_year TEXT,
+                    tax_section     TEXT,
+                    remarks         TEXT,
+                    FOREIGN KEY (trans_id)
+                        REFERENCES bank_transactions(trans_id) ON DELETE CASCADE
+                );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_income_tax_trans ON income_tax(trans_id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_income_tax_date ON income_tax(tax_date);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_income_tax_fy ON income_tax(financial_year);")
+            migrations_applied.append("income_tax table created")
+        else:
+            _skip("income_tax table")
 
         # ── New Budget Heads Migration ────────────────────────────────────
         bh_migrations = []
@@ -1411,8 +1486,47 @@ def run_bank_schema_migrations(db_path: str | None = None) -> dict:
             migrations_applied.extend(bh_migrations)
             for m in bh_migrations:
                 logger.info("Migration applied: %s", m)
+        # ── fd_master: allow NULL for interest_rate and maturity_dt ─────────
+        cursor.execute("PRAGMA table_info(fd_master);")
+        fd_cols = {row[1]: row[3] for row in cursor.fetchall()}
+        if fd_cols.get("interest_rate") == 1 or fd_cols.get("maturity_dt") == 1:
+            logger.info("Migrating fd_master to allow NULL for interest_rate and maturity_dt...")
+            cursor.execute("PRAGMA foreign_keys = OFF;")
+            cursor.execute("""
+                CREATE TABLE fd_master_new (
+                    fd_master_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id      INTEGER NOT NULL,
+                    fd_number       TEXT    NOT NULL,
+                    principal_amount REAL   NOT NULL,
+                    interest_rate   REAL,
+                    open_dt         TEXT    NOT NULL CHECK (
+                        length(open_dt)    = 10 AND
+                        substr(open_dt, 5, 1) = '-' AND
+                        substr(open_dt, 8, 1) = '-' AND
+                        open_dt GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                    ),
+                    maturity_dt     TEXT    CHECK (
+                        maturity_dt IS NULL OR (
+                            length(maturity_dt)    = 10 AND
+                            substr(maturity_dt, 5, 1) = '-' AND
+                            substr(maturity_dt, 8, 1) = '-' AND
+                            maturity_dt GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                        )
+                    ),
+                    is_active       INTEGER NOT NULL DEFAULT 1
+                        CHECK(is_active IN (0, 1)),
+                    UNIQUE(fd_number),
+                    FOREIGN KEY (account_id)
+                        REFERENCES accounts(ac_id) ON DELETE RESTRICT
+                );
+            """)
+            cursor.execute("INSERT INTO fd_master_new SELECT * FROM fd_master;")
+            cursor.execute("DROP TABLE fd_master;")
+            cursor.execute("ALTER TABLE fd_master_new RENAME TO fd_master;")
+            cursor.execute("PRAGMA foreign_keys = ON;")
+            migrations_applied.append("Migrated fd_master to allow NULL for interest_rate and maturity_dt.")
         else:
-            _skip("New budget heads for Social, Charity & Cash Expenses")
+            _skip("fd_master nullable interest_rate & maturity_dt")
 
         conn.commit()
 

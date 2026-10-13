@@ -370,9 +370,14 @@ def add_rewards_points_main(
 
         try:
             reward_id = db_add_rewards_points(data)
-            show_colorful_info(
-                win, "Success", f"Rewards saved successfully (ID: {reward_id})."
+            _yes = show_colorful_yesno(
+                win, "Success", f"Rewards saved successfully (ID: {reward_id}).\n\nDo you want to add another record?"
             )
+            if not _yes:
+
+                cleanup_and_close()
+
+                return
 
             # Log for session viewer
             session_records.append(

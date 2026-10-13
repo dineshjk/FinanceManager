@@ -139,6 +139,11 @@ def edit_fd_master(parent: Union[tk.Toplevel, tk.Tk], fd_master_id: int):
     interest_entry = tk.Entry(fd_erow, width=12, font=_FB)
     interest_entry.pack(side="left", padx=(18, 8))
     apply_entry_theme(interest_entry)
+    bind_tooltip(
+        interest_entry,
+        tooltip_var,
+        "Annual interest rate, e.g. enter 7.25 for 7.25% p.a. (leave blank if unknown).",
+    )
 
     is_active_var = tk.BooleanVar()
     is_active_cb = tk.Checkbutton(
@@ -165,6 +170,33 @@ def edit_fd_master(parent: Union[tk.Toplevel, tk.Tk], fd_master_id: int):
     apply_entry_theme(maturity_dt)
     bind_date_spin(maturity_dt)
 
+    no_maturity_var = tk.BooleanVar(value=False)
+    no_maturity_cb = tk.Checkbutton(
+        dates_erow,
+        variable=no_maturity_var,
+        text="No / Unknown Maturity",
+        font=_F,
+        bg=_C_DATES,
+        fg=_T.get("label_fg", "white"),
+        selectcolor="#001a50",
+        activebackground=_C_DATES,
+        activeforeground=_T.get("label_fg", "white"),
+    )
+    no_maturity_cb.pack(side="left", padx=(14, 0))
+    bind_tooltip(
+        no_maturity_cb,
+        tooltip_var,
+        "Tick if maturity date is unknown or not fixed.",
+    )
+
+    def _on_toggle_no_maturity():
+        if no_maturity_var.get():
+            maturity_dt.config(state="disabled")
+        else:
+            maturity_dt.config(state="normal")
+
+    no_maturity_cb.config(command=_on_toggle_no_maturity)
+
     # Load data
     try:
         with get_db_connection(BANK_DB_PATH) as conn:
@@ -183,16 +215,22 @@ def edit_fd_master(parent: Union[tk.Toplevel, tk.Tk], fd_master_id: int):
                 
                 fd_number_entry.insert(0, str(fd_number))
                 principal_entry.insert(0, str(principal))
-                interest_entry.insert(0, str(interest))
+                if interest is not None:
+                    interest_entry.insert(0, str(interest))
                 
                 try:
-                    open_dt.set_date(datetime.strptime(o_dt, "%Y-%m-%d").date())
+                    if o_dt:
+                        open_dt.set_date(datetime.strptime(o_dt, "%Y-%m-%d").date())
                 except Exception:
                     pass
-                try:
-                    maturity_dt.set_date(datetime.strptime(m_dt, "%Y-%m-%d").date())
-                except Exception:
-                    pass
+                if m_dt:
+                    try:
+                        maturity_dt.set_date(datetime.strptime(m_dt, "%Y-%m-%d").date())
+                    except Exception:
+                        pass
+                else:
+                    no_maturity_var.set(True)
+                    maturity_dt.config(state="disabled")
                 
                 is_active_var.set(bool(is_active))
             else:
@@ -227,26 +265,42 @@ def edit_fd_master(parent: Union[tk.Toplevel, tk.Tk], fd_master_id: int):
             show_colorful_error(win, "Validation Error", "Principal amount must be a positive number.")
             return
 
-        try:
-            interest_rate = float(interest_entry.get().strip().replace(",", ""))
-            if interest_rate <= 0:
-                raise ValueError
-        except ValueError:
-            flash_error(interest_entry)
-            show_colorful_error(win, "Validation Error", "Interest rate must be a positive number.")
-            return
+        # Interest Rate (optional)
+        rate_str = interest_entry.get().strip().replace(",", "")
+        if rate_str:
+            try:
+                interest_rate = float(rate_str)
+                if interest_rate < 0:
+                    raise ValueError
+            except ValueError:
+                flash_error(interest_entry)
+                show_colorful_error(
+                    win, "Validation Error", "Interest rate must be a valid non-negative number (or left blank)."
+                )
+                return
+        else:
+            interest_rate = None
 
         try:
             open_date = open_dt.get_date()
-            maturity_date = maturity_dt.get_date()
         except Exception:
-            show_colorful_error(win, "Validation Error", "Please enter valid dates.")
+            show_colorful_error(win, "Validation Error", "Please enter a valid open date.")
             return
 
-        if maturity_date <= open_date:
-            flash_error(maturity_dt)
-            show_colorful_error(win, "Validation Error", "Maturity date must be later than the open date.")
-            return
+        if no_maturity_var.get():
+            maturity_date_str = None
+        else:
+            try:
+                maturity_date = maturity_dt.get_date()
+            except Exception:
+                show_colorful_error(win, "Validation Error", "Please enter a valid maturity date.")
+                return
+
+            if maturity_date <= open_date:
+                flash_error(maturity_dt)
+                show_colorful_error(win, "Validation Error", "Maturity date must be later than the open date.")
+                return
+            maturity_date_str = maturity_date.strftime("%Y-%m-%d")
 
         try:
             with get_db_connection(BANK_DB_PATH) as conn:
@@ -261,7 +315,7 @@ def edit_fd_master(parent: Union[tk.Toplevel, tk.Tk], fd_master_id: int):
                     principal_val,
                     interest_rate,
                     open_date.strftime("%Y-%m-%d"),
-                    maturity_date.strftime("%Y-%m-%d"),
+                    maturity_date_str,
                     1 if is_active_var.get() else 0,
                     fd_master_id
                 ))

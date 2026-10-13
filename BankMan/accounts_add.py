@@ -298,7 +298,12 @@ def on_submit(
             "IsJoint": is_joint,
             "IsActive": is_active,
         }
-        show_colorful_info(win, "Success", "Account added successfully.")
+        _yes = show_colorful_yesno(win, 'Success', "Account added successfully." + '\n\nDo you want to add another record?')
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
 
         bank_combo.set("")
         type_combo.set("")

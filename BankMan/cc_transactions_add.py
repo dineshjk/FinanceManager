@@ -859,11 +859,16 @@ def add_cc_transaction_main(
         )
         session_count_var.set(f"Session: {len(session_records)} saved")
 
-        show_colorful_info(
+        _yes = show_colorful_yesno(
             win,
             "Saved",
-            f"CC Transaction saved (ID {cc_trans_id}).",
+            f"CC Transaction saved (ID {cc_trans_id}).\n\nDo you want to add another record?",
         )
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
         _reset_form()
 
     save_btn = tk.Button(

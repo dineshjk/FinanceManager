@@ -11,6 +11,7 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 from Shared.menu_factory import create_menu_window
+
 # from Shared.dialog_utils import show_colorful_info
 from StockMan.stocks import show_stock_portfolio_menu
 from BankMan.banks import show_bank_main_menu
@@ -29,17 +30,28 @@ def _get_dashboard_help_data():
         "• Launch StockMan: Manage your stock portfolio, trades, and corporate actions.",
         "• Launch BankMan: Manage bank accounts, passbook entries, and categorical budgets.",
         "• Launch MFMan: Manage Mutual Fund investments.",
-        "• Launch InsMan: Track Insurance policies and premiums."
+        "• Launch InsMan: Track Insurance policies and premiums.",
+        "",
+        "Custom Background Picture:",
+        "• If you want a custom background picture on the dashboard, create a folder",
+        "  named 'Pics' inside FinanceManager and place an image file there",
+        "  (e.g. 'dashboard_bg.jpg', 'dashboard_bg.png', or 'DN.jpg').",
+        "• If no picture is present in 'Pics', the dashboard automatically loads with",
+        "  its clean original theme background color."
     ]
     faq_data = [
         (
             "Q: How do I exit the application?",
-            "A: You can click the 'Exit' button, use the hotkey 'X', or press Escape to close the Dashboard."
+            "A: You can click the 'Exit' button, use the hotkey 'X', or press Escape to close the Dashboard.",
         ),
         (
             "Q: Can I run multiple modules at once?",
-            "A: The application currently opens one module at a time. Close a module to return to this dashboard and open another."
-        )
+            "A: The application currently opens one module at a time. Close a module to return to this dashboard and open another.",
+        ),
+        (
+            "Q: How do I configure a custom dashboard background picture?",
+            "A: Create a folder named 'Pics' inside FinanceManager and place an image named 'dashboard_bg.jpg' (or 'dashboard_bg.png', 'DN.jpg') inside it. When absent, the original background color is used automatically.",
+        ),
     ]
     return guide_lines, faq_data
 
@@ -67,11 +79,30 @@ def main():
     root.bind_all("<Control-F1>", lambda e: show_global_help(root))
 
     # Bind screen-specific Help to F1
-    root.bind("<F1>", lambda e: None if getattr(e, "state", 0) & 0x0004 else show_standard_help(
-        root,
-        "Dashboard Help",
-        *_get_dashboard_help_data()
-    ))
+    root.bind(
+        "<F1>",
+        lambda e: (
+            None
+            if getattr(e, "state", 0) & 0x0004
+            else show_standard_help(root, "Dashboard Help", *_get_dashboard_help_data())
+        ),
+    )
+
+    # Optional background image: look for supported image in Pics directory
+    pics_dir = os.path.join(current_dir, "Pics")
+    supported_image_names = [
+        "dashboard_bg.jpg",
+        "dashboard_bg.png",
+        "DN.jpg",
+        "Dwiju_and_Nana.jpg",
+    ]
+    bg_image_path = None
+    if os.path.isdir(pics_dir):
+        for name in supported_image_names:
+            candidate = os.path.join(pics_dir, name)
+            if os.path.isfile(candidate):
+                bg_image_path = candidate
+                break
 
     menu_config = {
         "title": UNIVERSAL_APP_TITLE,
@@ -79,7 +110,7 @@ def main():
         "style": "MainMenu.TButton",
         "parent": root,
         "modal": False,
-        "bg": "#d0eff1",  # Light blue for main window
+        "bg": "#d0eff1",  # Original light blue background
         "buttons": [
             {
                 "text": "Launch StockMan",
@@ -101,15 +132,24 @@ def main():
                 "hotkey": "I",
                 "command": lambda: show_ins_main_menu(root),
             },
-            {
-                "text": "Exit",
-                "hotkey": "X",
-                "command": root.destroy
-            },
+            {"text": "Exit", "hotkey": "X", "command": root.destroy},
         ],
         "padx": 60,
         "pady": 5,
     }
+
+    # If background image is present, apply picture-specific layout & styling
+    if bg_image_path:
+        menu_config.update({
+            "bg_image": bg_image_path,
+            "bg_centering": (0.5, 0.35),
+            "top_spacer": 260,  # Leaves gap so picture subject remains visible
+            "title_bg": "#1e293b",
+            "title_fg": "#ffffff",
+            "title_relief": "groove",
+            "title_bd": 1,
+        })
+
     create_menu_window(menu_config)
     root.mainloop()
 

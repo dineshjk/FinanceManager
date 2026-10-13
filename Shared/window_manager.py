@@ -50,11 +50,14 @@ def activate_previous_window():
     if _window_stack:
         prev_win, _ = _window_stack[-1]
         try:
-            prev_win.deiconify()
-            prev_win.lift()
-            prev_win.focus_set()
-            prev_win.grab_set()
-            prev_win.transient(prev_win.master)
+            if hasattr(prev_win, "winfo_exists") and prev_win.winfo_exists():
+                prev_win.deiconify()
+                prev_win.lift()
+                prev_win.focus_force()
+                try:
+                    prev_win.grab_set()
+                except (tk.TclError, RuntimeError):
+                    pass
         except (tk.TclError, RuntimeError) as exc:
             logger.debug("activate_previous_window failed: %s", exc)
 

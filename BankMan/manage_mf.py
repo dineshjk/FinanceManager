@@ -70,7 +70,7 @@ def show_mf_main_menu(parent: tk.Toplevel | tk.Tk) -> None:
     tk.Label(
         win,
         text="📈 Mutual Funds Portfolio (MFMan) 📈",
-        font=("Helvetica", 16, "bold"),
+        font=("Helvetica", 18, "bold"),
         bg="#0f172a",
         fg="white",
         pady=10,
@@ -96,6 +96,31 @@ def show_mf_main_menu(parent: tk.Toplevel | tk.Tk) -> None:
         "Status"
     )
     
+    style = ttk.Style()
+    if "clam" not in style.theme_names():
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+
+    from Shared.globals import UI_THEME
+    
+    style.configure(
+        "Dark.Treeview",
+        background=UI_THEME.get("charcoal", "#334155"),
+        foreground="white",
+        fieldbackground=UI_THEME.get("charcoal", "#334155"),
+        bordercolor=UI_THEME.get("slate_light", "#475569"),
+        rowheight=30,
+        font=UI_THEME.get("font_main", ("Helvetica", 12)),
+    )
+    style.configure(
+        "Dark.Treeview.Heading",
+        background=UI_THEME.get("dark_slate", "#1e293b"),
+        foreground=UI_THEME.get("gold", "#FFD700"),
+        font=UI_THEME.get("font_bold", ("Helvetica", 12, "bold")),
+    )
+    
     tree = ttk.Treeview(
         tree_frame,
         columns=cols,
@@ -103,6 +128,7 @@ def show_mf_main_menu(parent: tk.Toplevel | tk.Tk) -> None:
         yscrollcommand=vsb.set,
         xscrollcommand=hsb.set,
         selectmode="browse",
+        style="Dark.Treeview",
     )
     vsb.config(command=tree.yview)
     hsb.config(command=tree.xview)
@@ -150,32 +176,94 @@ def show_mf_main_menu(parent: tk.Toplevel | tk.Tk) -> None:
             
     refresh_data()
 
-    # Bottom Buttons
+    def _get_selected():
+        sel = tree.selection()
+        if not sel:
+            return None, None
+        item = tree.item(sel[0])["values"]
+        return item[0], item[4]  # ID, Scheme Name
+
+    def _on_edit():
+        mf_id, scheme = _get_selected()
+        if mf_id is None:
+            return
+        from BankMan.mf_master_edit import edit_mf_master
+        edit_mf_master(win, preselect_id=mf_id)
+        refresh_data()
+
+    def _on_delete():
+        mf_id, scheme = _get_selected()
+        if mf_id is None:
+            return
+            
+        from Shared.dialog_utils import show_colorful_error, show_colorful_yesno, show_colorful_info
+        from Shared.globals import get_db_connection, BANK_DB_PATH
+        import sqlite3
+        
+        try:
+            with get_db_connection(BANK_DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*) FROM mf_transactions WHERE mf_master_id = ?", (mf_id,))
+                row = cur.fetchone()
+                tx_count = row[0] if row else 0
+        except sqlite3.Error as e:
+            show_colorful_error(win, "Error", f"Could not check transactions: {e}")
+            return
+            
+        if tx_count > 0:
+            show_colorful_error(win, "Cannot Delete", f"Fund '{scheme}' has {tx_count} linked transaction(s).")
+            return
+            
+        if show_colorful_yesno(win, "Confirm", f"Are you sure you want to delete fund '{scheme}'?"):
+            try:
+                with get_db_connection(BANK_DB_PATH) as conn:
+                    cur = conn.cursor()
+                    cur.execute("PRAGMA foreign_keys = ON;")
+                    cur.execute("DELETE FROM mf_master WHERE mf_master_id = ?", (mf_id,))
+                    conn.commit()
+                show_colorful_info(win, "Success", "Fund deleted successfully.")
+                refresh_data()
+            except sqlite3.Error as e:
+                show_colorful_error(win, "Delete Failed", f"Database error: {e}")
+
     btn_frame = tk.Frame(win, bg="#1e293b", pady=10)
     btn_frame.pack(fill="x")
     
-    btn_bg = "#3b82f6"
-    btn_fg = "white"
-
-    refresh_btn = tk.Button(
+    edit_btn = tk.Button(
         btn_frame,
-        text="🔄 Refresh",
-        command=refresh_data,
-        font=("Helvetica", 11, "bold"),
-        bg=btn_bg,
-        fg=btn_fg,
+        text="✏️ Edit Selected",
+        command=_on_edit,
+        font=("Helvetica", 14, "bold"),
+        bg="#1e293b",
+        fg="#60a5fa",
         cursor="hand2",
         padx=12,
         pady=6,
+        relief="flat",
     )
-    refresh_btn.pack(side="left", padx=10)
-    apply_button_animations(refresh_btn, btn_bg, "#2563eb")
+    edit_btn.pack(side="left", padx=10)
+    apply_button_animations(edit_btn, "#1e293b", "#334155")
+
+    del_btn = tk.Button(
+        btn_frame,
+        text="🗑️ Delete Selected",
+        command=_on_delete,
+        font=("Helvetica", 14, "bold"),
+        bg="#1e293b",
+        fg="#ef4444",
+        cursor="hand2",
+        padx=12,
+        pady=6,
+        relief="flat",
+    )
+    del_btn.pack(side="left", padx=10)
+    apply_button_animations(del_btn, "#1e293b", "#334155")
 
     close_btn = tk.Button(
         btn_frame,
         text="❌ Close",
         command=_close,
-        font=("Helvetica", 11, "bold"),
+        font=("Helvetica", 14, "bold"),
         bg="#ef4444",
         fg="white",
         cursor="hand2",
@@ -184,4 +272,18 @@ def show_mf_main_menu(parent: tk.Toplevel | tk.Tk) -> None:
     )
     close_btn.pack(side="right", padx=10)
     apply_button_animations(close_btn, "#ef4444", "#b91c1c")
+
+    refresh_btn = tk.Button(
+        btn_frame,
+        text="🔄 Refresh",
+        command=refresh_data,
+        font=("Helvetica", 14, "bold"),
+        bg="#3b82f6",
+        fg="white",
+        cursor="hand2",
+        padx=12,
+        pady=6,
+    )
+    refresh_btn.pack(side="right", padx=10)
+    apply_button_animations(refresh_btn, "#3b82f6", "#2563eb")
 

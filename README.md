@@ -54,6 +54,7 @@ To ensure that your sensitive personal data is protected when pushing this codeb
 
 1. **Ignored Databases**: The local SQLite database files (e.g. `mystocks.db`, `mybanks.db`) inside the `data/` directory are excluded from Git tracking via `.gitignore`. Only the folder structure is preserved.
 2. **Hidden API Keys**: All personal Gemini API keys have been removed from the source code. The application resolves API keys dynamically from a local, Git-ignored `api_key.txt` file or system environment variables.
+3. **Ignored Personal Pictures**: The `Pics/` directory is excluded from Git tracking via `.gitignore` to prevent any personal background images from ever being tracked or pushed to remote repositories.
 
 ---
 
@@ -80,6 +81,15 @@ To configure the key:
 Alternatively, set the environment variable `GEMINI_API_KEY` on your machine:
 - **Windows**: `setx GEMINI_API_KEY "your-api-key"`
 - **Linux/macOS**: `export GEMINI_API_KEY="your-api-key"`
+
+### 4. (Optional) Custom Dashboard Background Picture
+To personalize the Universal Finance Manager main dashboard with your own background picture:
+1. Create a directory named `Pics` inside the `FinanceManager` project root:
+   ```bash
+   mkdir Pics
+   ```
+2. Place an image inside the `Pics/` directory with a supported filename such as `dashboard_bg.jpg` (or `dashboard_bg.png`, `DN.jpg`).
+3. If no image is provided, the dashboard automatically loads with its clean default layout and original theme background color (`#d0eff1`).
 
 ---
 

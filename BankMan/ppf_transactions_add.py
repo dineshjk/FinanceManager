@@ -911,11 +911,16 @@ def add_ppf_transaction_main(
             f"transaction{'s' if len(session_records) != 1 else ''} "
             "added  (F2 to review)"
         )
-        show_colorful_info(
+        _yes = show_colorful_yesno(
             win,
             "Success",
-            f"PPF transaction saved successfully (ID: {new_id}).",
+            f"PPF transaction saved successfully (ID: {new_id}).\n\nDo you want to add another record?",
         )
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
         _reset_form()
 
     balance_entry.bind("<Return>", on_submit)

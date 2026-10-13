@@ -7,6 +7,7 @@ Module for adding new bank transactions to the database.
 
 from datetime import date as _date, timedelta as _timedelta, datetime
 from typing import Union
+import os
 import tkinter as tk
 from tkinter import ttk
 import tkinter.font as tkfont
@@ -29,6 +30,7 @@ from Shared.dialog_utils import (
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
 from Shared.help_utils import show_standard_help
+from .bank_import_excel import import_from_excel, fetch_next_staging, mark_staging_processed
 from .bank_db_utils import (
     add_bank_transaction_v2 as _db_add_transaction,
     get_all_accounts,
@@ -40,6 +42,7 @@ from .bank_db_utils import (
     get_last_trans_date,
     get_last_serial_no,
     get_last_balance,
+    get_balance_before_date,
     get_account_curr_balance,
     get_last_used_account_id,
     get_last_ppf_balance as _db_get_last_ppf_balance,
@@ -56,6 +59,8 @@ from .bank_db_utils import (
     db_add_mf_master,
     get_active_ins_masters,
     db_add_ins_master,
+    calculate_fy_ay,
+    infer_tax_section,
 )
 from Shared.globals import logger, UI_THEME
 from Shared.gui_progressive import progressive_selection
@@ -123,7 +128,7 @@ def show_master_help(
     focus_back_widget: tk.Widget | None = None,
 ) -> None:
     """Launch a standardized tabbed help window for Bank Transactions."""
-    
+
     guide_lines = [
         "• This form records a new bank statement transaction.",
         "",
@@ -202,8 +207,7 @@ def show_master_help(
             "   1. Pure Protection (Term Life, Health, Car/Vehicle, General Insurance):\n"
             "      - These do not return principal. Record Withdrawal > 0, pick an EXPENSE Budget Head ('Life Insurance - Self/Family', 'Health Insurance', 'Auto Insurance'), set Entry Type = 'EXPENSE', and set Module Type = 'INS' to link the policy!\n\n"
             "   2. Savings / Investment Policies (LIC Endowment, Money-Back, ULIP, TATA AIG, Kotak, ICICI Pru):\n"
-            "      - If you want to track premiums as an expense: map like (1) above.\n"
-            "      - If you want to track accumulated principal as an Asset: set Budget Head = '(none)', Entry Type = 'TRANSFER', and Module Type = 'INS' (Category: LIFE_SAVINGS)."
+            "      - These build accumulated principal and act as an Asset. Set Budget Head = '(none)', Entry Type = 'TRANSFER', and Module Type = 'INS' (Category: LIFE_SAVINGS)."
         ),
         (
             "Q6 [A5 - STOCK_COMP (Computed Bank)]: What is STOCK_COMP and how do I record entries for it?",
@@ -284,6 +288,30 @@ def show_master_help(
             "   1. Wrong Debit: Record a Withdrawal in Savings with Budget Head = '(none)' and Entry Type = 'TRANSFER', paired with a Deposit in 'ReverseEntry'.\n"
             "   2. Bank Reversal/Refund: Record a Deposit in Savings with Budget Head = '(none)' and Entry Type = 'TRANSFER', paired with a Withdrawal from 'ReverseEntry'."
         ),
+        (
+            "Q17 [Income Tax & TDS]: How do I record income where tax was deducted at source (TDS)?",
+            "A: When income arrives net of TDS (e.g. Dividend, Interest, Remuneration, Pension):\n\n"
+            "   1. Enter the NET amount credited in 'Deposit' (so your account balance reconciles with your passbook).\n"
+            "   2. Enter the tax deducted in 'Tax Deduction (TDS)' (e.g. Rs. 100 on a Rs. 900 deposit).\n"
+            "   3. The UI automatically displays your Gross Income (Deposit + TDS = Rs. 1,000).\n"
+            "   4. BankMan automatically creates a linked entry in the 'income_tax' table with the correct Financial Year (FY) and Assessment Year (AY)!"
+        ),
+        (
+            "Q18 [Income Tax Payments & Refunds]: How do I record direct Advance Tax payments or IT Refunds?",
+            "A: For direct transactions with the Income Tax department:\n\n"
+            "   1. Check the 'IT Department (Full Tax/Refund)' checkbox in the Income Tax band.\n"
+            "   2. Advance / Self-Assessment Tax Paid: Enter the challan amount in 'Withdrawal' (Deposit = 0). Budget Head = 'Taxes Paid' (or Direct Taxes), Entry Type = 'EXPENSE'. The full amount is logged as tax paid.\n"
+            "   3. IT Refund Received: Enter the refund received in 'Deposit' (Withdrawal = 0). Budget Head = 'Reversals & Refunds' (or IT Refund), Entry Type = 'INCOME'. The full amount is logged as a tax refund in 'income_tax'!"
+        ),
+        (
+            "Q19 [Tax Sections]: Do I need to know or enter the Income Tax Section number?",
+            "A: No! You do not need to remember sections like 192, 194, or 194A. BankMan automatically infers the tax section based on your Budget Head:\n\n"
+            "   - Fixed Deposit / Savings Bank Interest -> Sec 194A\n"
+            "   - Dividends -> Sec 194\n"
+            "   - Pension / Salary -> Sec 192\n"
+            "   - Direct Tax / Refund -> DIRECT_TAX / REFUND\n"
+            "   You can also select or override the section manually, or leave it blank."
+        ),
     ]
 
     # We use a custom callback to build the Budget Heads Reference tab
@@ -300,7 +328,7 @@ def show_master_help(
         search_frame = tk.Frame(tab_budget, bg="#e0f2fe", pady=5)
         search_frame.pack(fill="x", padx=10, pady=(6, 0))
         tk.Label(search_frame, text="Search:", font=("Helvetica", 11, "bold"), bg="#e0f2fe", fg="#0369a1").pack(side="left", padx=(6, 4))
-        
+
         search_var = tk.StringVar()
         search_entry = tk.Entry(search_frame, textvariable=search_var, font=("Helvetica", 12), width=32, bg="#fff", fg="#0c4a6e", insertbackground="#0369a1", relief="solid", bd=1)
         search_entry.pack(side="left", padx=4)
@@ -552,22 +580,24 @@ def show_pair_select_modal(
     pair_id_var: tk.StringVar,
     on_escape,
     submit_button: tk.Button,
+    exclude_trans_id: int | None = None,
+    current_pair_id: int | None = None,
 ) -> None:
-    """Modal to browse and select a historical transaction as the pair_id."""
+    """Modal to browse and select a transaction as the pair_id."""
     win.unbind("<Escape>")
 
-    rows = []
-    try:
-        rows = get_transactions_for_pairing(account_id)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("pair fetch failed: %s", exc)
+    if current_pair_id is None:
+        p_val = pair_id_var.get().strip()
+        if p_val.isdigit():
+            current_pair_id = int(p_val)
 
     modal = tk.Toplevel(win)
     modal.title("Select Pair Transaction")
     modal.transient(win)
     modal.grab_set()
-    modal.geometry("860x460")
-    modal.resizable(False, False)
+    modal.geometry("1020x560")
+    modal.minsize(850, 420)
+    modal.resizable(True, True)
     modal.configure(bg="#1e293b")
     push_window(modal, win)
     try:
@@ -575,58 +605,250 @@ def show_pair_select_modal(
     except tk.TclError:
         pass
 
+    # Header label
+    hdr_frame = tk.Frame(modal, bg="#1e293b")
+    hdr_frame.pack(fill="x", padx=12, pady=(8, 4))
+
     tk.Label(
-        modal,
-        text="Select a transaction to pair with:",
+        hdr_frame,
+        text="Select a Transaction to Pair With",
         font=("Helvetica", 13, "bold"),
         bg="#1e293b",
-        fg="yellow",
-        pady=6,
-    ).pack(fill="x", padx=10)
+        fg="#facc15",
+    ).pack(side="left")
 
-    cols = ("trans_id", "serial_no", "trans_date", "bank_desc", "withdrawal", "deposit")
+    # Filter control bar
+    filter_bar = tk.Frame(modal, bg="#334155", padx=8, pady=6)
+    filter_bar.pack(fill="x", padx=12, pady=(0, 6))
+
+    # Account filter
+    tk.Label(
+        filter_bar,
+        text="Account:",
+        font=("Helvetica", 10, "bold"),
+        bg="#334155",
+        fg="#e2e8f0",
+    ).pack(side="left", padx=(4, 4))
+
+    acct_filter_var = tk.StringVar(value="All Accounts")
+    acct_filter_combo = ttk.Combobox(
+        filter_bar,
+        textvariable=acct_filter_var,
+        values=["All Accounts", "Same Account", "Other Accounts"],
+        state="readonly",
+        width=13,
+        font=("Helvetica", 10),
+    )
+    acct_filter_combo.pack(side="left", padx=(0, 10))
+
+    # Pair Status filter
+    tk.Label(
+        filter_bar,
+        text="Status:",
+        font=("Helvetica", 10, "bold"),
+        bg="#334155",
+        fg="#e2e8f0",
+    ).pack(side="left", padx=(4, 4))
+
+    status_filter_var = tk.StringVar(value="All Transactions")
+    status_filter_combo = ttk.Combobox(
+        filter_bar,
+        textvariable=status_filter_var,
+        values=["All Transactions", "Unpaired Only", "Already Paired"],
+        state="readonly",
+        width=15,
+        font=("Helvetica", 10),
+    )
+    status_filter_combo.pack(side="left", padx=(0, 10))
+
+    # Search filter
+    tk.Label(
+        filter_bar,
+        text="Search:",
+        font=("Helvetica", 10, "bold"),
+        bg="#334155",
+        fg="#e2e8f0",
+    ).pack(side="left", padx=(4, 4))
+
+    search_var = tk.StringVar()
+    search_entry = tk.Entry(
+        filter_bar,
+        textvariable=search_var,
+        width=24,
+        font=("Helvetica", 10),
+    )
+    search_entry.pack(side="left", padx=(0, 4))
+    apply_entry_theme(search_entry)
+
+    def _clear_search():
+        search_var.set("")
+        _apply_filter()
+        search_entry.focus_set()
+
+    clear_search_btn = tk.Button(
+        filter_bar,
+        text="Clear",
+        command=_clear_search,
+        font=("Helvetica", 9),
+        bg="#475569",
+        fg="white",
+        cursor="hand2",
+        padx=6,
+        pady=0,
+    )
+    clear_search_btn.pack(side="left", padx=(0, 10))
+
+    # Count / status label
+    status_lbl = tk.Label(
+        filter_bar,
+        text="",
+        font=("Helvetica", 10),
+        bg="#334155",
+        fg="#94a3b8",
+    )
+    status_lbl.pack(side="right", padx=(4, 8))
+
+    cols = (
+        "trans_id",
+        "serial_no",
+        "trans_date",
+        "account",
+        "bank_desc",
+        "withdrawal",
+        "deposit",
+        "entry_type",
+        "paired_with",
+    )
     tree_frame = tk.Frame(modal, bg="#1e293b")
-    tree_frame.pack(fill="both", expand=True, padx=10, pady=5)
+    tree_frame.pack(fill="both", expand=True, padx=12, pady=4)
 
     vsb = ttk.Scrollbar(tree_frame, orient="vertical")
+    hsb = ttk.Scrollbar(tree_frame, orient="horizontal")
     tree = ttk.Treeview(
         tree_frame,
         columns=cols,
         show="headings",
-        height=14,
+        selectmode="browse",
         yscrollcommand=vsb.set,
+        xscrollcommand=hsb.set,
     )
     vsb.config(command=tree.yview)
+    hsb.config(command=tree.xview)
     vsb.pack(side="right", fill="y")
+    hsb.pack(side="bottom", fill="x")
     tree.pack(side="left", fill="both", expand=True)
 
-    for col, heading, width in [
-        ("trans_id", "Trans ID", 70),
-        ("serial_no", "Serial No", 90),
-        ("trans_date", "Trans Date", 110),
-        ("bank_desc", "Remark", 310),
-        ("withdrawal", "Withdrawal", 100),
-        ("deposit", "Deposit", 100),
-    ]:
-        tree.heading(col, text=heading, command=lambda _c=col: universal_tree_sort(tree, _c, False))
-        tree.column(col, width=width, anchor="center")
+    col_configs = [
+        ("trans_id", "Trans ID", 75, "center"),
+        ("serial_no", "Serial No", 75, "center"),
+        ("trans_date", "Trans Date", 95, "center"),
+        ("account", "Account", 160, "w"),
+        ("bank_desc", "Remark / Narration", 260, "w"),
+        ("withdrawal", "Withdrawal", 90, "e"),
+        ("deposit", "Deposit", 90, "e"),
+        ("entry_type", "Type", 75, "center"),
+        ("paired_with", "Paired With", 90, "center"),
+    ]
+    for col, heading, width, anchor in col_configs:
+        tree.heading(
+            col,
+            text=heading,
+            command=lambda _c=col: universal_tree_sort(tree, _c, False),
+        )
+        tree.column(col, width=width, anchor=anchor)
 
-    for row in rows:
-        tree.insert(
-            "",
-            "end",
-            values=(
-                row[0],
-                row[1] if row[1] else "—",
-                row[2],
-                row[3] if row[3] else "—",
-                f"{row[4]:.2f}",
-                f"{row[5]:.2f}",
-            ),
+    raw_rows = []
+
+    def _fetch_rows():
+        nonlocal raw_rows
+        mode_map = {
+            "All Accounts": "ALL",
+            "Same Account": "SAME",
+            "Other Accounts": "OTHER",
+        }
+        mode = mode_map.get(acct_filter_var.get(), "ALL")
+        status_map = {
+            "All Transactions": "ALL",
+            "Unpaired Only": "UNPAIRED",
+            "Already Paired": "PAIRED",
+        }
+        p_filter = status_map.get(status_filter_var.get(), "ALL")
+        try:
+            raw_rows = get_transactions_for_pairing(
+                account_id=account_id,
+                limit=500,
+                exclude_trans_id=exclude_trans_id,
+                current_pair_id=current_pair_id,
+                account_filter_mode=mode,
+                pair_status_filter=p_filter,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("pair fetch failed: %s", exc)
+            raw_rows = []
+        _apply_filter()
+
+    def _apply_filter(*_):
+        for item in tree.get_children():
+            tree.delete(item)
+
+        q = search_var.get().strip().lower()
+        matched = 0
+        target_item = None
+
+        for row in raw_rows:
+            # row: (trans_id, serial_no, trans_date, account_name, bank_desc, withdrawal, deposit, entry_type, pair_id, account_id)
+            t_id = str(row[0])
+            s_no = str(row[1]) if row[1] is not None else "—"
+            t_dt = str(row[2])
+            ac_name = str(row[3])
+            b_desc = str(row[4]) if row[4] else "—"
+            w_amt = f"{float(row[5] or 0.0):.2f}"
+            d_amt = f"{float(row[6] or 0.0):.2f}"
+            e_type = str(row[7])
+            p_with = f"#{row[8]}" if (row[8] is not None and row[8] != 0) else "—"
+
+            if q:
+                searchable = f"{t_id} {s_no} {t_dt} {ac_name} {b_desc} {w_amt} {d_amt} {e_type} {p_with}".lower()
+                if q not in searchable:
+                    continue
+
+            item_id = tree.insert(
+                "",
+                "end",
+                values=(
+                    t_id,
+                    s_no,
+                    t_dt,
+                    ac_name,
+                    b_desc,
+                    w_amt,
+                    d_amt,
+                    e_type,
+                    p_with,
+                ),
+            )
+            matched += 1
+
+            if current_pair_id is not None and row[0] == current_pair_id:
+                target_item = item_id
+
+        status_lbl.config(
+            text=f"Showing {matched} of {len(raw_rows)} transaction(s)"
         )
 
+        children = tree.get_children()
+        if target_item and target_item in children:
+            tree.selection_set(target_item)
+            tree.see(target_item)
+        elif children:
+            tree.selection_set(children[0])
+
+    acct_filter_combo.bind("<<ComboboxSelected>>", lambda e: _fetch_rows())
+    status_filter_combo.bind("<<ComboboxSelected>>", lambda e: _fetch_rows())
+    search_entry.bind("<KeyRelease>", _apply_filter)
+
     btn_row = tk.Frame(modal, bg="#1e293b")
-    btn_row.pack(fill="x", padx=10, pady=8)
+    btn_row.pack(fill="x", padx=12, pady=(6, 10))
 
     def _do_select(_e=None):
         sel = tree.selection()
@@ -636,11 +858,18 @@ def show_pair_select_modal(
         pair_id_var.set(str(vals[0]))
         _close()
 
+    def _do_clear(_e=None):
+        pair_id_var.set("")
+        _close()
+
     def _close(_e=None):
         safe_close_modal(modal, win)
         win.bind("<Control-Return>", lambda e: submit_button.invoke())
-
         win.bind("<Escape>", on_escape)
+        try:
+            win.grab_set()
+        except Exception:
+            pass
         return "break"
 
     tree.bind("<Double-1>", _do_select)
@@ -654,10 +883,25 @@ def show_pair_select_modal(
         bg="#22c55e",
         fg="white",
         cursor="hand2",
-        padx=10,
+        padx=12,
+        pady=3,
     )
-    select_btn.pack(side="left", padx=5)
+    select_btn.pack(side="left", padx=(0, 8))
     apply_button_animations(select_btn, "#22c55e", "#16a34a")
+
+    clear_pair_btn = tk.Button(
+        btn_row,
+        text="🔗 Clear / Unpair",
+        command=_do_clear,
+        font=("Helvetica", 11, "bold"),
+        bg="#f59e0b",
+        fg="white",
+        cursor="hand2",
+        padx=12,
+        pady=3,
+    )
+    clear_pair_btn.pack(side="left", padx=(0, 8))
+    apply_button_animations(clear_pair_btn, "#f59e0b", "#d97706")
 
     cancel_button = tk.Button(
         btn_row,
@@ -667,21 +911,21 @@ def show_pair_select_modal(
         bg="#ef4444",
         fg="white",
         cursor="hand2",
-        padx=10,
+        padx=12,
+        pady=3,
     )
-    cancel_button.pack(side="left", padx=5)
+    cancel_button.pack(side="left", padx=(0, 8))
     apply_button_animations(cancel_button, "#ef4444", "#b91c1c")
 
     modal.bind("<Control-Return>", lambda e: submit_button.invoke())
     modal.bind("<Escape>", _close)
     modal.protocol("WM_DELETE_WINDOW", _close)
 
-    if rows:
-        tree.selection_set(tree.get_children()[0])
-        try:
-            tree.focus_set()
-        except tk.TclError:
-            pass
+    _fetch_rows()
+    try:
+        search_entry.focus_set()
+    except tk.TclError:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -860,15 +1104,19 @@ def show_fd_partial_modal(
     on_escape,
     on_confirmed,  # callback(principal_comp, interest_comp)
     submit_button: tk.Button,
+    tds_amount: float = 0.0,
+    entry_type: str = "INCOME",
 ) -> None:
-    """Prompt for principal / interest breakdown on a partial FD withdrawal."""
+    """Prompt for principal / interest breakdown on a partial FD withdrawal or interest payout."""
     win.unbind("<Escape>")
 
+    gross_amount = round(deposit_amount + tds_amount, 2)
+
     modal = tk.Toplevel(win)
-    modal.title("FD Partial Withdrawal Breakdown")
+    modal.title("FD Partial Withdrawal / Interest Breakdown")
     modal.transient(win)
     modal.grab_set()
-    modal.geometry("440x310")
+    modal.geometry("520x370")
     modal.resizable(False, False)
     modal.configure(bg="#1e293b")
     push_window(modal, win)
@@ -877,10 +1125,15 @@ def show_fd_partial_modal(
     except tk.TclError:
         pass
 
+    if tds_amount > 0:
+        header_text = f"FD Payout  —  Deposit: ₹{deposit_amount:,.2f} + TDS: ₹{tds_amount:,.2f} = ₹{gross_amount:,.2f}"
+    else:
+        header_text = f"Partial FD Withdrawal  —  ₹{deposit_amount:,.2f}"
+
     tk.Label(
         modal,
-        text=f"Partial FD Withdrawal  —  \u20b9{deposit_amount:,.2f}",
-        font=("Helvetica", 13, "bold"),
+        text=header_text,
+        font=("Helvetica", 12, "bold"),
         bg="#784212",
         fg="white",
         pady=8,
@@ -889,12 +1142,20 @@ def show_fd_partial_modal(
     body = tk.Frame(modal, bg="#1e293b", padx=18, pady=14)
     body.pack(fill="both", expand=True)
 
+    if tds_amount > 0:
+        instruction_text = (
+            f"Allocate the gross payout (₹{gross_amount:,.2f} = Deposit ₹{deposit_amount:,.2f} + TDS ₹{tds_amount:,.2f})\n"
+            "between principal repaid and gross interest earned:"
+        )
+    else:
+        instruction_text = (
+            f"Allocate the received amount (₹{deposit_amount:,.2f}) between principal\n"
+            "repaid and interest earned:"
+        )
+
     tk.Label(
         body,
-        text=(
-            "Allocate the received amount between principal\n"
-            "repaid and interest earned:"
-        ),
+        text=instruction_text,
         font=("Helvetica", 11),
         bg="#1e293b",
         fg="#e2e8f0",
@@ -904,29 +1165,33 @@ def show_fd_partial_modal(
     tk.Label(
         body,
         text="Principal Component:",
-        font=("Helvetica", 14),
+        font=("Helvetica", 13),
         bg="#1e293b",
         fg="yellow",
         anchor="e",
     ).grid(row=1, column=0, sticky="e", padx=(0, 10), pady=8)
-    principal_e = tk.Entry(body, width=20, font=("Helvetica", 14))
+    principal_e = tk.Entry(body, width=18, font=("Helvetica", 13))
     principal_e.grid(row=1, column=1, sticky="w", pady=8)
     apply_entry_theme(principal_e)
 
     tk.Label(
         body,
         text="Interest Component:",
-        font=("Helvetica", 14),
+        font=("Helvetica", 13),
         bg="#1e293b",
         fg="yellow",
         anchor="e",
     ).grid(row=2, column=0, sticky="e", padx=(0, 10), pady=8)
-    interest_e = tk.Entry(body, width=20, font=("Helvetica", 14))
+    interest_e = tk.Entry(body, width=18, font=("Helvetica", 13))
     interest_e.grid(row=2, column=1, sticky="w", pady=8)
     apply_entry_theme(interest_e)
-    interest_e.insert(0, "0.0")
 
-    principal_e.bind("<Return>", lambda e: interest_e.focus_set())
+    if entry_type == "INCOME":
+        principal_e.insert(0, "0.00")
+        interest_e.insert(0, f"{gross_amount:.2f}")
+    else:
+        principal_e.insert(0, f"{deposit_amount:.2f}")
+        interest_e.insert(0, f"{tds_amount:.2f}")
 
     btn_row = tk.Frame(modal, bg="#1e293b")
     btn_row.pack(fill="x", padx=18, pady=10)
@@ -943,13 +1208,19 @@ def show_fd_partial_modal(
             )
             principal_e.focus_set()
             return
-        if abs(p + i - deposit_amount) > 0.01:
-            show_colorful_error(
-                modal,
-                "Validation",
-                f"Principal ({p:.2f}) + Interest ({i:.2f}) must equal "
-                f"the deposit amount ({deposit_amount:.2f}).",
-            )
+        if abs(p + i - gross_amount) > 0.01:
+            if tds_amount > 0:
+                err_msg = (
+                    f"Principal ({p:,.2f}) + Interest ({i:,.2f}) = {p + i:,.2f} must equal "
+                    f"the gross payout ({gross_amount:,.2f})\n"
+                    f"[Deposit ₹{deposit_amount:,.2f} + TDS ₹{tds_amount:,.2f}]."
+                )
+            else:
+                err_msg = (
+                    f"Principal ({p:,.2f}) + Interest ({i:,.2f}) must equal "
+                    f"the deposit amount ({deposit_amount:.2f})."
+                )
+            show_colorful_error(modal, "Validation", err_msg)
             return
         _close()
         on_confirmed(p, i)
@@ -957,9 +1228,11 @@ def show_fd_partial_modal(
     def _close(_e=None):
         safe_close_modal(modal, win)
         win.bind("<Control-Return>", lambda e: submit_button.invoke())
-
         win.bind("<Escape>", on_escape)
         return "break"
+
+    principal_e.bind("<Return>", lambda e: interest_e.focus_set())
+    interest_e.bind("<Return>", _confirm)
 
     confirm_btn = tk.Button(
         btn_row,
@@ -986,7 +1259,14 @@ def show_fd_partial_modal(
     )
     cancel_button.pack(side="left", padx=5)
     apply_button_animations(cancel_button, "#ef4444", "#b91c1c")
-    principal_e.focus_set()
+    modal.bind("<Escape>", _close)
+
+    if entry_type == "INCOME":
+        interest_e.focus_set()
+        interest_e.select_range(0, tk.END)
+    else:
+        principal_e.focus_set()
+        principal_e.select_range(0, tk.END)
 
 
 # ---------------------------------------------------------------------------
@@ -1282,12 +1562,12 @@ def show_stock_actu_new_modal(
         b_type = _widgets["actu_bt_type"].get().strip().upper()
         amt_str = _widgets["actu_bt_amt"].get().strip()
         desc = _widgets["actu_bt_desc"].get().strip()
-        
+
         if b_type not in ("CREDIT", "DEBIT"):
             show_colorful_error(modal, "Validation", "Type must be CREDIT or DEBIT.")
             _widgets["actu_bt_type"].focus_set()
             return
-            
+
         try:
             amt = float(amt_str)
         except ValueError:
@@ -1405,7 +1685,7 @@ def show_mf_new_modal(
         rta = _widgets["rta_name"].get().strip() or "CAMS"
         folio = _widgets["folio_number"].get().strip()
         scheme = _widgets["scheme_name"].get().strip()
-        
+
         if not amc or not folio or not scheme:
             show_colorful_error(modal, "Validation", "AMC, Folio, and Scheme are required.")
             return
@@ -1527,7 +1807,7 @@ def show_ins_new_modal(
         amt_str = _widgets["premium_amount"].get().strip()
         sdt = _widgets["start_dt"].get_date().strftime("%Y-%m-%d")
         mdt = _widgets["maturity_dt"].get_date().strftime("%Y-%m-%d")
-        
+
         if not company or not pol or not plan or not proposer or not assured:
             show_colorful_error(modal, "Validation", "Missing required fields.")
             return
@@ -1599,6 +1879,8 @@ def add_bank_transaction_main(
     prefill_bh_id: int | None = None,
 ) -> None:
     """Main function to launch the Add Bank Transaction window."""
+    current_staging_id = [None]
+    fetched_flag = [False]
 
     # ── Button colour constants ───────────────────────────────────────────
     _SUB_BG = "#22c55e"
@@ -1647,7 +1929,7 @@ def add_bank_transaction_main(
 
     win = tk.Toplevel(parent)
     win.title("💳 Add Bank Transaction 💳")
-    win.geometry("1100x630")
+    win.geometry("1100x800")
     win.resizable(False, False)
     win.configure(bg=BANK_TRANSACTION_ADD_UI_THEME["main_bg"])
     win.transient(parent)
@@ -1917,7 +2199,7 @@ def add_bank_transaction_main(
     bind_tooltip(
         pair_id_display,
         tooltip_var,
-        "ID of the paired transfer transaction. Click Select to browse.",
+        "ID of the paired transaction. Click Select to browse or unpair.",
     )
 
     def _open_pair_modal():
@@ -1927,7 +2209,16 @@ def add_bank_transaction_main(
                 win, "Validation", "Select an account before choosing a Pair ID."
             )
             return
-        show_pair_select_modal(win, account_map[acct_name], pair_id_var, on_escape, submit_button)
+        curr_p = int(pair_id_var.get().strip()) if pair_id_var.get().strip().isdigit() else None
+        show_pair_select_modal(
+            win,
+            account_map[acct_name],
+            pair_id_var,
+            on_escape,
+            submit_button,
+            exclude_trans_id=None,
+            current_pair_id=curr_p,
+        )
 
     select_pair_btn = tk.Button(
         amt_erow,
@@ -2069,6 +2360,151 @@ def add_bank_transaction_main(
             pass
 
     budget_head_combo.configure(postcommand=_set_bh_dropdown_font)
+
+    # ── Band 6: Income Tax & TDS ──────────────────────────────────────────
+    _C_TAX = "#fef3c7"  # amber-100
+    tax_band, tax_lrow, tax_erow = _make_band(form_body, _C_TAX)
+    tax_band.pack(fill="x", pady=(0, 4))
+
+    _band_label(tax_lrow, "Direct IT", _C_TAX, _F)
+    _band_label(tax_lrow, "Tax Deduction (TDS)", _C_TAX, _F, padx=20)
+    _band_label(tax_lrow, "Tax Section (Optional)", _C_TAX, _F, padx=30)
+    _band_label(tax_lrow, "Tax & Gross Income Summary", _C_TAX, _F, padx=40)
+
+    is_direct_it_var = tk.BooleanVar(value=False)
+    direct_it_cb = tk.Checkbutton(
+        tax_erow,
+        text="IT Dept (Tax/Refund)",
+        variable=is_direct_it_var,
+        font=("Helvetica", 11, "bold"),
+        bg=_C_TAX,
+        activebackground=_C_TAX,
+    )
+    direct_it_cb.pack(side="left", padx=(0, 20))
+    bind_tooltip(
+        direct_it_cb,
+        tooltip_var,
+        "Check this if the whole transaction is directly paying Income Tax (Challan) or receiving an IT refund.",
+    )
+
+    tds_entry = tk.Entry(tax_erow, width=12, font=_FB)
+    tds_entry.insert(0, "0.00")
+    tds_entry.pack(side="left", padx=(0, 25))
+    apply_entry_theme(tds_entry)
+    bind_tooltip(
+        tds_entry,
+        tooltip_var,
+        "TDS deducted at source on this income (e.g. Dividend, Interest, Remuneration, Pension).",
+    )
+
+    tax_section_var = tk.StringVar(value="")
+    tax_section_entry = ttk.Combobox(
+        tax_erow,
+        textvariable=tax_section_var,
+        width=14,
+        font=_F,
+        values=["", "192", "194", "194A", "194J", "DIRECT_TAX", "REFUND"],
+    )
+    tax_section_entry.pack(side="left", padx=(0, 25))
+    apply_entry_theme(tax_section_entry)
+    bind_tooltip(
+        tax_section_entry,
+        tooltip_var,
+        "Income Tax section (optional — automatically inferred if left blank).",
+    )
+
+    tax_info_label = tk.Label(
+        tax_erow,
+        text="(No tax deduction)",
+        font=("Helvetica", 11, "bold"),
+        bg=_C_TAX,
+        fg="#475569",
+        anchor="w",
+    )
+    tax_info_label.pack(side="left", padx=(0, 15))
+
+    tax_fy_label = tk.Label(
+        tax_erow,
+        text="",
+        font=("Helvetica", 10),
+        bg=_C_TAX,
+        fg="#64748b",
+        anchor="w",
+    )
+    tax_fy_label.pack(side="left")
+
+    def _get_tds_val() -> float:
+        try:
+            return float(tds_entry.get().strip().replace(",", "") or "0")
+        except ValueError:
+            return 0.0
+
+    def _update_tax_display(*_):
+        try:
+            w_val = float(withdrawal_entry.get().strip().replace(",", "") or "0")
+        except ValueError:
+            w_val = 0.0
+        try:
+            d_val = float(deposit_entry.get().strip().replace(",", "") or "0")
+        except ValueError:
+            d_val = 0.0
+
+        # Update FY & AY from trans_dt
+        try:
+            t_dt_str = trans_dt.get_date().strftime("%Y-%m-%d")
+            fy, ay = calculate_fy_ay(t_dt_str)
+            tax_fy_label.config(text=f"| FY: {fy} | AY: {ay}")
+        except Exception:
+            tax_fy_label.config(text="")
+
+        if is_direct_it_var.get():
+            tds_entry.config(state="disabled")
+            if w_val > 0.0:
+                tax_info_label.config(
+                    text=f"Direct Tax Payment: Rs. {w_val:,.2f}", fg="#b91c1c"
+                )
+                if not tax_section_var.get().strip():
+                    tax_section_var.set("DIRECT_TAX")
+            elif d_val > 0.0:
+                tax_info_label.config(
+                    text=f"Income Tax Refund: Rs. {d_val:,.2f}", fg="#15803d"
+                )
+                if not tax_section_var.get().strip():
+                    tax_section_var.set("REFUND")
+            else:
+                tax_info_label.config(
+                    text="Direct IT: Enter Withdrawal (Tax) or Deposit (Refund)",
+                    fg="#475569",
+                )
+        else:
+            tds_entry.config(state="normal")
+            tds_val = _get_tds_val()
+            if tds_val > 0.0:
+                gross = d_val + tds_val
+                tax_info_label.config(
+                    text=f"Gross Income: Rs. {gross:,.2f} (Deposit Rs. {d_val:,.2f} + TDS Rs. {tds_val:,.2f})",
+                    fg="#1e3a8a",
+                )
+                if not tax_section_var.get().strip():
+                    inferred = infer_tax_section(budget_head_combo.get().strip(), False, True)
+                    tax_section_var.set(inferred)
+            else:
+                tax_info_label.config(text="(No tax deduction)", fg="#64748b")
+                if tax_section_var.get().strip() in ("DIRECT_TAX", "REFUND"):
+                    tax_section_var.set("")
+
+    direct_it_cb.config(command=_update_tax_display)
+    tds_entry.bind("<KeyRelease>", _update_tax_display)
+    tds_entry.bind(
+        "<FocusOut>",
+        lambda e: (_fmt_amount_on_focus_out(tds_entry), _update_tax_display()),
+        add="+",
+    )
+    trans_dt.bind("<<DateEntrySelected>>", lambda e: _update_tax_display(), add="+")
+    trans_dt.bind("<FocusOut>", lambda e: _update_tax_display(), add="+")
+    budget_head_combo.bind("<<ComboboxSelected>>", lambda e: _update_tax_display(), add="+")
+    budget_head_combo.bind("<FocusOut>", lambda e: _update_tax_display(), add="+")
+    _update_tax_display()
 
     # ── Band 7: Module Type + Module Ref ──────────────────────────────────
     mod_band = tk.Frame(form_body, bg=_C_MOD, relief="ridge", bd=2, padx=10, pady=6)
@@ -2400,16 +2836,16 @@ def add_bank_transaction_main(
             mf_combo.set("")
 
     def _open_mf_new():
-        acct_name = account_combo.get()
-        if not acct_name or acct_name not in account_map:
-            show_colorful_error(win, "Validation", "Select an account before adding a new MF.")
-            return
-
-        def _on_mf_saved(_new_id, display_label):
-            _rebuild_mf_combo()
-            mf_combo.set(display_label)
-
-        show_mf_new_modal(win, account_map[acct_name], on_escape, _on_mf_saved)
+        from .mf_master_add import add_mf_master_main
+        add_mf_master_main(win)
+        _rebuild_mf_combo()
+        if hasattr(win, "last_added_mf_id"):
+            new_id = getattr(win, "last_added_mf_id")
+            for k, v in mf_map.items():
+                if v == new_id:
+                    mf_combo.set(k)
+                    break
+        mf_combo.focus_set()
 
     new_mf_btn = tk.Button(
         mf_cell, text="New", command=_open_mf_new, font=("Helvetica", 11, "bold"),
@@ -2441,16 +2877,16 @@ def add_bank_transaction_main(
             ins_combo.set("")
 
     def _open_ins_new():
-        acct_name = account_combo.get()
-        if not acct_name or acct_name not in account_map:
-            show_colorful_error(win, "Validation", "Select an account before adding a new INS.")
-            return
-
-        def _on_ins_saved(_new_id, display_label):
-            _rebuild_ins_combo()
-            ins_combo.set(display_label)
-
-        show_ins_new_modal(win, account_map[acct_name], on_escape, _on_ins_saved)
+        from .ins_master_add import add_ins_master_main
+        add_ins_master_main(win)
+        _rebuild_ins_combo()
+        if hasattr(win, "last_added_ins_id"):
+            new_id = getattr(win, "last_added_ins_id")
+            for k, v in ins_map.items():
+                if v == new_id:
+                    ins_combo.set(k)
+                    break
+        ins_combo.focus_set()
 
     new_ins_btn = tk.Button(
         ins_cell, text="New", command=_open_ins_new, font=("Helvetica", 11, "bold"),
@@ -2468,7 +2904,7 @@ def add_bank_transaction_main(
             d_amt = float(deposit_entry.get().strip().replace(",", "") or "0")
         except:
             d_amt = 0.0
-            
+
         desc = bank_remark_entry.get().strip() or user_desc_combo.get().strip()
         dt_str = trans_dt.get_date().strftime("%Y-%m-%d")
 
@@ -2546,21 +2982,51 @@ def add_bank_transaction_main(
 
     module_type_var.trace_add("write", _on_module_type_change)
 
+    # ── Auto-fill Balance ─────────────────────────────────────────────────
+    def _bal_updater(e=None):
+        return _update_balance_default(
+            win, _prev_balance, withdrawal_entry, deposit_entry, balance_entry, e
+        )
+
+    def _refresh_prev_balance():
+        """Fetch running balance prior to the selected trans_dt for this account."""
+        acct_name = account_combo.get()
+        if not acct_name or acct_name not in account_map:
+            _prev_balance[0] = None
+            return
+        aid = account_map[acct_name]
+        try:
+            t_dt_str = trans_dt.get_date().strftime("%Y-%m-%d")
+        except Exception:
+            t_dt_str = None
+        if t_dt_str:
+            _prev_balance[0] = get_balance_before_date(aid, t_dt_str)
+        else:
+            _prev_balance[0] = _prev_bal.get(acct_name)
+
     # ── Value Dt → Trans Dt sync ──────────────────────────────────────────
     def _sync_trans_dt(*_):
         try:
             trans_dt.set_date(value_dt.get_date())
         except Exception:  # noqa: BLE001
             pass
+        _refresh_prev_balance()
+        _bal_updater()
 
     value_dt.bind("<<DateEntrySelected>>", _sync_trans_dt)
     value_dt.bind("<FocusOut>", _sync_trans_dt)
 
+    def _on_trans_dt_change(*_):
+        _refresh_prev_balance()
+        _bal_updater()
+
+    trans_dt.bind("<<DateEntrySelected>>", _on_trans_dt_change)
+    trans_dt.bind("<FocusOut>", _on_trans_dt_change)
+
     # ── Date Spinbox Helper ───────────────────────────────────────────────
     bind_date_spin(value_dt, callback=_sync_trans_dt)
-    bind_date_spin(trans_dt)
+    bind_date_spin(trans_dt, callback=_on_trans_dt_change)
 
-    # ── Account change → Value Dt default ─────────────────────────────────
     # ── Account change → Value Dt default ─────────────────────────────────
     def _on_account_change(*_):
         acct_name = account_combo.get()
@@ -2592,21 +3058,13 @@ def add_bank_transaction_main(
         except Exception as exc:  # noqa: BLE001
             logger.debug("Serial No default failed: %s", exc)
         try:
-            _prev_balance[0] = _prev_bal.get(acct_name)
+            _refresh_prev_balance()
         except Exception as exc:  # noqa: BLE001
             logger.debug("Last balance fetch failed: %s", exc)
-        _update_balance_default(
-            win, _prev_balance, withdrawal_entry, deposit_entry, balance_entry
-        )
+        _bal_updater()
 
     account_combo.bind("<<ComboboxSelected>>", _on_account_change)
     win.after(50, _on_account_change)
-
-    # ── Auto-fill Balance ─────────────────────────────────────────────────
-    def _bal_updater(e=None):
-        return _update_balance_default(
-            win, _prev_balance, withdrawal_entry, deposit_entry, balance_entry, e
-        )
     withdrawal_entry.bind("<FocusOut>", _bal_updater, add="+")
     deposit_entry.bind("<FocusOut>", _bal_updater, add="+")
     withdrawal_entry.bind("<KeyRelease>", _bal_updater, add="+")
@@ -2619,10 +3077,14 @@ def add_bank_transaction_main(
 
     # Normalize all three amount fields to 2 d.p. on focus-out
     withdrawal_entry.bind(
-        "<FocusOut>", lambda e: _fmt_amount_on_focus_out(withdrawal_entry), add="+"
+        "<FocusOut>",
+        lambda e: (_fmt_amount_on_focus_out(withdrawal_entry), _update_tax_display()),
+        add="+",
     )
     deposit_entry.bind(
-        "<FocusOut>", lambda e: _fmt_amount_on_focus_out(deposit_entry), add="+"
+        "<FocusOut>",
+        lambda e: (_fmt_amount_on_focus_out(deposit_entry), _update_tax_display()),
+        add="+",
     )
     balance_entry.bind(
         "<FocusOut>", lambda e: _fmt_amount_on_focus_out(balance_entry), add="+"
@@ -2643,6 +3105,11 @@ def add_bank_transaction_main(
         module_type_var.set("NONE")
         module_ref_entry.delete(0, tk.END)
         entry_type_var.set("INCOME")
+        is_direct_it_var.set(False)
+        tds_entry.delete(0, tk.END)
+        tds_entry.insert(0, "0.00")
+        tax_section_var.set("")
+        _update_tax_display()
         _rebuild_prev_bal()
         _on_account_change()
         account_combo.focus_set()
@@ -2681,6 +3148,10 @@ def add_bank_transaction_main(
             "module_type": module_type,
             "master_id": master_id,
             "entry_type": entry_type_var.get(),
+            "is_direct_it": is_direct_it_var.get(),
+            "tds_amount": _get_tds_val(),
+            "tax_section": tax_section_var.get().strip() if tax_section_var.get().strip() else None,
+            "bh_name": budget_head_combo.get().strip(),
         }
         data.update(fd_kwargs)
         try:
@@ -2704,6 +3175,12 @@ def add_bank_transaction_main(
         global _last_used_account
         _last_used_account = account_name
 
+        if current_staging_id[0] is not None:
+            db_path = os.path.join("data", "mybanks.db")
+            mark_staging_processed(db_path, current_staging_id[0])
+            current_staging_id[0] = None  # Reset for next entry
+
+
         if entry_type_var.get() == "TRANSFER" and not pair_id and module_type == "NONE":
             do_auto_fill = show_colorful_yesno(
                 win,
@@ -2723,8 +3200,25 @@ def add_bank_transaction_main(
                 account_combo.focus_set()
                 return
 
-        show_colorful_info(win, "Success", "Transaction added successfully.")
-        _reset_form()
+        downstream_n = data.get("downstream_adjusted", 0)
+        adj_msg = f"\n({downstream_n} following balance(s) updated to accommodate this entry)." if downstream_n > 0 else ""
+
+        if fetched_flag[0]:
+            _yes = show_colorful_yesno(win, 'Success', f"Transaction added successfully.{adj_msg}\n\nDo you want to fetch next data of the transaction?")
+            if _yes:
+                _do_fetch_staging()
+            else:
+                fetched_flag[0] = False
+                _reset_form()
+                account_combo.focus_set()
+        else:
+            _yes = show_colorful_yesno(win, 'Success', f"Transaction added successfully.{adj_msg}\n\nDo you want to enter new transaction?")
+            if _yes:
+                _reset_form()
+                account_combo.focus_set()
+            else:
+                cleanup_and_close()
+                return
 
     # ── Submit / validation ────────────────────────────────────────────────
     def on_submit(_event=None):
@@ -3001,7 +3495,10 @@ def add_bank_transaction_main(
                 )
                 return
 
-            if deposit_amount >= principal_amount:
+            tds_val = _get_tds_val()
+            gross_deposit = round(deposit_amount + tds_val, 2)
+
+            if gross_deposit >= principal_amount and principal_amount > 0:
                 # Full withdrawal / maturity
                 _do_commit(
                     account_name,
@@ -3020,13 +3517,13 @@ def add_bank_transaction_main(
                     master_id,
                     fd_kwargs={
                         "fd_saving": 0.0,
-                        "fd_withdrawal": deposit_amount,
+                        "fd_withdrawal": gross_deposit,
                         "fd_principal": principal_amount,
-                        "fd_int": round(deposit_amount - principal_amount, 4),
+                        "fd_int": round(gross_deposit - principal_amount, 4),
                     },
                 )
             else:
-                # Partial withdrawal — prompt for manual breakdown
+                # Partial withdrawal / periodic interest — prompt for manual breakdown
                 def _on_partial(
                     p_comp,
                     i_comp,
@@ -3062,13 +3559,21 @@ def add_bank_transaction_main(
                         _mid,
                         fd_kwargs={
                             "fd_saving": 0.0,
-                            "fd_withdrawal": _da,
+                            "fd_withdrawal": round(p_comp + i_comp, 2),
                             "fd_principal": p_comp,
                             "fd_int": i_comp,
                         },
                     )
 
-                show_fd_partial_modal(win, deposit_amount, on_escape, _on_partial, submit_button)
+                show_fd_partial_modal(
+                    win,
+                    deposit_amount,
+                    on_escape,
+                    _on_partial,
+                    submit_button,
+                    tds_amount=tds_val,
+                    entry_type=entry_type_var.get(),
+                )
             return
 
         # ── PPF sub-ledger routing ────────────────────────────────────────
@@ -3153,11 +3658,116 @@ def add_bank_transaction_main(
     )
     btn_frame.pack(fill="x", anchor="e", padx=10)
 
+    def _do_import():
+        account_name = account_combo.get()
+        if not account_name or account_name not in account_map:
+            show_colorful_error(win, "Error", "Please select an account from the dropdown first before importing its statement.")
+            return
+        account_id = account_map[account_name]
+        db_path = os.path.join("data", "mybanks.db")
+        import_from_excel(db_path, account_id=account_id)
+
+    def _do_fetch_staging():
+        db_path = os.path.join("data", "mybanks.db")
+        data = fetch_next_staging(db_path)
+        if data:
+            fetched_flag[0] = True
+            current_staging_id[0] = data['staging_id']
+
+            if data.get('account_id'):
+                target_lbl = next((lbl for lbl, a_id in account_map.items() if a_id == data['account_id']), None)
+                if target_lbl:
+                    account_combo.set(target_lbl)
+            else:
+                icici_lbl = next((lbl for lbl in account_map if "0085001101" in lbl), None)
+                if icici_lbl:
+                    account_combo.set(icici_lbl)
+
+            def parse_dt(dstr):
+                for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        return datetime.strptime(dstr.split()[0], fmt).date()
+                    except ValueError:
+                        pass
+                return datetime.now().date()
+            if data['value_date']:
+                value_dt.set_date(parse_dt(data['value_date']))
+            if data['trans_date']:
+                trans_dt.set_date(parse_dt(data['trans_date']))
+
+            serial_no_entry.delete(0, tk.END)
+            if data.get('serial_no') and str(data['serial_no']).lower() != 'nan':
+                serial_no_entry.insert(0, str(data['serial_no']).split('.')[0])
+
+            cheque_no_entry.delete(0, tk.END)
+            if data['cheque_no'] and data['cheque_no'] != 'nan':
+                cheque_no_entry.insert(0, str(data['cheque_no']).split('.')[0])
+
+            bank_remark_entry.delete(0, tk.END)
+            if data['bank_desc']: bank_remark_entry.insert(0, data['bank_desc'])
+
+
+            user_desc_combo.set(data['user_desc'] if data['user_desc'] else "")
+
+            withdrawal_entry.delete(0, tk.END)
+            withdrawal_entry.insert(0, f"{data['withdrawal_amount']:.2f}")
+
+            deposit_entry.delete(0, tk.END)
+            deposit_entry.insert(0, f"{data['deposit_amount']:.2f}")
+
+            balance_entry.delete(0, tk.END)
+            balance_entry.insert(0, f"{data['balance_after']:.2f}")
+
+            # Reset variables according to workflow
+            pair_id_var.set("")
+            budget_head_combo.set("(none)")
+            module_type_var.set("NONE")
+
+            # Auto-set Entry Type based on the transaction values
+            w_amt = float(data.get('withdrawal_amount') or 0.0)
+            d_amt = float(data.get('deposit_amount') or 0.0)
+            if w_amt > 0:
+                entry_type_var.set("EXPENSE")
+            elif d_amt > 0:
+                entry_type_var.set("INCOME")
+
+            # Dynamically filter the budget head dropdown list
+            _filter_budget_heads()
+
+            _refresh_prev_balance()
+
+            balance_entry.focus_set()
+
+    import_btn = tk.Button(
+        btn_frame,
+        text="Import Excel",
+        width=14,
+        font=("Comic Sans MS", 10, "bold"),
+        bg="#0ea5e9",
+        fg="white",
+        cursor="hand2",
+        command=_do_import
+    )
+    import_btn.pack(side="left", padx=(0, 10))
+    apply_button_animations(import_btn, "#0ea5e9", "#38bdf8")
+
+    fetch_btn = tk.Button(
+        btn_frame,
+        text="Fetch Next",
+        width=14,
+        font=("Comic Sans MS", 10, "bold"),
+        bg="#f59e0b",
+        fg="white",
+        cursor="hand2",
+        command=_do_fetch_staging
+    )
+    fetch_btn.pack(side="left", padx=(0, 20))
+    apply_button_animations(fetch_btn, "#f59e0b", "#fbbf24")
+
     submit_button = tk.Button(
         btn_frame,
         text="✅ SUBMIT ✅",
         width=12,
-        # height=1,
         font=("Comic Sans MS", 12, "bold"),
         bg=_SUB_BG,
         fg="white",
@@ -3168,14 +3778,13 @@ def add_bank_transaction_main(
         cursor="hand2",
         command=on_submit,
     )
-    submit_button.pack(side="right", padx=5, pady=6)
+    submit_button.pack(side="right", padx=5)
     apply_button_animations(submit_button, _SUB_BG, "#2563eb")
 
     cancel_btn = tk.Button(
         btn_frame,
         text="❌ Cancel ❌",
         width=12,
-        # height=1,
         font=("Comic Sans MS", 12, "bold"),
         bg=_CAN_BG,
         fg="white",
@@ -3184,10 +3793,9 @@ def add_bank_transaction_main(
         relief="raised",
         bd=3,
         cursor="hand2",
-        # pady=10,
         command=cleanup_and_close,
     )
-    cancel_btn.pack(side="right", padx=5, pady=6)
+    cancel_btn.pack(side="right", padx=5)
     apply_button_animations(cancel_btn, _CAN_BG, _CAN_ACT)
 
     # ── Hint frame ────────────────────────────────────────────────────────

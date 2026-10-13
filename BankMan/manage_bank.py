@@ -28,6 +28,7 @@ from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_utils import apply_button_animations, universal_tree_sort
 from .bank_edit import edit_bank
 from .bank_transaction_edit import edit_bank_transaction
+from .bank_db_utils import recalculate_account_balances
 from Shared.help_utils import show_standard_help
 
 
@@ -612,6 +613,50 @@ def show_bank_transactions_manager(
         load_data()  # refresh treeview after the edit modal closes
 
     # ------------------------------------------------------------------
+    # Recalculate Balances action
+    # ------------------------------------------------------------------
+    def _on_recalculate() -> None:
+        trans_id, account_label, _ = _get_selected()
+        if trans_id is None:
+            return
+
+        with get_db_connection(BANK_DB_PATH) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT account_id FROM bank_transactions WHERE trans_id = ?",
+                (trans_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return
+            account_id = row[0]
+
+        confirmed = show_colorful_yesno(
+            mgr_win,
+            "Recalculate Balances",
+            f"Recalculate running balances for\n{account_label}?\n\n"
+            f"This will recompute running balances from the account opening balance "
+            f"in chronological order to ensure all following balances are accurate.",
+        )
+        if not confirmed:
+            return
+
+        try:
+            res = recalculate_account_balances(account_id)
+            load_data()
+            show_colorful_info(
+                mgr_win,
+                "Recalculation Complete",
+                f"Balances recalculated for:\n{account_label}\n\n"
+                f"• Total Transactions: {res['total_rows']}\n"
+                f"• Balances Adjusted: {res['rows_updated']}\n"
+                f"• Opening Balance: ₹{res['opening_balance']:,.2f}\n"
+                f"• Final Balance: ₹{res['final_balance']:,.2f}",
+            )
+        except Exception as e:
+            show_colorful_error(mgr_win, "Recalculation Failed", f"Error: {e}")
+
+    # ------------------------------------------------------------------
     # Delete action
     # ------------------------------------------------------------------
     def _on_delete() -> None:
@@ -801,6 +846,19 @@ def show_bank_transactions_manager(
     )
     del_btn.pack(side="left", padx=(10, 0))
 
+    recalc_btn = tk.Button(
+        btn_frame,
+        text="🔄 Recalculate Balances",
+        command=_on_recalculate,
+        bg=UI_THEME.get("bg_header", "#1e293b"),
+        fg="#10b981",
+        font=UI_THEME.get("font_bold", ("Helvetica", 14, "bold")),
+        width=22,
+        cursor="hand2",
+        relief="flat",
+    )
+    recalc_btn.pack(side="left", padx=(10, 0))
+
     close_btn = tk.Button(
         btn_frame,
         text="Close",
@@ -816,6 +874,7 @@ def show_bank_transactions_manager(
 
     apply_button_animations(edit_btn, UI_THEME["bg_header"], UI_THEME["bg_focus"])
     apply_button_animations(del_btn, UI_THEME["bg_header"], UI_THEME["bg_focus"])
+    apply_button_animations(recalc_btn, UI_THEME["bg_header"], UI_THEME["bg_focus"])
     apply_button_animations(close_btn, UI_THEME["bg_header"], UI_THEME["bg_focus"])
 
     # ------------------------------------------------------------------

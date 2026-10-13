@@ -10,6 +10,7 @@ navigation, hotkeys, and styling.
 
 import tkinter as tk
 from tkinter import ttk
+import os
 import inspect
 from .style_utils import ensure_ttk_style
 from .globals import logger
@@ -66,12 +67,65 @@ def create_menu_window(config):
     else:
         window.resizable(False, False)
 
+    # Background image handling
+    bg_image_path = config.get("bg_image")
+    if bg_image_path and os.path.isfile(bg_image_path):
+        try:
+            from PIL import Image, ImageTk, ImageOps
+            geom = config.get("geometry", "400x400").split("+")[0].split("-")[0]
+            try:
+                win_w, win_h = [int(x) for x in geom.split("x")]
+            except (ValueError, TypeError):
+                win_w, win_h = 400, 400
+
+            img = Image.open(bg_image_path)
+            centering = config.get("bg_centering", (0.5, 0.35))
+            fitted_img = ImageOps.fit(
+                img, (win_w, win_h), method=Image.Resampling.LANCZOS, centering=centering
+            )
+            brightness = config.get("bg_brightness", 1.0)
+            if brightness != 1.0:
+                from PIL import ImageEnhance
+                enhancer = ImageEnhance.Brightness(fitted_img)
+                fitted_img = enhancer.enhance(brightness)
+
+            bg_photo = ImageTk.PhotoImage(fitted_img)
+            bg_label = tk.Label(window, image=bg_photo, borderwidth=0, highlightthickness=0)
+            bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+            bg_label.lower()
+            setattr(window, "_bg_image", bg_photo)
+            image_loaded = True
+        except Exception as e:
+            logger.warning("Failed to load menu background image '%s': %s", bg_image_path, e)
+            image_loaded = False
+    else:
+        image_loaded = False
+
     # Header
     if config.get("title"):
-        label = tk.Label(window, text=config["title"], font=("Helvetica", 14))
-        if config.get("bg"):
-            label.configure(bg=config["bg"])
-        label.pack(pady=20)
+        title_kwargs = {"text": config["title"]}
+        use_styled_title = bool(image_loaded and config.get("title_bg"))
+        font = config.get("title_font", ("Helvetica", 14, "bold" if use_styled_title else "normal"))
+        title_kwargs["font"] = font
+
+        if use_styled_title:
+            title_kwargs["bg"] = config["title_bg"]
+            title_kwargs["padx"] = config.get("title_padx", 14)
+            title_kwargs["pady"] = config.get("title_pady", 4)
+            if config.get("title_fg"):
+                title_kwargs["fg"] = config["title_fg"]
+            if config.get("title_relief"):
+                title_kwargs["relief"] = config["title_relief"]
+                title_kwargs["bd"] = config.get("title_bd", 1)
+        elif config.get("bg"):
+            title_kwargs["bg"] = config["bg"]
+
+        label = tk.Label(window, **title_kwargs)
+        top_spacer = config.get("top_spacer", 0) if image_loaded else 0
+        if top_spacer > 0:
+            label.pack(pady=(20, top_spacer))
+        else:
+            label.pack(pady=20)
 
     # Style
     style = config.get("style", "MainMenu.TButton")

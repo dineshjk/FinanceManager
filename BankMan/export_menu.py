@@ -15,6 +15,8 @@ from .cc_ex_import_menu import show_cc_export_menu
 from .fd_ex_import_menu import show_fd_export_menu
 from .loan_ex_import_menu import show_loan_export_menu
 from .ppf_ex_import_menu import show_ppf_export_menu
+from .mf_ex_import_menu import show_mf_export_menu
+from .ins_ex_import_menu import show_ins_export_menu
 
 
 def show_export_menu(parent, come_back_index=None):
@@ -30,7 +32,7 @@ def show_export_menu(parent, come_back_index=None):
 
     menu_config = {
         "title": "Export Data",
-        "geometry": "400x510",
+        "geometry": "400x610",
         "style": "Menu.TButton",
         "parent": parent,
         "modal": True,
@@ -60,6 +62,16 @@ def show_export_menu(parent, come_back_index=None):
                 "text": "PPF",
                 "hotkey": "F",
                 "command": lambda: show_ppf_export_menu(menu_window),
+            },
+            {
+                "text": "Mutual Funds",
+                "hotkey": "M",
+                "command": lambda: show_mf_export_menu(menu_window),
+            },
+            {
+                "text": "Insurance",
+                "hotkey": "I",
+                "command": lambda: show_ins_export_menu(menu_window),
             },
             {
                 "text": "Budget Heads",

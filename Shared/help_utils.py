@@ -50,8 +50,13 @@ def show_standard_help(
     help_win.configure(bg=STANDARD_HELP_THEME["help_bg"])
     help_win.geometry("850x700")
     help_win.resizable(True, True)
-    help_win.attributes("-topmost", True)
+    help_win.lift()
     help_win.focus_force()
+    try:
+        help_win.attributes("-topmost", True)
+        help_win.after_idle(lambda: help_win.attributes("-topmost", False) if help_win.winfo_exists() else None)
+    except Exception:
+        pass
     try:
         help_win.grab_set()
     except Exception:
@@ -176,19 +181,42 @@ def show_standard_help(
         if hasattr(parent, "_global_help_open"):
             parent._global_help_open = False
         # Defer destruction to safely return 'break' without bubbling the Escape event.
-        # After destruction, explicitly restore the modal grab to the top of the window stack
-        # because destroying a grab_set() window often fails to return the grab to its parent.
         def _destroy_and_restore():
+            try:
+                help_win.grab_release()
+            except Exception:
+                pass
+            try:
+                help_win.attributes("-topmost", False)
+            except Exception:
+                pass
             if help_win.winfo_exists():
                 help_win.destroy()
+
+            # Explicitly activate and restore the parent window
+            if parent and hasattr(parent, "winfo_exists") and parent.winfo_exists():
+                try:
+                    parent.deiconify()
+                    parent.lift()
+                    parent.focus_force()
+                    try:
+                        parent.grab_set()
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
             from Shared.window_manager import activate_previous_window, restore_parent_escape
             activate_previous_window()
             
-            if original_focus and original_focus.winfo_exists():
+            if original_focus and hasattr(original_focus, "winfo_exists") and original_focus.winfo_exists():
                 try:
-                    original_focus.focus_set()
+                    original_focus.focus_force()
                 except Exception:
-                    pass
+                    try:
+                        original_focus.focus_set()
+                    except Exception:
+                        pass
             if parent:
                 try:
                     restore_parent_escape(parent)
@@ -207,3 +235,5 @@ def show_standard_help(
     )
     close_help_btn.pack(side="bottom", pady=10)
     apply_button_animations(close_help_btn, STANDARD_HELP_THEME["help_btn_bg"], STANDARD_HELP_THEME["hover_bg"])
+
+    return help_win

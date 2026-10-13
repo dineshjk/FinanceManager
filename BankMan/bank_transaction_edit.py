@@ -44,6 +44,9 @@ from .bank_db_utils import (
     get_active_mf_masters,
     get_active_ins_masters,
     get_budget_heads_with_parents as _db_get_bh_with_parents,
+    calculate_fy_ay,
+    infer_tax_section,
+    get_income_tax_for_trans,
 )
 
 # ---------------------------------------------------------------------------
@@ -169,13 +172,15 @@ def _fmt_amount_on_focus_out(entry: tk.Entry, _event=None) -> None:
 def _create_subledger_row(conn, module_type, master_id, account_id, trans_date, withdrawal_amount, deposit_amount, bank_desc) -> int:
     cursor = conn.conn.cursor() if hasattr(conn, "conn") else conn.cursor()
     if module_type == "FD":
+        fd_saving = withdrawal_amount if withdrawal_amount > 0 else 0.0
+        fd_withdrawal = deposit_amount if deposit_amount > 0 else 0.0
         cursor.execute(
             """
             INSERT INTO fd_transactions 
             (fd_master_id, account_id, fd_trans_dt, fd_saving, fd_withdrawal, fd_principal, fd_int)
             VALUES (?, ?, ?, ?, ?, 0.0, 0.0)
             """,
-            (master_id, account_id, trans_date, deposit_amount, withdrawal_amount),
+            (master_id, account_id, trans_date, fd_saving, fd_withdrawal),
         )
         return cursor.lastrowid
     elif module_type == "CC":
@@ -428,13 +433,33 @@ def edit_bank_transaction(
         except Exception:
             pass
 
+    tax_record = get_income_tax_for_trans(trans_id)
+    initial_is_direct_it = False
+    initial_tds_amt = 0.0
+    initial_tax_sec = ""
+    if tax_record:
+        if (
+            tax_record["tax_amount"] > 0
+            and abs(tax_record["tax_amount"] - data["withdrawal_amount"]) < 0.01
+            and tax_record["tax_section"] == "DIRECT_TAX"
+        ):
+            initial_is_direct_it = True
+        elif (
+            tax_record["refund_amount"] > 0
+            and abs(tax_record["refund_amount"] - data["deposit_amount"]) < 0.01
+            and tax_record["tax_section"] == "REFUND"
+        ):
+            initial_is_direct_it = True
+        else:
+            initial_tds_amt = tax_record["tax_amount"]
+        initial_tax_sec = tax_record["tax_section"] or ""
 
     # ── Modal window ──────────────────────────────────────────────────────
     disable_parent(parent, calling_button=calling_button)
 
     win = tk.Toplevel(parent)
     win.title(f"✏️  Edit Bank Transaction  #{trans_id}  ✏️")
-    win.geometry("1100x680")
+    win.geometry("1100x800")
     win.resizable(False, False)
     win.configure(bg=_THEME["main_bg"])
     win.transient(parent)
@@ -577,11 +602,30 @@ def edit_bank_transaction(
     pair_id_display = tk.Entry(amt_erow, textvariable=pair_id_var, width=14, font=_F, state="readonly")
     pair_id_display.pack(side="left", padx=(0, 4))
     apply_entry_theme(pair_id_display, is_readonly=True)
-    bind_tooltip(pair_id_display, tooltip_var, "ID of the paired transfer transaction. Click Select to browse.")
+    bind_tooltip(
+        pair_id_display,
+        tooltip_var,
+        "ID of the paired transaction. Click Select to browse or unpair.",
+    )
 
     def _open_pair_modal():
         from .bank_transactions_add import show_pair_select_modal
-        show_pair_select_modal(win, data["account_id"], pair_id_var, on_escape, submit_button)
+        curr_p = None
+        p_val = pair_id_var.get().strip()
+        if p_val.isdigit():
+            curr_p = int(p_val)
+        elif data.get("pair_id"):
+            curr_p = data.get("pair_id")
+
+        show_pair_select_modal(
+            win,
+            data["account_id"],
+            pair_id_var,
+            on_escape,
+            submit_button,
+            exclude_trans_id=data.get("trans_id"),
+            current_pair_id=curr_p,
+        )
 
     select_pair_btn = tk.Button(
         amt_erow,
@@ -610,6 +654,153 @@ def edit_bank_transaction(
     withdrawal_entry.bind("<FocusOut>", lambda e: _fmt_amount_on_focus_out(withdrawal_entry), add="+")
     deposit_entry.bind("<FocusOut>", lambda e: _fmt_amount_on_focus_out(deposit_entry), add="+")
     balance_entry.bind("<FocusOut>", lambda e: _fmt_amount_on_focus_out(balance_entry), add="+")
+
+    # ── Band 3.5: Income Tax & TDS ────────────────────────────────────────
+    _C_TAX = "#fef3c7"  # amber-100
+    tax_band, tax_lrow, tax_erow = _make_band(form_body, _C_TAX)
+    tax_band.pack(fill="x", pady=(0, 4))
+
+    _band_label(tax_lrow, "Direct IT", _C_TAX, _F)
+    _band_label(tax_lrow, "Tax Deduction (TDS)", _C_TAX, _F, padx=20)
+    _band_label(tax_lrow, "Tax Section (Optional)", _C_TAX, _F, padx=30)
+    _band_label(tax_lrow, "Tax & Gross Income Summary", _C_TAX, _F, padx=40)
+
+    is_direct_it_var = tk.BooleanVar(value=initial_is_direct_it)
+    direct_it_cb = tk.Checkbutton(
+        tax_erow,
+        text="IT Dept (Tax/Refund)",
+        variable=is_direct_it_var,
+        font=("Helvetica", 11, "bold"),
+        bg=_C_TAX,
+        activebackground=_C_TAX,
+    )
+    direct_it_cb.pack(side="left", padx=(0, 20))
+    bind_tooltip(
+        direct_it_cb,
+        tooltip_var,
+        "Check this if the whole transaction is directly paying Income Tax (Challan) or receiving an IT refund.",
+    )
+
+    tds_entry = tk.Entry(tax_erow, width=12, font=_FB)
+    tds_entry.insert(0, f"{initial_tds_amt:.2f}")
+    tds_entry.pack(side="left", padx=(0, 25))
+    apply_entry_theme(tds_entry)
+    bind_tooltip(
+        tds_entry,
+        tooltip_var,
+        "TDS deducted at source on this income (e.g. Dividend, Interest, Remuneration, Pension).",
+    )
+
+    tax_section_var = tk.StringVar(value=initial_tax_sec)
+    tax_section_entry = ttk.Combobox(
+        tax_erow,
+        textvariable=tax_section_var,
+        width=14,
+        font=_F,
+        values=["", "192", "194", "194A", "194J", "DIRECT_TAX", "REFUND"],
+    )
+    tax_section_entry.pack(side="left", padx=(0, 25))
+    apply_entry_theme(tax_section_entry)
+    bind_tooltip(
+        tax_section_entry,
+        tooltip_var,
+        "Income Tax section (optional — automatically inferred if left blank).",
+    )
+
+    tax_info_label = tk.Label(
+        tax_erow,
+        text="(No tax deduction)",
+        font=("Helvetica", 11, "bold"),
+        bg=_C_TAX,
+        fg="#475569",
+        anchor="w",
+    )
+    tax_info_label.pack(side="left", padx=(0, 15))
+
+    tax_fy_label = tk.Label(
+        tax_erow,
+        text="",
+        font=("Helvetica", 10),
+        bg=_C_TAX,
+        fg="#64748b",
+        anchor="w",
+    )
+    tax_fy_label.pack(side="left")
+
+    def _get_tds_val() -> float:
+        try:
+            return float(tds_entry.get().strip().replace(",", "") or "0")
+        except ValueError:
+            return 0.0
+
+    def _update_tax_display(*_):
+        try:
+            w_val = float(withdrawal_entry.get().strip().replace(",", "") or "0")
+        except ValueError:
+            w_val = 0.0
+        try:
+            d_val = float(deposit_entry.get().strip().replace(",", "") or "0")
+        except ValueError:
+            d_val = 0.0
+
+        # Update FY & AY from trans_dt
+        try:
+            t_dt_str = trans_dt.get_date().strftime("%Y-%m-%d")
+            fy, ay = calculate_fy_ay(t_dt_str)
+            tax_fy_label.config(text=f"| FY: {fy} | AY: {ay}")
+        except Exception:
+            tax_fy_label.config(text="")
+
+        if is_direct_it_var.get():
+            tds_entry.config(state="disabled")
+            if w_val > 0.0:
+                tax_info_label.config(
+                    text=f"Direct Tax Payment: Rs. {w_val:,.2f}", fg="#b91c1c"
+                )
+                if not tax_section_var.get().strip():
+                    tax_section_var.set("DIRECT_TAX")
+            elif d_val > 0.0:
+                tax_info_label.config(
+                    text=f"Income Tax Refund: Rs. {d_val:,.2f}", fg="#15803d"
+                )
+                if not tax_section_var.get().strip():
+                    tax_section_var.set("REFUND")
+            else:
+                tax_info_label.config(
+                    text="Direct IT: Enter Withdrawal (Tax) or Deposit (Refund)",
+                    fg="#475569",
+                )
+        else:
+            tds_entry.config(state="normal")
+            tds_val = _get_tds_val()
+            if tds_val > 0.0:
+                gross = d_val + tds_val
+                tax_info_label.config(
+                    text=f"Gross Income: Rs. {gross:,.2f} (Deposit Rs. {d_val:,.2f} + TDS Rs. {tds_val:,.2f})",
+                    fg="#1e3a8a",
+                )
+                if not tax_section_var.get().strip():
+                    inferred = infer_tax_section(budget_head_combo.get().strip(), False, True)
+                    tax_section_var.set(inferred)
+            else:
+                tax_info_label.config(text="(No tax deduction)", fg="#64748b")
+                if tax_section_var.get().strip() in ("DIRECT_TAX", "REFUND"):
+                    tax_section_var.set("")
+
+    direct_it_cb.config(command=_update_tax_display)
+    tds_entry.bind("<KeyRelease>", _update_tax_display)
+    tds_entry.bind(
+        "<FocusOut>",
+        lambda e: (_fmt_amount_on_focus_out(tds_entry), _update_tax_display()),
+        add="+",
+    )
+    withdrawal_entry.bind("<FocusOut>", lambda e: _update_tax_display(), add="+")
+    deposit_entry.bind("<FocusOut>", lambda e: _update_tax_display(), add="+")
+    trans_dt.bind("<<DateEntrySelected>>", lambda e: _update_tax_display(), add="+")
+    trans_dt.bind("<FocusOut>", lambda e: _update_tax_display(), add="+")
+    budget_head_combo.bind("<<ComboboxSelected>>", lambda e: _update_tax_display(), add="+")
+    budget_head_combo.bind("<FocusOut>", lambda e: _update_tax_display(), add="+")
+    _update_tax_display()
 
     # ── Band 4: Module Type & Sub-Ledger ──────────────────────────────────
     mod_band = tk.Frame(form_body, bg=_C_MOD, relief="ridge", bd=2, padx=10, pady=6)
@@ -930,7 +1121,7 @@ def edit_bank_transaction(
     ).pack(anchor="w", padx=10, pady=4)
 
     # ── Button bar ────────────────────────────────────────────────────────
-    btn_frame = tk.Frame(win, bg=_THEME["main_bg"], relief="ridge", bd=2, pady=6)
+    btn_frame = tk.Frame(win, bg=_THEME["main_bg"], relief="ridge", bd=2, pady=10)
     btn_frame.pack(fill="x", padx=12, pady=(4, 6))
 
     # ── Save handler ──────────────────────────────────────────────────────
@@ -1108,6 +1299,10 @@ def edit_bank_transaction(
                 old_module_type=data["module_type"],
                 old_module_ref_id=data["module_ref_id"],
                 account_id=data["account_id"],
+                is_direct_it=is_direct_it_var.get(),
+                tds_amount=_get_tds_val(),
+                tax_section=tax_section_var.get().strip() if tax_section_var.get().strip() else None,
+                bh_name=bh_id_to_name.get(bh_id_val, ""),
             )
         except sqlite3.Error as exc:
             show_colorful_error(win, "Database Error", f"Failed to save changes:\n{exc}")
@@ -1130,6 +1325,10 @@ def edit_bank_transaction(
             lines.append(
                 f"  ⚠  Module type changed from {old_mod} — old sub-ledger row was NOT modified. Update it manually if needed."
             )
+        if cascades.get("tax_updated"):
+            lines.append("  • Linked Income Tax / TDS record synchronized.")
+        if cascades.get("tax_removed"):
+            lines.append("  • Linked Income Tax / TDS record removed.")
 
         # Check for TRANSFER auto-pairing
         if entry_type == "TRANSFER" and not pair_id_val and new_module_type == "NONE":
@@ -1170,10 +1369,9 @@ def edit_bank_transaction(
         relief="raised",
         bd=3,
         padx=8,
-        pady=4,
         cursor="hand2",
     )
-    submit_button.pack(side="right", padx=8)
+    submit_button.pack(side="right", padx=5)
 
     cancel_btn = tk.Button(
         btn_frame,
@@ -1186,10 +1384,9 @@ def edit_bank_transaction(
         relief="raised",
         bd=3,
         padx=8,
-        pady=4,
         cursor="hand2",
     )
-    cancel_btn.pack(side="right", padx=4)
+    cancel_btn.pack(side="right", padx=5)
 
     apply_button_animations(submit_button, _THEME["submit_bg"], _THEME["submit_hover_bg"])
     apply_button_animations(cancel_btn, _THEME["cancel_bg"], _THEME["cancel_hover_bg"])
@@ -1257,7 +1454,15 @@ def show_edit_help(win: tk.Toplevel, on_escape) -> None:
         (
             "What happens to the sub-ledger if I change the Module Type?",
             "If you completely change the Module Type (e.g., from FD to CC), the old sub-ledger row (FD) is left as an orphaned record and must be manually deleted or fixed. If you keep the same Module Type but change the amounts or dates, the existing sub-ledger row is seamlessly updated in place."
-        )
+        ),
+        (
+            "What happens to linked Income Tax / TDS when I edit a transaction?",
+            "If you change the TDS amount or the transaction date, the linked entry in the 'income_tax' table is updated automatically in lockstep, including recalculation of the Financial Year and Assessment Year. If you change the TDS amount to 0 or uncheck Direct IT, the linked income_tax entry is cleanly removed."
+        ),
+        (
+            "How do I convert an ordinary income entry into a TDS entry or Direct IT transaction?",
+            "Simply enter the tax deducted in the 'Tax Deduction (TDS)' box, or check the 'IT Dept (Tax/Refund)' box if the whole amount is directly to/from the Income Tax department. On save, the income_tax ledger entry will be created and linked automatically."
+        ),
     ]
 
     def inject_budget_heads_tab(notebook):

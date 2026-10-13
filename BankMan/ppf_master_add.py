@@ -650,12 +650,17 @@ def add_ppf_master_main(
                 "is_active": is_active,
             }
         )
-        show_colorful_info(
+        _yes = show_colorful_yesno(
             win,
             "Success",
             f"PPF account \u2018{ppf_number}\u2019 saved successfully (ID: "
-            f"{new_id}).",
+            f"{new_id}).\n\nDo you want to add another record?",
         )
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
         _reset_form()
 
     # ── Session summary label ─────────────────────────────────────────────

@@ -16,7 +16,7 @@ from Shared.gui_utils import (
     BANK_ADD_UI_THEME,
     apply_button_animations,  # <-- Added the animation helper import
 )
-from Shared.dialog_utils import show_colorful_info, show_colorful_error
+from Shared.dialog_utils import show_colorful_info, show_colorful_yesno, show_colorful_error
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
 from Shared.help_utils import show_standard_help
@@ -244,7 +244,12 @@ def on_submit(
             "MICR": micr,
             "Cust ID": cust_id,
         }
-        show_colorful_info(ba_win, "Success", f"Bank '{name}' added successfully.")
+        _yes = show_colorful_yesno(ba_win, 'Success', f"Bank '{name}' added successfully." + '\n\nDo you want to add another record?')
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
         bank_name_entry.delete(0, tk.END)
         branch_entry.delete(0, tk.END)
         ifsc_entry.delete(0, tk.END)

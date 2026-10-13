@@ -15,6 +15,8 @@ from .cc_data_entry_menu import show_cc_data_entry_menu
 from .fd_data_entry_menu import show_fd_data_entry_menu
 from .loan_data_entry_menu import show_loan_data_entry_menu
 from .ppf_data_entry_menu import show_ppf_data_entry_menu
+from .mf_data_entry_menu import show_mf_data_entry_menu
+from .ins_data_entry_menu import show_ins_data_entry_menu
 
 
 def _get_data_entry_help_data():
@@ -50,7 +52,7 @@ def show_top_data_entry_menu(parent, come_back_index=None):
 
     menu_config = {
         "title": "Data Entry Menu",
-        "geometry": "400x450",
+        "geometry": "400x550",
         "style": "Menu.TButton",
         "parent": parent,
         "modal": True,
@@ -80,6 +82,16 @@ def show_top_data_entry_menu(parent, come_back_index=None):
                 "text": "PPF",
                 "hotkey": "F",
                 "command": lambda: show_ppf_data_entry_menu(window_ref[0]),
+            },
+            {
+                "text": "Mutual Funds",
+                "hotkey": "M",
+                "command": lambda: show_mf_data_entry_menu(window_ref[0]),
+            },
+            {
+                "text": "Insurance",
+                "hotkey": "I",
+                "command": lambda: show_ins_data_entry_menu(window_ref[0]),
             },
             {
                 "text": "Previous Menu",

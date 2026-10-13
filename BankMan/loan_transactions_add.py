@@ -812,7 +812,12 @@ def add_loan_transaction_main(
             }
         )
         session_count_var.set(f"Session: {len(session_records)} saved")
-        show_colorful_info(win, "Saved", f"Loan Transaction saved (ID {lt_id}).")
+        _yes = show_colorful_yesno(win, 'Success', f"Loan Transaction saved (ID {lt_id})." + '\n\nDo you want to add another record?')
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
         _reset_form()
 
     save_btn = tk.Button(

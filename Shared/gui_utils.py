@@ -570,6 +570,86 @@ LOAN_TRANS_ADD_UI_THEME = {
     "submit_hover_bg": "#2563eb",
 }
 
+MF_MASTER_ADD_UI_THEME = {
+    "main_bg": "#172554",  # Deep navy canvas
+    "header_bg": "#1e40af",  # Strong blue header
+    "header_fg": "#FFD700",  # Gold
+    "label_fg": "#FFD700",
+    "button_bg": "#1d4ed8",
+    "button_fg": "#ffffff",
+    "band_1_bg": "#1e3a8a",
+    "band_2_bg": "#172554",
+    "submit_bg": "#16a34a",
+    "submit_hover_bg": "#15803d",
+    "cancel_bg": "#dc2626",
+    "cancel_hover_bg": "#b91c1c",
+}
+
+INS_MASTER_EDIT_UI_THEME = {
+    "main_bg": "#FDF0ED",  # Very light mahogany / warm tint
+    "header_bg": "#8B0000",  # Dark red header
+    "header_fg": "white",
+    "label_bg": "#FDF0ED",
+    "label_fg": "#4A0000", # Dark red text
+    "entry_bg": "#FFF5F5",
+    "entry_fg": "#2A0000",
+    "readonly_bg": "#FADBD8",
+    "button_bg": "#991B1B",
+    "button_fg": "white",
+    "focus_bg": "#F4D03F",
+    "cancel_bg": "#ef4444",
+    "cancel_hover_bg": "#991b1b",
+    "submit_bg": "#22c55e",
+    "submit_hover_bg": "#16a34a",
+}
+
+INS_MASTER_ADD_UI_THEME = {
+    "main_bg": "#450a0a",  # Deep red/mahogany canvas
+    "header_bg": "#991b1b",  # Strong red header
+    "header_fg": "#FFD700",  # Gold
+    "label_fg": "#FFD700",
+    "button_bg": "#b91c1c",
+    "button_fg": "#ffffff",
+    "band_1_bg": "#7f1d1d",
+    "band_2_bg": "#450a0a",
+    "band_3_bg": "#7f1d1d",
+    "band_4_bg": "#450a0a",
+    "band_5_bg": "#7f1d1d",
+    "submit_bg": "#16a34a",
+    "submit_hover_bg": "#15803d",
+    "cancel_bg": "#dc2626",
+    "cancel_hover_bg": "#b91c1c",
+}
+
+MF_TRANS_ADD_UI_THEME = {
+    "main_bg": "#1e3a8a",
+    "header_bg": "#172554",
+    "header_fg": "#FFD700",
+    "label_fg": "#FFD700",
+    "button_bg": "#1d4ed8",
+    "button_fg": "#ffffff",
+    "band_master": "#1e3a8a",
+    "band_details": "#172554",
+    "submit_bg": "#16a34a",
+    "submit_hover_bg": "#15803d",
+    "cancel_bg": "#dc2626",
+    "cancel_hover_bg": "#b91c1c",
+}
+
+INS_TRANS_ADD_UI_THEME = {
+    "main_bg": "#7f1d1d",
+    "header_bg": "#450a0a",
+    "header_fg": "#FFD700",
+    "label_fg": "#FFD700",
+    "button_bg": "#b91c1c",
+    "button_fg": "#ffffff",
+    "band_master": "#7f1d1d",
+    "band_details": "#450a0a",
+    "submit_bg": "#16a34a",
+    "submit_hover_bg": "#15803d",
+    "cancel_bg": "#dc2626",
+    "cancel_hover_bg": "#b91c1c",
+}
 
 def setup_footer_tooltip(parent_window, bg_color="#f3f4f6", fg_color="#374151"):
     """

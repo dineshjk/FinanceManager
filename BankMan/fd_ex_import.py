@@ -316,13 +316,18 @@ def import_fd(
                     malformed += 1
                     continue
 
-                if not fd_number or not open_dt or not maturity_dt:
+                if not fd_number or not open_dt:
                     logger.warning(
                         "import_fd: missing required field on line %d",
                         lineno,
                     )
                     malformed += 1
                     continue
+
+                if maturity_dt == "" or maturity_dt is None:
+                    maturity_dt = None
+                if interest_rate == "" or interest_rate is None:
+                    interest_rate = None
 
                 # ── Resolve linked account ────────────────────────────────
                 account_id = _resolve_account_id(

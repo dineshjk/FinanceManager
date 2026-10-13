@@ -325,7 +325,8 @@ def add_fd_transaction_main(
     # label: "FDNumber  [BankName]  @rate%"  →  (fd_master_id, account_id, principal)
     fd_map: dict[str, tuple[int, int, float]] = {}
     for row in fds:
-        label = f"{row[1]}  [{row[4]}]  @{row[5]:.2f}%"
+        rate_str = f"@{row[5]:.2f}%" if row[5] is not None else "@N/A"
+        label = f"{row[1]}  [{row[4]}]  {rate_str}"
         fd_map[label] = (int(row[0]), int(row[3]), float(row[2]))
 
     _state: dict = {
@@ -432,7 +433,8 @@ def add_fd_transaction_main(
         new_fds = get_all_fd_masters_for_display()
         fd_map.clear()
         for row in new_fds:
-            label = f"{row[1]}  [{row[4]}]  @{row[5]:.2f}%"
+            rate_str = f"@{row[5]:.2f}%" if row[5] is not None else "@N/A"
+            label = f"{row[1]}  [{row[4]}]  {rate_str}"
             fd_map[label] = (int(row[0]), int(row[3]), float(row[2]))
         fd_combo["values"] = list(fd_map.keys())
         progressive_selection(fd_combo, list(fd_map.keys()))
@@ -747,7 +749,12 @@ def add_fd_transaction_main(
         )
         session_count_var.set(f"Session: {len(session_records)} saved")
 
-        show_colorful_info(win, "Saved", f"FD Transaction saved (ID {fd_trans_id}).")
+        _yes = show_colorful_yesno(win, 'Success', f"FD Transaction saved (ID {fd_trans_id})." + '\n\nDo you want to add another record?')
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
         _reset_form()
 
     save_btn = tk.Button(

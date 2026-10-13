@@ -235,9 +235,9 @@ def show_fd_manager(
                             row[2],  # bank name
                             row[3],  # ac_number
                             f"₹ {row[4]:,.2f}",  # principal_amount
-                            f"{row[5]:.2f}",  # interest_rate
+                            f"{row[5]:.2f}" if row[5] is not None else "-",  # interest_rate
                             row[6],  # open_dt
-                            row[7],  # maturity_dt
+                            row[7] or "-",  # maturity_dt
                             active_label,
                         ),
                         tags=(row_tag,),
@@ -270,13 +270,11 @@ def show_fd_manager(
         fd_id, _ = _get_selected()
         if fd_id is None:
             return
-        show_colorful_info(
-            mgr_win,
-            "Edit Not Yet Available",
-            "Inline editing of FD master records is not yet implemented.\n\n"
-            "To correct a record, delete it and re-enter with the correct "
-            "values.",
-        )
+        from .fd_master_edit import edit_fd_master
+        edit_fd_master(mgr_win, int(fd_id))
+        load_data()
+
+    tree.bind("<Double-1>", lambda e: _on_edit())
 
     # ------------------------------------------------------------------
     # Delete action

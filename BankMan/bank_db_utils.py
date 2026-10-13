@@ -573,6 +573,30 @@ def add_bank_transaction(data: dict) -> None:
                 module_ref_id,
             ),
         )
+        new_trans_id = cursor.lastrowid
+
+        # Downstream balance adjustment:
+        # If this transaction is entered on an intermediate date, adjust balance_after
+        # for all subsequent transactions for the same account to accommodate this entry.
+        delta = round(deposit_amount - withdrawal_amount, 2)
+        if abs(delta) > 1e-9:
+            cursor.execute(
+                """
+                UPDATE bank_transactions
+                   SET balance_after = ROUND(balance_after + ?, 2)
+                 WHERE account_id = ?
+                   AND trans_id != ?
+                   AND (
+                         trans_date > ?
+                         OR (trans_date = ? AND trans_id > ?)
+                       )
+                """,
+                (delta, account_id, new_trans_id, trans_date, trans_date, new_trans_id),
+            )
+            data["downstream_adjusted"] = cursor.rowcount
+        else:
+            data["downstream_adjusted"] = 0
+
         conn.commit()
 
 
@@ -668,9 +692,9 @@ def db_add_fd_master(data: dict) -> int:
                 data["account_id"],
                 data["fd_number"],
                 data["principal_amount"],
-                data["interest_rate"],
+                data.get("interest_rate"),
                 data["open_dt"],
-                data["maturity_dt"],
+                data.get("maturity_dt"),
             ),
         )
         conn.commit()
@@ -739,29 +763,109 @@ def db_add_fd_transaction(data: dict) -> int:
 # ---------------------------------------------------------------------------
 
 
-def get_transactions_for_pairing(account_id: int, limit: int = 100) -> list:
-    """Return recent bank_transactions eligible for pair_id selection.
+def get_transactions_for_pairing(
+    account_id: int | None = None,
+    limit: int = 500,
+    exclude_trans_id: int | None = None,
+    current_pair_id: int | None = None,
+    account_filter_mode: str = "ALL",
+    pair_status_filter: str = "ALL",
+) -> list:
+    """Return bank_transactions eligible for pair_id selection.
 
-    Returns rows of (trans_id, serial_no, trans_date, bank_desc,
-    withdrawal_amount, deposit_amount) ordered newest-first.
-    Only rows with pair_id IS NULL are included.
+    Returns rows of:
+    (trans_id, serial_no, trans_date, account_name, bank_desc,
+     withdrawal_amount, deposit_amount, entry_type, pair_id, account_id)
+    ordered newest-first.
+
+    Parameters
+    ----------
+    account_id : int, optional
+        The current account ID to filter against when account_filter_mode is
+        'SAME' or 'OTHER'.
+    limit : int, default 500
+        Maximum number of rows to return.
+    exclude_trans_id : int, optional
+        The transaction ID being edited (to prevent self-pairing).
+    current_pair_id : int, optional
+        The transaction ID already paired with this transaction, so it remains
+        selectable/visible even though its pair_id is not NULL.
+    account_filter_mode : str, default 'ALL'
+        'ALL'   - all accounts.
+        'SAME'  - only transactions in account_id.
+        'OTHER' - only transactions in other accounts (account_id != account_id).
+    pair_status_filter : str, default 'ALL'
+        'ALL'      - all transactions (unpaired, existing pairs, and chains).
+        'UNPAIRED' - only transactions with pair_id IS NULL or 0.
+        'PAIRED'   - only transactions that already have a pair_id.
     """
     with get_db_connection(BANK_DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute(
+        where_clauses = []
+        params = []
+
+        # 1. Pair status filter
+        p_status = (pair_status_filter or "ALL").upper()
+        if p_status == "UNPAIRED":
+            if current_pair_id is not None:
+                if exclude_trans_id is not None:
+                    where_clauses.append(
+                        "(t.pair_id IS NULL OR t.pair_id = 0 OR t.trans_id = ? OR t.pair_id = ?)"
+                    )
+                    params.extend([current_pair_id, exclude_trans_id])
+                else:
+                    where_clauses.append(
+                        "(t.pair_id IS NULL OR t.pair_id = 0 OR t.trans_id = ?)"
+                    )
+                    params.append(current_pair_id)
+            elif exclude_trans_id is not None:
+                where_clauses.append(
+                    "(t.pair_id IS NULL OR t.pair_id = 0 OR t.pair_id = ?)"
+                )
+                params.append(exclude_trans_id)
+            else:
+                where_clauses.append("(t.pair_id IS NULL OR t.pair_id = 0)")
+        elif p_status == "PAIRED":
+            where_clauses.append("(t.pair_id IS NOT NULL AND t.pair_id != 0)")
+        # 'ALL': no pair_id restriction; any transaction can be selected as pair target!
+
+        # 2. Exclude self
+        if exclude_trans_id is not None:
+            where_clauses.append("t.trans_id != ?")
+            params.append(exclude_trans_id)
+
+        # 3. Account filter mode
+        mode = (account_filter_mode or "ALL").upper()
+        if account_id is not None:
+            if mode == "SAME":
+                where_clauses.append("t.account_id = ?")
+                params.append(account_id)
+            elif mode == "OTHER":
+                where_clauses.append("t.account_id != ?")
+                params.append(account_id)
+
+        where_sql = " AND ".join(where_clauses)
+        if where_sql:
+            where_sql = "WHERE " + where_sql
+
+        query = (
             "SELECT t.trans_id, t.serial_no, t.trans_date, "
-            "(CASE WHEN t.bank_desc IS NULL OR t.bank_desc = '' "
-            "THEN (b.name || ' [' || a.ac_number || ']') "
-            "ELSE (b.name || ' [' || a.ac_number || '] - ' || t.bank_desc) END) as bank_desc, "
-            "t.withdrawal_amount, t.deposit_amount "
+            "(b.name || ' [' || a.ac_number || ']') as account_name, "
+            "COALESCE(t.bank_desc, '') as bank_desc, "
+            "COALESCE(t.withdrawal_amount, 0.0) as withdrawal_amount, "
+            "COALESCE(t.deposit_amount, 0.0) as deposit_amount, "
+            "COALESCE(t.entry_type, '') as entry_type, "
+            "t.pair_id, "
+            "t.account_id "
             "FROM bank_transactions t "
             "JOIN accounts a ON t.account_id = a.ac_id "
             "JOIN banks b ON a.b_id = b.b_id "
-            "WHERE t.account_id != ? AND t.pair_id IS NULL AND t.entry_type = 'TRANSFER' "
+            f"{where_sql} "
             "ORDER BY t.trans_date DESC, t.trans_id DESC "
-            "LIMIT ?",
-            (account_id, limit),
+            "LIMIT ?"
         )
+        params.append(limit)
+        cursor.execute(query, params)
         return cursor.fetchall()
 
 
@@ -831,6 +935,119 @@ def get_account_curr_balance(account_id: int) -> float | None:
         )
         row = cursor.fetchone()
         return float(row[0]) if row and row[0] is not None else None
+
+
+def get_balance_before_date(
+    account_id: int, trans_date: str, before_trans_id: int | None = None
+) -> float:
+    """Return the running balance of account_id immediately preceding the given date.
+
+    If before_trans_id is provided, returns the balance immediately preceding that transaction
+    (useful when multiple transactions exist on the same date).
+    If no prior transactions exist, returns the account's opening curr_balance from accounts table.
+    """
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        if before_trans_id is not None:
+            cursor.execute(
+                """
+                SELECT balance_after FROM bank_transactions
+                WHERE account_id = ?
+                  AND (trans_date < ? OR (trans_date = ? AND trans_id < ?))
+                ORDER BY trans_date DESC, trans_id DESC
+                LIMIT 1
+                """,
+                (account_id, trans_date, trans_date, before_trans_id),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT balance_after FROM bank_transactions
+                WHERE account_id = ?
+                  AND trans_date <= ?
+                ORDER BY trans_date DESC, trans_id DESC
+                LIMIT 1
+                """,
+                (account_id, trans_date),
+            )
+        row = cursor.fetchone()
+        if row is not None and row[0] is not None:
+            return float(row[0])
+
+        cursor.execute(
+            "SELECT curr_balance FROM accounts WHERE ac_id = ?",
+            (account_id,),
+        )
+        acct_row = cursor.fetchone()
+        return float(acct_row[0]) if acct_row and acct_row[0] is not None else 0.0
+
+
+def recalculate_account_balances(account_id: int) -> dict:
+    """Recalculate balance_after for all transactions of account_id in chronological order.
+
+    Starting from the account's opening curr_balance in accounts table,
+    walks through all bank_transactions ordered by (trans_date ASC, trans_id ASC),
+    and updates balance_after = prev_balance + deposit_amount - withdrawal_amount.
+
+    Returns a dict with:
+      - account_id: int
+      - total_rows: int
+      - rows_updated: int
+      - opening_balance: float
+      - final_balance: float
+    """
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT curr_balance FROM accounts WHERE ac_id = ?",
+            (account_id,),
+        )
+        acct_row = cursor.fetchone()
+        opening_balance = float(acct_row[0]) if acct_row and acct_row[0] is not None else 0.0
+
+        cursor.execute(
+            """
+            SELECT trans_id, trans_date, withdrawal_amount, deposit_amount, balance_after
+            FROM bank_transactions
+            WHERE account_id = ?
+            ORDER BY trans_date ASC, trans_id ASC
+            """,
+            (account_id,),
+        )
+        rows = cursor.fetchall()
+        running = opening_balance
+        rows_updated = 0
+
+        for trans_id, trans_date, withdrawal, deposit, stored_balance in rows:
+            w = float(withdrawal or 0.0)
+            d = float(deposit or 0.0)
+            expected = round(running + d - w, 2)
+            if stored_balance is None or abs(float(stored_balance) - expected) > 1e-6:
+                cursor.execute(
+                    "UPDATE bank_transactions SET balance_after = ? WHERE trans_id = ?",
+                    (expected, trans_id),
+                )
+                rows_updated += 1
+            running = expected
+
+        conn.commit()
+
+        return {
+            "account_id": account_id,
+            "total_rows": len(rows),
+            "rows_updated": rows_updated,
+            "opening_balance": opening_balance,
+            "final_balance": running,
+        }
+
+
+def recalculate_all_accounts_balances() -> list[dict]:
+    """Recalculate balances for all accounts in the database."""
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT ac_id FROM accounts ORDER BY ac_id")
+        acct_ids = [r[0] for r in cursor.fetchall()]
+    return [recalculate_account_balances(aid) for aid in acct_ids]
 
 
 def get_last_used_account_id() -> int | None:
@@ -1304,6 +1521,89 @@ def db_add_ppf_transaction(data: dict) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Income Tax helpers
+# ---------------------------------------------------------------------------
+
+
+def calculate_fy_ay(date_str: str) -> tuple[str, str]:
+    """Calculate Indian Financial Year (FY) and Assessment Year (AY) from YYYY-MM-DD.
+
+    Example:
+        '2026-06-15' -> ('2026-27', '2027-28')
+        '2026-02-10' -> ('2025-26', '2026-27')
+    """
+    try:
+        parts = date_str.split("-")
+        year = int(parts[0])
+        month = int(parts[1])
+        if month >= 4:
+            fy = f"{year}-{str(year + 1)[-2:]}"
+            ay = f"{year + 1}-{str(year + 2)[-2:]}"
+        else:
+            fy = f"{year - 1}-{str(year)[-2:]}"
+            ay = f"{year}-{str(year + 1)[-2:]}"
+        return fy, ay
+    except Exception:
+        return "", ""
+
+
+def infer_tax_section(
+    bh_name: str | None = None,
+    is_direct_it: bool = False,
+    is_deposit: bool = True,
+) -> str:
+    """Infer common tax section / category based on budget head and context.
+
+    192        - Salary & Pension
+    194        - Dividend
+    194A       - Bank / FD Interest
+    REFUND     - Direct IT refund
+    DIRECT_TAX - Advance / Self-Assessment Tax
+    TDS        - General TDS
+    """
+    if is_direct_it:
+        return "REFUND" if is_deposit else "DIRECT_TAX"
+    if bh_name:
+        b_lower = bh_name.lower()
+        if "interest" in b_lower:
+            return "194A"
+        if "dividend" in b_lower:
+            return "194"
+        if "pension" in b_lower or "salary" in b_lower:
+            return "192"
+    return "TDS"
+
+
+def get_income_tax_for_trans(trans_id: int) -> dict | None:
+    """Fetch linked income_tax row for a bank transaction, if any."""
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT tax_id, tax_date, source_type, source_ref_id, trans_id, "
+            "tax_amount, refund_amount, financial_year, assessment_year, "
+            "tax_section, remarks "
+            "FROM income_tax WHERE trans_id = ?",
+            (trans_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "tax_id": row[0],
+            "tax_date": row[1],
+            "source_type": row[2],
+            "source_ref_id": row[3],
+            "trans_id": row[4],
+            "tax_amount": row[5],
+            "refund_amount": row[6],
+            "financial_year": row[7],
+            "assessment_year": row[8],
+            "tax_section": row[9],
+            "remarks": row[10],
+        }
+
+
+# ---------------------------------------------------------------------------
 # New-signature transaction writer (v2)
 # ---------------------------------------------------------------------------
 
@@ -1352,7 +1652,13 @@ def add_bank_transaction_v2(data: dict) -> int:
     withdrawal_amount = float(data.get("withdrawal_amount", 0.0))
     deposit_amount = float(data.get("deposit_amount", 0.0))
     balance_after = float(data.get("balance_after", 0.0))
-    pair_id = data.get("pair_id")
+    pair_id_raw = data.get("pair_id")
+    pair_id: int | None = None
+    if pair_id_raw is not None and str(pair_id_raw).strip() != "":
+        try:
+            pair_id = int(pair_id_raw)
+        except (ValueError, TypeError):
+            pair_id = None
     bh_id = data.get("bh_id")
     module_type = data.get("module_type", "NONE")
     master_id = data.get("master_id")
@@ -1507,8 +1813,87 @@ def add_bank_transaction_v2(data: dict) -> int:
                 entry_type,
             ),
         )
+        new_trans_id = cursor.lastrowid
+
+        # Downstream balance adjustment:
+        # If this transaction is entered on an intermediate date, adjust balance_after
+        # for all subsequent transactions for the same account to accommodate this entry.
+        delta = round(deposit_amount - withdrawal_amount, 2)
+        if abs(delta) > 1e-9:
+            cursor.execute(
+                """
+                UPDATE bank_transactions
+                   SET balance_after = ROUND(balance_after + ?, 2)
+                 WHERE account_id = ?
+                   AND trans_id != ?
+                   AND (
+                         trans_date > ?
+                         OR (trans_date = ? AND trans_id > ?)
+                       )
+                """,
+                (delta, account_id, new_trans_id, trans_date, trans_date, new_trans_id),
+            )
+            data["downstream_adjusted"] = cursor.rowcount
+        else:
+            data["downstream_adjusted"] = 0
+
+        # Reciprocal pair link: link partner back only if partner has no existing pair_id
+        if pair_id is not None:
+            cursor.execute(
+                "UPDATE bank_transactions SET pair_id = ? WHERE trans_id = ? AND (pair_id IS NULL OR pair_id = 0)",
+                (new_trans_id, pair_id),
+            )
+
+        # Income Tax linkage
+        is_direct_it = bool(data.get("is_direct_it", False))
+        tds_amount = float(data.get("tds_amount", 0.0) or 0.0)
+        if is_direct_it:
+            tax_amt = withdrawal_amount if withdrawal_amount > 0 else 0.0
+            ref_amt = deposit_amount if deposit_amount > 0 else 0.0
+            fy, ay = calculate_fy_ay(trans_date)
+            tax_sec = data.get("tax_section") or ("REFUND" if ref_amt > 0 else "DIRECT_TAX")
+            cursor.execute(
+                "INSERT INTO income_tax ("
+                "tax_date, source_type, source_ref_id, trans_id, tax_amount, refund_amount, "
+                "financial_year, assessment_year, tax_section, remarks"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    trans_date,
+                    "BANK",
+                    new_trans_id,
+                    new_trans_id,
+                    tax_amt,
+                    ref_amt,
+                    fy,
+                    ay,
+                    tax_sec,
+                    data.get("tax_remarks") or data.get("user_desc") or bank_desc,
+                ),
+            )
+        elif tds_amount > 0.0:
+            fy, ay = calculate_fy_ay(trans_date)
+            tax_sec = data.get("tax_section") or infer_tax_section(data.get("bh_name"), False, True)
+            cursor.execute(
+                "INSERT INTO income_tax ("
+                "tax_date, source_type, source_ref_id, trans_id, tax_amount, refund_amount, "
+                "financial_year, assessment_year, tax_section, remarks"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    trans_date,
+                    "BANK",
+                    new_trans_id,
+                    new_trans_id,
+                    tds_amount,
+                    0.0,
+                    fy,
+                    ay,
+                    tax_sec,
+                    data.get("tax_remarks") or data.get("user_desc") or bank_desc,
+                ),
+            )
+
         conn.commit()
-        return cursor.lastrowid
+        return new_trans_id
 
 
 def db_update_bank_transaction(
@@ -1535,6 +1920,11 @@ def db_update_bank_transaction(
     old_module_type: str | None,
     old_module_ref_id: int | None,
     account_id: int,
+    is_direct_it: bool = False,
+    tds_amount: float = 0.0,
+    tax_section: str | None = None,
+    tax_remarks: str | None = None,
+    bh_name: str | None = None,
 ) -> dict:
     """Update a bank_transactions row and apply all cascading effects.
 
@@ -1674,10 +2064,11 @@ def db_update_bank_transaction(
                 if cursor.rowcount:
                     cascades["old_pair_unlinked"] = True
 
-            # Link the new partner (if any) back to this row.
+            # Link the new partner (if any) back to this row only if partner has no existing pair_id.
             if pair_id is not None:
                 cursor.execute(
-                    "UPDATE bank_transactions SET pair_id = ? " "WHERE trans_id = ?",
+                    "UPDATE bank_transactions SET pair_id = ? "
+                    "WHERE trans_id = ? AND (pair_id IS NULL OR pair_id = 0)",
                     (trans_id, pair_id),
                 )
                 if cursor.rowcount:
@@ -1814,6 +2205,58 @@ def db_update_bank_transaction(
             # sub-ledger row automatically.
             cascades["subledger_module_changed"] = True
 
+        # Cascade 4 — Income Tax synchronization
+        cursor.execute("SELECT tax_id FROM income_tax WHERE trans_id = ?", (trans_id,))
+        tax_row = cursor.fetchone()
+        existing_tax_id = tax_row[0] if tax_row else None
+
+        if is_direct_it:
+            tax_amt = withdrawal_amount if withdrawal_amount > 0 else 0.0
+            ref_amt = deposit_amount if deposit_amount > 0 else 0.0
+            fy, ay = calculate_fy_ay(trans_date)
+            sec = tax_section or ("REFUND" if ref_amt > 0 else "DIRECT_TAX")
+            rem = tax_remarks or user_desc or bank_desc
+            if existing_tax_id:
+                cursor.execute(
+                    "UPDATE income_tax SET tax_date = ?, tax_amount = ?, refund_amount = ?, "
+                    "financial_year = ?, assessment_year = ?, tax_section = ?, remarks = ? "
+                    "WHERE tax_id = ?",
+                    (trans_date, tax_amt, ref_amt, fy, ay, sec, rem, existing_tax_id),
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO income_tax ("
+                    "tax_date, source_type, source_ref_id, trans_id, tax_amount, refund_amount, "
+                    "financial_year, assessment_year, tax_section, remarks"
+                    ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (trans_date, "BANK", trans_id, trans_id, tax_amt, ref_amt, fy, ay, sec, rem),
+                )
+            cascades["tax_updated"] = True
+        elif tds_amount > 0.0:
+            fy, ay = calculate_fy_ay(trans_date)
+            sec = tax_section or infer_tax_section(bh_name, False, True)
+            rem = tax_remarks or user_desc or bank_desc
+            if existing_tax_id:
+                cursor.execute(
+                    "UPDATE income_tax SET tax_date = ?, tax_amount = ?, refund_amount = 0.0, "
+                    "financial_year = ?, assessment_year = ?, tax_section = ?, remarks = ? "
+                    "WHERE tax_id = ?",
+                    (trans_date, tds_amount, fy, ay, sec, rem, existing_tax_id),
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO income_tax ("
+                    "tax_date, source_type, source_ref_id, trans_id, tax_amount, refund_amount, "
+                    "financial_year, assessment_year, tax_section, remarks"
+                    ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (trans_date, "BANK", trans_id, trans_id, tds_amount, 0.0, fy, ay, sec, rem),
+                )
+            cascades["tax_updated"] = True
+        else:
+            if existing_tax_id:
+                cursor.execute("DELETE FROM income_tax WHERE tax_id = ?", (existing_tax_id,))
+                cascades["tax_removed"] = True
+
         conn.commit()
 
     return cascades
@@ -1939,9 +2382,9 @@ def db_add_ins_master(data: dict) -> int:
         cursor = conn.cursor()
         cursor.execute("PRAGMA foreign_keys = ON;")
         cursor.execute(
-            "INSERT INTO ins_master (account_id, company_name, ins_category, policy_number, plan_name, proposer_name, assured_item, premium_amount, start_dt, maturity_dt, is_active) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (data["account_id"], data["company_name"], data["ins_category"], data["policy_number"], data["plan_name"], data["proposer_name"], data["assured_item"], float(data.get("premium_amount", 0.0)), data["start_dt"], data.get("maturity_dt"), int(data.get("is_active", 1)))
+            "INSERT INTO ins_master (account_id, company_name, ins_category, policy_number, plan_name, proposer_name, assured_item, sum_assured, premium_amount, start_dt, maturity_dt, is_active) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (data["account_id"], data["company_name"], data["ins_category"], data["policy_number"], data["plan_name"], data["proposer_name"], data["assured_item"], data.get("sum_assured"), float(data.get("premium_amount", 0.0)), data["start_dt"], data.get("maturity_dt"), int(data.get("is_active", 1)))
         )
         conn.commit()
         return cursor.lastrowid
@@ -1992,3 +2435,96 @@ def get_ins_summary_for_display() -> list:
             '''
         )
         return cursor.fetchall()
+
+
+def get_all_mf_masters_for_display() -> list:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT m.mf_master_id, m.folio_number, m.scheme_name, m.amc_name, m.rta_name,
+                   b.name AS ac_name, a.ac_number
+            FROM mf_master m
+            JOIN accounts a ON a.ac_id = m.account_id
+            JOIN banks b ON b.b_id = a.b_id
+            WHERE m.is_active = 1
+            ORDER BY m.amc_name, m.scheme_name
+            """
+        )
+        rows = cursor.fetchall()
+        results = []
+        for r in rows:
+            d = dict(r)
+            d["display_label"] = f"{d['amc_name']} | {d['scheme_name']} [Folio: {d['folio_number']}]"
+            results.append(d)
+        return results
+
+
+def get_all_ins_masters_for_display() -> list:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT i.ins_master_id, i.policy_number, i.plan_name, i.company_name,
+                   b.name AS ac_name, a.ac_number
+            FROM ins_master i
+            JOIN accounts a ON a.ac_id = i.account_id
+            JOIN banks b ON b.b_id = a.b_id
+            WHERE i.is_active = 1
+            ORDER BY i.company_name, i.plan_name
+            """
+        )
+        rows = cursor.fetchall()
+        results = []
+        for r in rows:
+            d = dict(r)
+            d["display_label"] = f"{d['company_name']} - {d['plan_name']} [Pol: {d['policy_number']}]"
+            results.append(d)
+        return results
+
+
+def db_add_mf_transaction(data: dict) -> int:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON;")
+        cursor.execute(
+            """
+            INSERT INTO mf_transactions (
+                mf_master_id, account_id, mf_trans_dt, mf_description, 
+                mf_purchase, mf_redemption, units, nav
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["mf_master_id"],
+                data["account_id"],
+                data["mf_trans_dt"],
+                data["mf_description"],
+                data["mf_purchase"],
+                data["mf_redemption"],
+                data["units"],
+                data["nav"]
+            )
+        )
+        return cursor.lastrowid
+
+def db_add_ins_transaction(data: dict) -> int:
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON;")
+        cursor.execute(
+            """
+            INSERT INTO ins_transactions (
+                ins_master_id, account_id, ins_trans_dt, ins_description, 
+                premium_paid, payout_received
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["ins_master_id"],
+                data["account_id"],
+                data["ins_trans_dt"],
+                data["ins_description"],
+                data["premium_paid"],
+                data["payout_received"]
+            )
+        )
+        return cursor.lastrowid

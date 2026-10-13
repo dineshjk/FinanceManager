@@ -633,12 +633,17 @@ def add_cc_master_main(
             new_id = _db_add_card_master(data)
             session_records.append({**data, "account_label": account_label})
             _session_count_var.set(f"Cards added this session: {len(session_records)}")
-            show_colorful_info(
+            _yes = show_colorful_yesno(
                 win,
                 "Saved",
                 f"Credit card '{card_name}' saved successfully "
-                f"(card_master_id = {new_id}).",
+                f"(card_master_id = {new_id}).\n\nDo you want to add another record?",
             )
+            if not _yes:
+
+                cleanup_and_close()
+
+                return
             _reset_form()
         except Exception as exc:  # noqa: BLE001
             logger.exception("add_card_master failed: %s", exc)

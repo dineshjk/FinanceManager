@@ -233,9 +233,9 @@ def _show_session_viewer(
             ("FD Number", rec.get("fd_number")),
             ("Linked Account", rec.get("account_label")),
             ("Principal (\u20b9)", f"{rec.get('principal_amount', 0.0):,.2f}"),
-            ("Interest Rate (%)", f"{rec.get('interest_rate', 0.0):.4f}"),
+            ("Interest Rate (%)", f"{rec['interest_rate']:.4f}" if rec.get("interest_rate") is not None else "-"),
             ("Open Date", rec.get("open_dt")),
-            ("Maturity Date", rec.get("maturity_dt")),
+            ("Maturity Date", rec.get("maturity_dt") or "-"),
             ("Is Active", "Yes" if rec.get("is_active") else "No"),
         ]
         for label, val in fields:
@@ -485,7 +485,7 @@ def add_fd_master_main(
     bind_tooltip(
         interest_entry,
         tooltip_var,
-        "Annual interest rate, e.g. enter 7.25 for 7.25% p.a.",
+        "Annual interest rate, e.g. enter 7.25 for 7.25% p.a. (leave blank if unknown).",
     )
 
     is_active_var = tk.BooleanVar(value=True)
@@ -504,7 +504,7 @@ def add_fd_master_main(
     bind_tooltip(
         is_active_cb,
         tooltip_var,
-        "Tick = FD is currently active. Untick for matured or closed " "FDs.",
+        "Tick = FD is currently active. Untick for matured or closed FDs.",
     )
 
     # ── Band 3: Open Date + Maturity Date ────────────────────────────────
@@ -522,7 +522,34 @@ def add_fd_master_main(
     maturity_dt = DateEntry(dates_erow, date_pattern="dd-mm-yyyy", width=14, font=_F)
     maturity_dt.pack(side="left", padx=(18, 0))
     apply_entry_theme(maturity_dt)
-    bind_tooltip(maturity_dt, tooltip_var, "Date the FD matures.")
+    bind_tooltip(maturity_dt, tooltip_var, "Date the FD matures (or tick 'No / Unknown Maturity').")
+
+    no_maturity_var = tk.BooleanVar(value=False)
+    no_maturity_cb = tk.Checkbutton(
+        dates_erow,
+        variable=no_maturity_var,
+        text="No / Unknown Maturity",
+        font=_F,
+        bg=_C_DATES,
+        fg=_T["label_fg"],
+        selectcolor="#001a50",
+        activebackground=_C_DATES,
+        activeforeground=_T["label_fg"],
+    )
+    no_maturity_cb.pack(side="left", padx=(14, 0))
+    bind_tooltip(
+        no_maturity_cb,
+        tooltip_var,
+        "Tick if maturity date is unknown or not fixed.",
+    )
+
+    def _on_toggle_no_maturity():
+        if no_maturity_var.get():
+            maturity_dt.config(state="disabled")
+        else:
+            maturity_dt.config(state="normal")
+
+    no_maturity_cb.config(command=_on_toggle_no_maturity)
 
     bind_date_spin(open_dt)
     bind_date_spin(maturity_dt)
@@ -546,6 +573,8 @@ def add_fd_master_main(
         principal_entry.delete(0, "end")
         interest_entry.delete(0, "end")
         is_active_var.set(True)
+        no_maturity_var.set(False)
+        maturity_dt.config(state="normal")
         import datetime
 
         open_dt.set_date(datetime.date.today())
@@ -584,39 +613,53 @@ def add_fd_master_main(
             )
             return
 
-        # Interest Rate
-        try:
-            rate_str = interest_entry.get().strip().replace(",", "")
-            interest_rate = float(rate_str)
-            if interest_rate <= 0:
-                raise ValueError
-        except ValueError:
-            flash_error(interest_entry)
-            show_colorful_error(
-                win,
-                "Validation Error",
-                "Interest rate must be a positive number (e.g. " "7.25).",
-            )
-            return
+        # Interest Rate (optional)
+        rate_str = interest_entry.get().strip().replace(",", "")
+        if rate_str:
+            try:
+                interest_rate = float(rate_str)
+                if interest_rate < 0:
+                    raise ValueError
+            except ValueError:
+                flash_error(interest_entry)
+                show_colorful_error(
+                    win,
+                    "Validation Error",
+                    "Interest rate must be a valid non-negative number (or left blank).",
+                )
+                return
+        else:
+            interest_rate = None
 
         # Dates
         try:
             open_date = open_dt.get_date()
-            maturity_date = maturity_dt.get_date()
         except Exception:  # noqa: BLE001
             show_colorful_error(
-                win, "Validation Error", "Please enter valid open and maturity dates."
+                win, "Validation Error", "Please enter a valid open date."
             )
             return
 
-        if maturity_date <= open_date:
-            flash_error(maturity_dt)
-            show_colorful_error(
-                win,
-                "Validation Error",
-                "Maturity date must be later than the open date.",
-            )
-            return
+        if no_maturity_var.get():
+            maturity_date_str = None
+        else:
+            try:
+                maturity_date = maturity_dt.get_date()
+            except Exception:  # noqa: BLE001
+                show_colorful_error(
+                    win, "Validation Error", "Please enter a valid maturity date."
+                )
+                return
+
+            if maturity_date <= open_date:
+                flash_error(maturity_dt)
+                show_colorful_error(
+                    win,
+                    "Validation Error",
+                    "Maturity date must be later than the open date.",
+                )
+                return
+            maturity_date_str = maturity_date.strftime("%Y-%m-%d")
 
         data = {
             "account_id": account_map[acct_label],
@@ -624,7 +667,7 @@ def add_fd_master_main(
             "principal_amount": principal,
             "interest_rate": interest_rate,
             "open_dt": open_date.strftime("%Y-%m-%d"),
-            "maturity_dt": maturity_date.strftime("%Y-%m-%d"),
+            "maturity_dt": maturity_date_str,
             "is_active": 1 if is_active_var.get() else 0,
         }
 
@@ -645,7 +688,12 @@ def add_fd_master_main(
         )
         session_count_var.set(f"Session: {len(session_records)} saved")
 
-        show_colorful_info(win, "Saved", f"FD Master saved (ID {fd_master_id}).")
+        _yes = show_colorful_yesno(win, 'Success', f"FD Master saved (ID {fd_master_id})." + '\n\nDo you want to add another record?')
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
         _reset_form()
 
     save_btn = tk.Button(

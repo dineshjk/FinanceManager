@@ -109,6 +109,9 @@ from .bank_db_utils import (
     get_all_loan_masters_for_display,
     get_last_loan_principal_due,
     db_add_loan_transaction,
+    get_balance_before_date,
+    recalculate_account_balances,
+    recalculate_all_accounts_balances,
 )
 
 __all__ = [
@@ -177,4 +180,7 @@ __all__ = [
     "get_all_loan_masters_for_display",
     "get_last_loan_principal_due",
     "db_add_loan_transaction",
+    "get_balance_before_date",
+    "recalculate_account_balances",
+    "recalculate_all_accounts_balances",
 ]

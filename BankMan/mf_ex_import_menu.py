@@ -1,0 +1,125 @@
+# -*- coding: utf-8 -*-
+# BankMan/mf_ex_import_menu.py
+
+"""
+MF Export / Import sub-menus for the BankMan application.
+Each function opens a 3-button sub-menu (Master | Transactions | Back).
+"""
+
+from Shared.menu_factory import create_menu_window
+from Shared.modal_utils import disable_parent, enable_parent
+from Shared.window_manager import push_window, pop_window
+from .mf_ex_import import export_mf, import_mf
+from .mf_transactions_ex_import import (
+    export_mf_transactions,
+    import_mf_transactions,
+)
+
+# ---------------------------------------------------------------------------
+# Export sub-menu
+# ---------------------------------------------------------------------------
+
+
+def show_mf_export_menu(parent, come_back_index=None):
+    """Sub-menu: MF → Export."""
+
+    modal_id = disable_parent(parent)
+
+    def close_modal() -> None:
+        pop_window()
+        menu_window.destroy()
+
+    menu_config = {
+        "title": "Export — MF",
+        "geometry": "400x300",
+        "style": "Menu.TButton",
+        "parent": parent,
+        "modal": True,
+        "bg": "#d9b3f5",
+        "buttons": [
+            {
+                "text": "MF Master",
+                "hotkey": "M",
+                "command": lambda: export_mf(menu_window),
+            },
+            {
+                "text": "MF Transactions",
+                "hotkey": "T",
+                "command": lambda: export_mf_transactions(menu_window),
+            },
+            {
+                "text": "Previous Menu",
+                "hotkey": "P",
+                "command": close_modal,
+            },
+        ],
+        "padx": 60,
+        "pady": 5,
+        "come_back_index": come_back_index,
+    }
+
+    menu_window, _ = create_menu_window(menu_config)
+    menu_window.protocol("WM_DELETE_WINDOW", close_modal)
+
+    push_window(menu_window, parent)
+    parent.wait_window(menu_window)
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
+    enable_parent(modal_id)
+
+
+# ---------------------------------------------------------------------------
+# Import sub-menu
+# ---------------------------------------------------------------------------
+
+
+def show_mf_import_menu(parent, come_back_index=None):
+    """Sub-menu: MF → Import."""
+
+    modal_id = disable_parent(parent)
+
+    def close_modal() -> None:
+        pop_window()
+        menu_window.destroy()
+
+    menu_config = {
+        "title": "Import — MF",
+        "geometry": "400x300",
+        "style": "Menu.TButton",
+        "parent": parent,
+        "modal": True,
+        "bg": "#f5d9a0",
+        "buttons": [
+            {
+                "text": "MF Master",
+                "hotkey": "M",
+                "command": lambda: import_mf(menu_window),
+            },
+            {
+                "text": "MF Transactions",
+                "hotkey": "T",
+                "command": lambda: import_mf_transactions(menu_window),
+            },
+            {
+                "text": "Previous Menu",
+                "hotkey": "P",
+                "command": close_modal,
+            },
+        ],
+        "padx": 60,
+        "pady": 5,
+        "come_back_index": come_back_index,
+    }
+
+    menu_window, _ = create_menu_window(menu_config)
+    menu_window.protocol("WM_DELETE_WINDOW", close_modal)
+
+    push_window(menu_window, parent)
+    parent.wait_window(menu_window)
+    try:
+        parent.grab_set()
+    except Exception:
+        pass
+    enable_parent(modal_id)

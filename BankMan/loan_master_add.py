@@ -671,7 +671,12 @@ def add_loan_master_main(
 
         session_records.append({**data, "loan_master_id": lm_id})
         session_count_var.set(f"Session: {len(session_records)} saved")
-        show_colorful_info(win, "Saved", f"Loan Master saved (ID {lm_id}).")
+        _yes = show_colorful_yesno(win, 'Success', f"Loan Master saved (ID {lm_id})." + '\n\nDo you want to add another record?')
+        if not _yes:
+
+            cleanup_and_close()
+
+            return
         _reset_form()
 
     save_btn = tk.Button(
