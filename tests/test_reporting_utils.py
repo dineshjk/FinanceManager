@@ -25,6 +25,7 @@ from StockMan.reporting_utils import (
     build_master_corp_tree_rows,
     build_master_dividend_tree_rows,
     build_master_ledger_display_rows,
+    build_passbook_display_rows,
     build_scrip_wise_dividend_data,
     build_performance_summary_rows,
     build_online_action_entries,
@@ -62,6 +63,7 @@ from StockMan.reporting_utils import (
     fetch_master_dividend_source_rows,
     fetch_master_ledger_rows,
     fetch_master_split_rows,
+    fetch_passbook_events,
     has_corporate_action_history,
     format_dividend_value_with_yield,
     get_financial_years,
@@ -134,6 +136,7 @@ def _create_reporting_source_schema(conn):
         );
         CREATE TABLE sell_records (
             id_sell INTEGER PRIMARY KEY,
+            sell_id_trd INTEGER DEFAULT 0,
             id_stk INTEGER NOT NULL,
             buy_dt TEXT NOT NULL,
             sell_dt TEXT NOT NULL,
@@ -1700,3 +1703,148 @@ def test_build_performance_summary_rows():
     assert res["tags"][1] == "loss"
 
     assert res["summary_row"] == ("TOTAL", "₹18,000.00", "₹5,000.00", "₹400.00", "₹10,000.00", "₹1,500.00", "₹-2,600.00")
+
+
+def test_build_passbook_display_rows():
+    mock_events = {
+        "buys": [
+            (1, "2024-01-10", "INFY.NS", 10000.0),
+            (2, "2024-02-15", "TCS.BO", 20000.0),
+        ],
+        "sells": [
+            (3, "2024-06-01", "INFY.NS", 11400.0, 10000.0, 11400.0, 1400.0, 1400000.0),
+        ],
+        "dividends": [
+            (1, "2024-03-01", "ITC", 250.0),
+        ],
+    }
+
+    res = build_passbook_display_rows(mock_events)
+    detail_rows = res["detail_rows"]
+    tags = res["tags"]
+
+    assert len(detail_rows) == 4
+
+    # 1. First BUY
+    # Date, Description, Deposit, Withdrawal, Cum. Inv, Cum. Disinv, Day's Disinv, Cum. P&L, Cum. Ann. %
+    assert detail_rows[0] == (
+        "2024-01-10", "BUY - INFY", "-", "10,000.00", "10,000.00", "0.00", "-", "0.00", "+0.00%"
+    )
+    assert tags[0] == "neutral"
+
+    # 2. Second BUY
+    assert detail_rows[1] == (
+        "2024-02-15", "BUY - TCS", "-", "20,000.00", "30,000.00", "0.00", "-", "0.00", "+0.00%"
+    )
+    assert tags[1] == "neutral"
+
+    # 3. Dividend (order 2, on 2024-03-01)
+    assert detail_rows[2] == (
+        "2024-03-01", "DIV - ITC", "250.00", "-", "30,000.00", "0.00", "-", "250.00", "+11.27%"
+    )
+    assert tags[2] == "profit"
+
+    # 4. Multi-lot SELL (2024-06-01)
+    assert detail_rows[3] == (
+        "2024-06-01", "SELL - INFY", "11,400.00", "-", "30,000.00", "10,000.00", "10,000.00", "1,650.00", "+16.87%"
+    )
+    assert tags[3] == "profit"
+
+
+def test_build_passbook_display_rows_with_date_filter():
+    mock_events = {
+        "buys": [
+            (1, "2023-05-01", "INFY.NS", 10000.0),
+            (2, "2024-05-01", "TCS.NS", 15000.0),
+        ],
+        "sells": [
+            (3, "2024-07-01", "INFY.NS", 12000.0, 10000.0, 12000.0, 2000.0, 4270000.0),
+        ],
+        "dividends": [
+            (1, "2024-06-01", "INFY.NS", 300.0),
+        ],
+    }
+
+    # Filter to FY 2024-25: 2024-04-01 to 2025-03-31
+    res = build_passbook_display_rows(
+        mock_events,
+        start_date="2024-04-01",
+        end_date="2025-03-31",
+    )
+    detail_rows = res["detail_rows"]
+
+    # The 2023 buy is excluded from display, but Cum. Inv and Rupee-Days carry forward
+    assert len(detail_rows) == 3
+    # 2024-05-01 Buy: cum_inv = 10,000 + 15,000 = 25,000
+    assert detail_rows[0][0] == "2024-05-01"
+    assert detail_rows[0][1] == "BUY - TCS"
+    assert detail_rows[0][4] == "25,000.00"
+    assert detail_rows[0][7] == "0.00"
+
+    # 2024-06-01 Div: cum_pnl = 300.00
+    assert detail_rows[1][0] == "2024-06-01"
+    assert detail_rows[1][1] == "DIV - INFY"
+    assert detail_rows[1][7] == "300.00"
+    assert detail_rows[1][8] == "+2.47%"
+
+    # 2024-07-01 Sell: cum_disinv = 10,000, cum_pnl = 2,300.00
+    assert detail_rows[2][0] == "2024-07-01"
+    assert detail_rows[2][1] == "SELL - INFY"
+    assert detail_rows[2][5] == "10,000.00"
+    assert detail_rows[2][7] == "2,300.00"
+    assert detail_rows[2][8] == "+16.19%"
+
+
+def test_fetch_passbook_events():
+    conn = sqlite3.connect(":memory:")
+    _create_reporting_source_schema(conn)
+    cur = conn.cursor()
+
+    cur.execute("INSERT INTO stocks (id_stk, short_name, ticker) VALUES (1, 'Infosys', 'INFY.NS')")
+    cur.execute(
+        "INSERT INTO transactions (id_trd, id_stk, cont_no, trd_dt, trade_type_trd, qty_trd, net_amt_trd) "
+        "VALUES (10, 1, 'C1', '2024-01-15', 'BUY', 10, 15000.0)"
+    )
+    cur.execute(
+        "INSERT INTO transactions (id_trd, id_stk, cont_no, trd_dt, trade_type_trd, qty_trd, net_amt_trd) "
+        "VALUES (20, 1, 'C2', '2024-06-15', 'SELL', 10, 18000.0)"
+    )
+    cur.execute(
+        "INSERT INTO sell_records (id_sell, sell_id_trd, id_stk, buy_dt, sell_dt, buy_value, sell_value, sell_qty, pnl_amt, holding_days) "
+        "VALUES (1, 20, 1, '2024-01-15', '2024-06-15', 15000.0, 18000.0, 10, 3000.0, 152)"
+    )
+    cur.execute(
+        "INSERT INTO dividends (id_div, id_stk, record_dt, credit_dt, div_type, entitled_qty, gross_amt, net_amt, tds_amt) "
+        "VALUES (1, 1, '2024-05-01', '2024-05-10', 'FINAL', 10, 200.0, 200.0, 0.0)"
+    )
+    conn.commit()
+
+    events = fetch_passbook_events(cur)
+    assert len(events["buys"]) == 1
+    assert len(events["sells"]) == 1
+    assert len(events["dividends"]) == 1
+
+    # Verify buy row
+    assert events["buys"][0][0] == 10
+    assert events["buys"][0][1] == "2024-01-15"
+    assert events["buys"][0][2] == "INFY.NS"
+    assert events["buys"][0][3] == 15000.0
+
+    # Verify sell row (aggregated)
+    assert events["sells"][0][0] == 20
+    assert events["sells"][0][1] == "2024-06-15"
+    assert events["sells"][0][2] == "INFY.NS"
+    assert events["sells"][0][3] == 18000.0  # net_amt_trd
+    assert events["sells"][0][4] == 15000.0  # total_buy_val
+    assert events["sells"][0][5] == 18000.0  # total_sell_val
+    assert events["sells"][0][6] == 3000.0   # total_pnl
+    assert events["sells"][0][7] == 15000.0 * 152  # total_cost_holding_days
+
+    # Verify dividend row
+    assert events["dividends"][0][0] == 1
+    assert events["dividends"][0][1] == "2024-05-10"
+    assert events["dividends"][0][2] == "INFY.NS"
+    assert events["dividends"][0][3] == 200.0
+
+    conn.close()
+

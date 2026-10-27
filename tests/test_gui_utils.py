@@ -92,5 +92,66 @@ class TestUniversalTreeSort(unittest.TestCase):
         self.assertEqual(len(actual_order), 4)
 
 
+class MockDateWidget:
+    def __init__(self, init_date):
+        self._date = init_date
+        self.bindings = {}
+        self.state = "normal"
+
+    def get_date(self):
+        return self._date
+
+    def set_date(self, d):
+        self._date = d
+
+    def bind(self, seq, fn):
+        self.bindings[seq] = fn
+
+    def cget(self, prop):
+        if prop == "state":
+            return self.state
+        raise ValueError(prop)
+
+
+class TestBindDateSpin(unittest.TestCase):
+    def test_bind_date_spin_up_down(self):
+        from datetime import date
+        from Shared.gui_utils import bind_date_spin
+
+        called = []
+        widget = MockDateWidget(date(2026, 10, 27))
+        bind_date_spin(widget, callback=lambda: called.append(True))
+
+        self.assertIn("<Up>", widget.bindings)
+        self.assertIn("<Down>", widget.bindings)
+
+        # Spin Up
+        ret = widget.bindings["<Up>"](None)
+        self.assertEqual(ret, "break")
+        self.assertEqual(widget.get_date(), date(2026, 10, 28))
+        self.assertEqual(len(called), 1)
+
+        # Spin Down
+        ret = widget.bindings["<Down>"](None)
+        self.assertEqual(ret, "break")
+        self.assertEqual(widget.get_date(), date(2026, 10, 27))
+        self.assertEqual(len(called), 2)
+
+    def test_bind_date_spin_disabled_widget(self):
+        from datetime import date
+        from Shared.gui_utils import bind_date_spin
+
+        called = []
+        widget = MockDateWidget(date(2026, 10, 27))
+        widget.state = "disabled"
+        bind_date_spin(widget, callback=lambda: called.append(True))
+
+        ret = widget.bindings["<Up>"](None)
+        self.assertEqual(ret, "break")
+        # Date must remain untouched when disabled
+        self.assertEqual(widget.get_date(), date(2026, 10, 27))
+        self.assertEqual(len(called), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

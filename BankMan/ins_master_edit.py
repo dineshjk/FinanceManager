@@ -21,6 +21,7 @@ from Shared.gui_utils import (
     flash_error,
     setup_footer_tooltip,
     universal_tree_sort,
+    bind_date_spin,
 )
 from Shared.dialog_utils import show_colorful_error, show_colorful_info, show_colorful_yesno
 from Shared.modal_utils import disable_parent
@@ -372,6 +373,7 @@ def edit_ins_master(
     start_dt = DateEntry(form_frame, date_pattern="dd-mm-yyyy", width=20, font=("Helvetica", 12, "bold"), state="disabled")
     start_dt.grid(row=9, column=1, sticky="w", padx=5, pady=2)
     apply_entry_theme(start_dt)
+    bind_date_spin(start_dt)
 
     # Row 10: Maturity Date
     tk.Label(
@@ -381,6 +383,7 @@ def edit_ins_master(
     maturity_dt = DateEntry(form_frame, date_pattern="dd-mm-yyyy", width=20, font=("Helvetica", 12, "bold"), state="disabled")
     maturity_dt.grid(row=10, column=1, sticky="w", padx=5, pady=2)
     apply_entry_theme(maturity_dt)
+    bind_date_spin(maturity_dt)
 
     # Row 11: Active
     is_active_var = tk.BooleanVar(value=True)

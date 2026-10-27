@@ -2362,6 +2362,42 @@ def db_add_mf_master(data: dict) -> int:
         return cursor.lastrowid
 
 
+def get_distinct_mf_amc_names() -> list[str]:
+    """Return a sorted list of unique AMC names from mf_master."""
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT DISTINCT amc_name FROM mf_master "
+            "WHERE amc_name IS NOT NULL AND TRIM(amc_name) != '' "
+            "ORDER BY amc_name COLLATE NOCASE"
+        )
+        return [row[0] for row in cursor.fetchall()]
+
+
+def get_distinct_mf_rta_names() -> list[str]:
+    """Return a sorted list of unique RTA names from mf_master."""
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT DISTINCT rta_name FROM mf_master "
+            "WHERE rta_name IS NOT NULL AND TRIM(rta_name) != '' "
+            "ORDER BY rta_name COLLATE NOCASE"
+        )
+        return [row[0] for row in cursor.fetchall()]
+
+
+def get_distinct_mf_folio_numbers() -> list[str]:
+    """Return a sorted list of unique folio numbers from mf_master."""
+    with get_db_connection(BANK_DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT DISTINCT folio_number FROM mf_master "
+            "WHERE folio_number IS NOT NULL AND TRIM(folio_number) != '' "
+            "ORDER BY folio_number COLLATE NOCASE"
+        )
+        return [row[0] for row in cursor.fetchall()]
+
+
 # ---------------------------------------------------------------------------
 # INS master helpers
 # ---------------------------------------------------------------------------

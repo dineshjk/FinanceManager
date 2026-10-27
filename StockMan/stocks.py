@@ -50,6 +50,7 @@ from .company_menu import show_company_menu_modal
 from .trade_menu import show_trade_menu_modal
 from .maint_menu import show_maint_menu_modal
 from .watchlist_menu import show_watchlist
+from .transfer_data import export_transfer_data_gui
 
 
 def _get_stockman_hub_help_data():
@@ -60,7 +61,8 @@ def _get_stockman_hub_help_data():
         "• Trade Management: Log your Buy and Sell orders to maintain your portfolio ledger.",
         "• Corporate Actions: Record dividends, stock splits, bonuses, and rights issues.",
         "• Maintenance: Update current market prices (CMP) and perform database backups.",
-        "• Reports: Generate capital gains statements, holding summaries, and performance metrics."
+        "• Reports: Generate capital gains statements, holding summaries, and performance metrics.",
+        "• Transfer Data: Calculate and export discrepant holding data for shares transferred from ICICI Direct to Zerodha."
     ]
     faq_data = [
         (
@@ -90,7 +92,7 @@ def show_stock_portfolio_menu(parent, come_back_index=None):
 
     menu_config = {
         "title": "Stock Portfolio Management",
-        "geometry": "400x530",
+        "geometry": "400x580",
         "style": "Menu.TButton",
         "parent": parent,
         "modal": True,  # This tells the factory to create a Toplevel window
@@ -134,6 +136,11 @@ def show_stock_portfolio_menu(parent, come_back_index=None):
                 "command": lambda: show_watchlist(stock_menu_window),
             },
             {
+                "text": "Transfer Data",
+                "hotkey": "F",
+                "command": lambda: export_transfer_data_gui(stock_menu_window),
+            },
+            {
                 "text": "Previous Menu",
                 "hotkey": "P",
                 # "command": lambda w: on_close(w),
@@ -147,6 +154,16 @@ def show_stock_portfolio_menu(parent, come_back_index=None):
 
     # create_menu_window returns the window and the buttons
     stock_menu_window, _ = create_menu_window(menu_config)
+
+    # Automatically trigger Google Drive & Portfolio startup sequence (once per session)
+    def _trigger_startup():
+        try:
+            from .drive_sync import run_startup_sequence
+            run_startup_sequence(parent=stock_menu_window)
+        except Exception as e:
+            print(f"Startup sync notice: {e}")
+
+    stock_menu_window.after(150, _trigger_startup)
 
     # When the modal window's close button (X) is clicked, handle it gracefully
     stock_menu_window.protocol("WM_DELETE_WINDOW", close_modal)
@@ -296,7 +313,7 @@ def main():
     # No longer needed: windows.main_window_instance = root
     menu_config = {
         "title": STOCK_APP_TITLE,
-        "geometry": "400x530",
+        "geometry": "400x580",
         "style": "MainMenu.TButton",
         "parent": root,
         "modal": False,
@@ -337,12 +354,27 @@ def main():
                 "hotkey": "W",
                 "command": lambda: show_watchlist(root),
             },
+            {
+                "text": "Transfer Data",
+                "hotkey": "F",
+                "command": lambda: export_transfer_data_gui(root),
+            },
             {"text": "Exit", "hotkey": "X", "command": root.destroy},
         ],
         "padx": 60,
         "pady": 5,
     }
     create_menu_window(menu_config)
+
+    # Automatically trigger Google Drive & Portfolio startup sequence
+    def _trigger_startup():
+        try:
+            from .drive_sync import run_startup_sequence
+            run_startup_sequence(parent=root)
+        except Exception as e:
+            print(f"Startup sync notice: {e}")
+
+    root.after(150, _trigger_startup)
     root.mainloop()
 
 

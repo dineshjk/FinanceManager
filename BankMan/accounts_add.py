@@ -242,6 +242,7 @@ def on_submit(
     bank_map: dict,
     win: tk.Toplevel,
     current_session_accounts: dict,
+    cleanup_callback=None,
 ) -> None:
     """Validate inputs, persist the new account, and reset the form."""
     try:
@@ -300,9 +301,10 @@ def on_submit(
         }
         _yes = show_colorful_yesno(win, 'Success', "Account added successfully." + '\n\nDo you want to add another record?')
         if not _yes:
-
-            cleanup_and_close()
-
+            if callable(cleanup_callback):
+                cleanup_callback()
+            else:
+                win.destroy()
             return
 
         bank_combo.set("")
@@ -600,6 +602,7 @@ def add_account_main(
             bank_map,
             win,
             current_session_accounts,
+            cleanup_and_close,
         ),
     )
     submit_button.pack(side="right", padx=5)
@@ -666,6 +669,7 @@ def add_account_main(
             bank_map,
             win,
             current_session_accounts,
+            cleanup_and_close,
         ),
     )
 

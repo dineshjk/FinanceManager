@@ -161,19 +161,31 @@ def add_dividend(
 
         widget.bind("<Button-3>", show_menu)
 
+    def _get_num(var, num_type=float, default=0.0):
+        try:
+            raw = div_win.getvar(var._name)
+            if not raw or str(raw).strip() in ("", ".", "-"):
+                return default
+            return num_type(str(raw).strip().replace(",", ""))
+        except Exception:
+            try:
+                return num_type(var.get())
+            except Exception:
+                return default
+
     def _calculate_amounts(*_args):
         try:
-            fv = float(face_value_var.get())
-            pct = float(div_percent_var.get())
-            qty = int(entitled_qty_var.get())
-            tds = float(tds_amt_var.get())
+            fv = _get_num(face_value_var, float, 0.0)
+            pct = _get_num(div_percent_var, float, 0.0)
+            qty = _get_num(entitled_qty_var, int, 0)
+            tds = _get_num(tds_amt_var, float, 0.0)
 
             per_share = round(fv * (pct / 100), 4)
             per_share_amt_var.set(per_share)
             gross = round(qty * per_share, 2)
             gross_amt_var.set(gross)
             net_amt_var.set(round(gross - tds, 2))
-        except ValueError:
+        except (ValueError, tk.TclError, Exception):
             pass
 
     def _update_dates_and_holdings():
@@ -329,6 +341,30 @@ def add_dividend(
             return
 
         try:
+            pct_raw = str(div_win.getvar(div_percent_var._name)).strip().replace(",", "")
+            qty_raw = str(div_win.getvar(entitled_qty_var._name)).strip().replace(",", "")
+            tds_raw = str(div_win.getvar(tds_amt_var._name)).strip().replace(",", "")
+            if not pct_raw or pct_raw in (".", "-") or not qty_raw or qty_raw in (".", "-"):
+                raise ValueError("Percentage or Quantity is empty")
+            pct_val = float(pct_raw)
+            qty_val = int(qty_raw)
+            tds_val = float(tds_raw) if tds_raw and tds_raw not in (".", "-") else 0.0
+            fv_val = company_to_data[company]["face_value"]
+            per_share_val = round(fv_val * (pct_val / 100), 4)
+            net_val = round((qty_val * per_share_val) - tds_val, 2)
+        except (ValueError, tk.TclError, Exception):
+            show_colorful_error(
+                div_win,
+                "Validation Error",
+                "Please enter valid numeric values for Dividend Percent and Quantity.",
+            )
+            return
+
+        per_share_amt_var.set(per_share_val)
+        gross_amt_var.set(round(qty_val * per_share_val, 2))
+        net_amt_var.set(net_val)
+
+        try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("PRAGMA foreign_keys = ON;")
@@ -351,8 +387,8 @@ def add_dividend(
                             rec_dt,
                             "DIVIDEND",
                             details,
-                            div_percent_var.get(),
-                            per_share_amt_var.get(),
+                            pct_val,
+                            per_share_val,
                             note_var.get(),
                             id_act,
                         ),
@@ -371,10 +407,10 @@ def add_dividend(
                                 rec_dt,
                                 cred_dt,
                                 div_type,
-                                div_percent_var.get(),
-                                entitled_qty_var.get(),
-                                per_share_amt_var.get(),
-                                tds_amt_var.get(),
+                                pct_val,
+                                qty_val,
+                                per_share_val,
+                                tds_val,
                                 fy_label_var.get(),
                                 note_var.get(),
                                 id_div,
@@ -396,10 +432,10 @@ def add_dividend(
                                 rec_dt,
                                 cred_dt,
                                 div_type,
-                                div_percent_var.get(),
-                                entitled_qty_var.get(),
-                                per_share_amt_var.get(),
-                                tds_amt_var.get(),
+                                pct_val,
+                                qty_val,
+                                per_share_val,
+                                tds_val,
                                 fy_label_var.get(),
                                 note_var.get(),
                             ),
@@ -412,7 +448,7 @@ def add_dividend(
                     cursor.execute(
                         "DELETE FROM computed_bank WHERE cont_no=?", (cont_no,)
                     )
-                    net_amount = net_amt_var.get()
+                    net_amount = net_val
                     if net_amount > 0:
                         desc = f"Dividend from {company}"
                         cursor.execute(
@@ -452,8 +488,8 @@ def add_dividend(
                             rec_dt,
                             "DIVIDEND",
                             details,
-                            div_percent_var.get(),
-                            per_share_amt_var.get(),
+                            pct_val,
+                            per_share_val,
                             note_var.get(),
                         ),
                     )
@@ -473,17 +509,17 @@ def add_dividend(
                             rec_dt,
                             cred_dt,
                             div_type,
-                            div_percent_var.get(),
-                            entitled_qty_var.get(),
-                            per_share_amt_var.get(),
-                            tds_amt_var.get(),
+                            pct_val,
+                            qty_val,
+                            per_share_val,
+                            tds_val,
                             fy_label_var.get(),
                             note_var.get(),
                         ),
                     )
                     id_div = cursor.lastrowid
 
-                    net_amount = net_amt_var.get()
+                    net_amount = net_val
                     if net_amount > 0:
                         cont_no = f"DIV_{id_div}"
                         desc = f"Dividend from {company}"
@@ -513,9 +549,9 @@ def add_dividend(
                 "Company": company,
                 "Type": div_type,
                 "Record Dt": display_rec_dt,
-                "Qty": entitled_qty_var.get(),
-                "Percent": div_percent_var.get(),
-                "Net": net_amt_var.get(),
+                "Qty": qty_val,
+                "Percent": pct_val,
+                "Net": net_val,
             }
 
             msg = "updated" if (id_act > 0 and id_div > 0) else "saved"

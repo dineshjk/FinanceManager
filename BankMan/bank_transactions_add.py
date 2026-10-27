@@ -989,6 +989,7 @@ def show_fd_new_modal(
             w = DateEntry(
                 form, date_pattern="dd-mm-yyyy", width=18, font=("Helvetica", 14)
             )
+            bind_date_spin(w)
         else:
             w = tk.Entry(form, width=28, font=("Helvetica", 14))
         apply_entry_theme(w)
@@ -1381,6 +1382,7 @@ def show_ppf_new_modal(
             w = DateEntry(
                 form, date_pattern="dd-mm-yyyy", width=18, font=("Helvetica", 14)
             )
+            bind_date_spin(w)
         else:
             w = tk.Entry(form, width=28, font=("Helvetica", 14))
         apply_entry_theme(w)
@@ -1537,8 +1539,9 @@ def show_stock_actu_new_modal(
             try:
                 from datetime import datetime
                 w.set_date(datetime.strptime(default_dt_str, "%Y-%m-%d").date())
-            except:
+            except Exception:
                 pass
+            bind_date_spin(w)
         else:
             w = tk.Entry(form, width=28, font=("Helvetica", 14))
         apply_entry_theme(w)
@@ -1779,6 +1782,7 @@ def show_ins_new_modal(
         ).grid(row=r, column=0, sticky="e", padx=(4, 8), pady=6)
         if wtype == "date":
             w = DateEntry(form, date_pattern="dd-mm-yyyy", width=18, font=("Helvetica", 11))
+            bind_date_spin(w)
         elif wtype == "combo":
             w = ttk.Combobox(form, values=['LIFE_TERM', 'LIFE_SAVINGS', 'HEALTH', 'VEHICLE', 'GENERAL'], width=24, font=("Helvetica", 11))
             w.set("LIFE_TERM")

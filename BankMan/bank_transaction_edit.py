@@ -597,6 +597,8 @@ def edit_bank_transaction(
     balance_entry.pack(side="left", padx=(0, 30))
     apply_entry_theme(balance_entry)
     bind_tooltip(balance_entry, tooltip_var, "Running account balance after this transaction.")
+    if (data.get("balance_after") or 0.0) < 0:
+        balance_entry.config(foreground="red")
 
     pair_id_var = tk.StringVar(value=str(data["pair_id"]) if data["pair_id"] else "")
     pair_id_display = tk.Entry(amt_erow, textvariable=pair_id_var, width=14, font=_F, state="readonly")
@@ -653,7 +655,19 @@ def edit_bank_transaction(
     # amount formatting focus binds
     withdrawal_entry.bind("<FocusOut>", lambda e: _fmt_amount_on_focus_out(withdrawal_entry), add="+")
     deposit_entry.bind("<FocusOut>", lambda e: _fmt_amount_on_focus_out(deposit_entry), add="+")
-    balance_entry.bind("<FocusOut>", lambda e: _fmt_amount_on_focus_out(balance_entry), add="+")
+
+    def _on_balance_focus_out(e=None):
+        _fmt_amount_on_focus_out(balance_entry)
+        try:
+            b_val = float(balance_entry.get().strip().replace(",", "") or "0")
+            if b_val < 0:
+                balance_entry.config(foreground="red")
+            else:
+                balance_entry.config(foreground=_THEME.get("input_fg", "yellow"))
+        except (ValueError, KeyError, tk.TclError):
+            pass
+
+    balance_entry.bind("<FocusOut>", _on_balance_focus_out, add="+")
 
     # ── Band 3.5: Income Tax & TDS ────────────────────────────────────────
     _C_TAX = "#fef3c7"  # amber-100
@@ -1182,12 +1196,25 @@ def edit_bank_transaction(
 
         try:
             bal = float(balance_entry.get().strip().replace(",", "") or "0")
-            if bal < 0:
-                raise ValueError
         except ValueError:
-            show_colorful_error(win, "Validation Error", "Balance must be a non-negative number.")
+            show_colorful_error(
+                win, "Validation Error", "Balance must be a valid number."
+            )
             flash_error(balance_entry)
             return
+
+        if bal < 0:
+            proceed = show_colorful_yesno(
+                win,
+                "Negative Balance Warning",
+                f"The resulting balance is negative (\u20b9{bal:,.2f}).\n\n"
+                "Normally, standard bank accounts cannot go below zero unless it is an overdraft, "
+                "cash, or suspense account.\n\n"
+                "Do you want to proceed and allow this negative balance?",
+            )
+            if not proceed:
+                flash_error(balance_entry)
+                return
 
         pair_raw = pair_id_var.get().strip()
         pair_id_val = int(pair_raw) if pair_raw else None
@@ -1504,11 +1531,13 @@ def show_edit_help(win: tk.Toplevel, on_escape) -> None:
         def _do_search(*_):
             q = search_var.get().strip().lower()
             bh_text.tag_remove("highlight", "1.0", "end")
-            if not q: return
+            if not q:
+                return
             start_idx = "1.0"
             while True:
                 pos = bh_text.search(q, start_idx, stopindex="end", nocase=True)
-                if not pos: break
+                if not pos:
+                    break
                 end_pos = f"{pos}+{len(q)}c"
                 bh_text.tag_add("highlight", pos, end_pos)
                 start_idx = end_pos
@@ -1516,10 +1545,10 @@ def show_edit_help(win: tk.Toplevel, on_escape) -> None:
         search_var.trace_add("write", _do_search)
         clear_btn.config(command=lambda: search_var.set(""))
 
-    help_win = show_standard_help(
+    show_standard_help(
         parent=win,
         title="Edit Bank Transaction Help",
         guide_lines=guide_lines,
         faq_data=faq_data,
-        extra_tabs_callback=inject_budget_heads_tab
+        extra_tabs_callback=inject_budget_heads_tab,
     )

@@ -28,7 +28,24 @@ from Shared.help_utils import show_standard_help
 from .bank_db_utils import (
     get_all_accounts,
     db_add_mf_master as _db_add_mf_master,
+    get_distinct_mf_amc_names,
+    get_distinct_mf_rta_names,
+    get_distinct_mf_folio_numbers,
 )
+
+_DEFAULT_RTAS = ["CAMS", "KFintech", "Franklin", "Sundaram", "Others"]
+
+
+def _get_combined_rta_names() -> list[str]:
+    """Combine distinct RTA names from database with standard default RTAs."""
+    db_rtas = get_distinct_mf_rta_names()
+    seen = set()
+    combined = []
+    for rta in db_rtas + _DEFAULT_RTAS:
+        if rta and rta not in seen:
+            seen.add(rta)
+            combined.append(rta)
+    return combined
 from Shared.globals import logger
 from Shared.gui_progressive import progressive_selection
 from .accounts_add import add_account_main as _add_account
@@ -109,6 +126,7 @@ def _show_session_viewer(
     win: tk.Toplevel,
     session_entries: list,
     on_escape,
+    on_save=None,
 ) -> None:
     """Show MF master records added in this session."""
     if not session_entries:
@@ -262,7 +280,10 @@ def _show_session_viewer(
 
     def _close_viewer(_e=None):
         safe_close_modal(viewer, win)
-        win.bind("<Control-Return>", lambda e: None)
+        win.bind(
+            "<Control-Return>",
+            (lambda _e: on_save()) if on_save else (lambda _e: None),
+        )
         win.bind("<Escape>", on_escape)
         return "break"
 
@@ -350,7 +371,9 @@ def add_mf_master_main(
     )
     win.bind(
         "<F2>",
-        lambda e: _show_session_viewer(win, session_records, on_escape),
+        lambda e: _show_session_viewer(
+            win, session_records, on_escape, on_save=_validate_and_save
+        ),
     )
     win.bind("<Control-Return>", lambda e: None)
     win.bind("<Escape>", on_escape)
@@ -455,6 +478,11 @@ def add_mf_master_main(
     if account_map:
         account_combo.set(next(iter(account_map)))
 
+    # ── Lookup distinct values from DB ──────────────────────────────────
+    amc_values = get_distinct_mf_amc_names()
+    rta_values = _get_combined_rta_names()
+    folio_values = get_distinct_mf_folio_numbers()
+
     # ── Band 2: AMC + RTA ─────────────────────
     amc_band, amc_lrow, amc_erow = _make_band(form_body, _C_AMC)
     amc_band.pack(fill="x", pady=(0, 5))
@@ -462,11 +490,17 @@ def add_mf_master_main(
     _band_label(amc_lrow, "AMC Name", _C_AMC, _F)
     _band_label(amc_lrow, "RTA Name", _C_AMC, _F, padx=160)
 
-    amc_entry = tk.Entry(amc_erow, width=28, font=_FB)
-    amc_entry.pack(side="left", padx=(0, 8))
-    apply_entry_theme(amc_entry)
+    amc_combo = ttk.Combobox(
+        amc_erow,
+        width=28,
+        values=amc_values,
+        font=_FB,
+    )
+    amc_combo.pack(side="left", padx=(0, 8))
+    apply_entry_theme(amc_combo)
+    progressive_selection(amc_combo, amc_values)
     bind_tooltip(
-        amc_entry,
+        amc_combo,
         tooltip_var,
         "Asset Management Company (e.g., SBI Mutual Fund, HDFC Mutual Fund)",
     )
@@ -474,16 +508,14 @@ def add_mf_master_main(
     rta_combo = ttk.Combobox(
         amc_erow,
         width=20,
-        values=["CAMS", "KFintech", "Franklin", "Sundaram", "Others"],
+        values=rta_values,
         font=_FB,
     )
     rta_combo.pack(side="left", padx=(18, 8))
     apply_entry_theme(rta_combo)
-    progressive_selection(
-        rta_combo, ["CAMS", "KFintech", "Franklin", "Sundaram", "Others"]
-    )
+    progressive_selection(rta_combo, rta_values)
     bind_tooltip(rta_combo, tooltip_var, "Registrar & Transfer Agent")
-    rta_combo.set("CAMS")
+    rta_combo.set("CAMS" if "CAMS" in rta_values else (rta_values[0] if rta_values else ""))
 
     # ── Band 3: Folio + Scheme + Active ────────────────────────────────
     folio_band, folio_lrow, folio_erow = _make_band(form_body, _C_FOLIO)
@@ -493,11 +525,17 @@ def add_mf_master_main(
     _band_label(folio_lrow, "Scheme Name", _C_FOLIO, _F, padx=60)
     _band_label(folio_lrow, "Is Active", _C_FOLIO, _F, padx=220)
 
-    folio_entry = tk.Entry(folio_erow, width=18, font=_FB)
-    folio_entry.pack(side="left", padx=(0, 8))
-    apply_entry_theme(folio_entry)
+    folio_combo = ttk.Combobox(
+        folio_erow,
+        width=18,
+        values=folio_values,
+        font=_FB,
+    )
+    folio_combo.pack(side="left", padx=(0, 8))
+    apply_entry_theme(folio_combo)
+    progressive_selection(folio_combo, folio_values)
     bind_tooltip(
-        folio_entry, tooltip_var, "Your folio number for this scheme."
+        folio_combo, tooltip_var, "Your folio number for this scheme."
     )
 
     scheme_entry = tk.Entry(folio_erow, width=35, font=_FB)
@@ -538,13 +576,28 @@ def add_mf_master_main(
     btn_frame = tk.Frame(win, bg=_T.get("main_bg", "#312e81"))
     btn_frame.pack(pady=8)
 
+    def _refresh_combos():
+        cur_amc_vals = get_distinct_mf_amc_names()
+        cur_rta_vals = _get_combined_rta_names()
+        cur_folio_vals = get_distinct_mf_folio_numbers()
+
+        amc_combo["values"] = cur_amc_vals
+        progressive_selection(amc_combo, cur_amc_vals)
+
+        rta_combo["values"] = cur_rta_vals
+        progressive_selection(rta_combo, cur_rta_vals)
+
+        folio_combo["values"] = cur_folio_vals
+        progressive_selection(folio_combo, cur_folio_vals)
+
     def _reset_form():
-        amc_entry.delete(0, "end")
-        rta_combo.set("CAMS")
-        folio_entry.delete(0, "end")
+        _refresh_combos()
+        amc_combo.set("")
+        rta_combo.set("CAMS" if "CAMS" in rta_combo["values"] else (rta_combo["values"][0] if rta_combo["values"] else ""))
+        folio_combo.set("")
         scheme_entry.delete(0, "end")
         is_active_var.set(True)
-        amc_entry.focus_set()
+        amc_combo.focus_set()
 
     def _validate_and_save():
         # Account
@@ -557,9 +610,9 @@ def add_mf_master_main(
             return
 
         # AMC
-        amc = amc_entry.get().strip()
+        amc = amc_combo.get().strip()
         if not amc:
-            flash_error(amc_entry)
+            flash_error(amc_combo)
             show_colorful_error(
                 win, "Validation Error", "AMC Name cannot be blank."
             )
@@ -573,9 +626,9 @@ def add_mf_master_main(
             )
             return
 
-        folio = folio_entry.get().strip()
+        folio = folio_combo.get().strip()
         if not folio:
-            flash_error(folio_entry)
+            flash_error(folio_combo)
             show_colorful_error(
                 win, "Validation Error", "Folio Number cannot be blank."
             )
@@ -699,11 +752,12 @@ def add_mf_master_main(
 
         return _h
 
-    account_combo.bind("<Return>", _focus_next(amc_entry))
-    amc_entry.bind("<Return>", _focus_next(rta_combo))
-    rta_combo.bind("<Return>", _focus_next(folio_entry))
-    folio_entry.bind("<Return>", _focus_next(scheme_entry))
+    account_combo.bind("<Return>", _focus_next(amc_combo))
+    amc_combo.bind("<Return>", _focus_next(rta_combo))
+    rta_combo.bind("<Return>", _focus_next(folio_combo))
+    folio_combo.bind("<Return>", _focus_next(scheme_entry))
     scheme_entry.bind("<Return>", lambda _e: _validate_and_save())
+    win.bind("<Control-Return>", lambda _e: _validate_and_save())
 
     # ── Modal wait ────────────────────────────────────────────────────────
     account_combo.focus_set()

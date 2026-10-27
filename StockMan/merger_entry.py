@@ -206,7 +206,7 @@ def add_merger(
 
             refund_dt = refund_dt_entry.get_date().strftime("%Y-%m-%d")
 
-        except ValueError:
+        except (ValueError, tk.TclError):
             show_colorful_error(
                 merg_win, "Data Error", "Please ensure all numbers are valid."
             )

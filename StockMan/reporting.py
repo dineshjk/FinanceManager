@@ -64,6 +64,7 @@ from .reporting_utils import (
     build_master_corp_tree_rows,
     build_master_dividend_tree_rows,
     build_master_ledger_display_rows,
+    build_passbook_display_rows,
     build_scrip_wise_dividend_data,
     build_performance_summary_rows,
     build_online_action_entries,
@@ -110,6 +111,7 @@ from .reporting_utils import (
     fetch_master_dividend_source_rows,
     fetch_master_ledger_rows,
     fetch_master_split_rows,
+    fetch_passbook_events,
     has_corporate_action_history,
     get_financial_years,
     initialize_stock_data_cache,
@@ -912,16 +914,53 @@ def p_and_l(
         guide = [
             "Welcome to the Master Portfolio Analytics Dashboard.",
             "",
+            "KEY MODULES & TABS:",
             "• Stock-wise Analysis: Select a stock on the left to see its narrative report, ledgers, and intraday chart.",
             "• Portfolio Summary: View aggregate Capital Gains, XIRR, and Capital Flow statistics by Financial Year.",
+            "• Passbook: Consolidated chronological ledger of portfolio cash flows (Buys, Sells, Dividends), investments, disinvestments, and returns.",
             "• Current Holdings: Live mark-to-market valuation of your active positions.",
             "• Portfolio Allocation: See your portfolio's concentration by sector and stock weighting.",
-            "• Portfolio Ledgers: A master view of all trades, dividends, and corporate actions across all stocks."
+            "• Portfolio Ledgers: A master view of all trades, dividends, and corporate actions across all stocks.",
+            "",
+            "PASSBOOK COLUMNS & DEFINITIONS:",
+            "• Date: Transaction settlement date or dividend credit date.",
+            "• Description: Transaction type and scrip (BUY - <SYM>, SELL - <SYM>, DIV - <SYM>).",
+            "• Deposit: Cash inflow (Net sell proceeds or net dividend credited).",
+            "• Withdrawal: Cash outflow (Net buy investment amount).",
+            "• Cum. Inv: Running total of all capital invested up to that date.",
+            "• Cum. Disinv: Running total of all capital disinvested (cost basis recovered) up to that date.",
+            "• Day's Disinv: Capital disinvested specifically on that date (original cost basis of sold shares).",
+            "• Cum. P&L: Running total of all realized profit and dividends up to that date.",
+            "• Cum. Ann. %: Portfolio-wide annualized return computed using the cumulative rupee-day weighting method."
         ]
         faq = [
             (
                 "Q: How is the 'Estimated Post-Tax Profit' calculated?",
                 "A: The system automatically checks the holding period of sold shares. It applies Long-Term Capital Gains (LTCG) tax rates if held for >1 year, or Short-Term (STCG) rates otherwise."
+            ),
+            (
+                "Q: How does the Passbook calculate 'Cum. Ann. %' using the Rupee-Day method?",
+                (
+                    "A: The Passbook computes a time-and-capital weighted annualized return using cumulative Rupee-Days:\n\n"
+                    "  1. As transactions occur over time, active capital (Invested - Disinvested) generates Rupee-Days:\n"
+                    "     Cumulative Rupee-Days += Active Capital × Days Elapsed\n\n"
+                    "  2. Portfolio-Wide Annualized Return %:\n"
+                    "     Cum. Ann. % = (Cum. P&L / Cumulative Rupee-Days) × 365 × 100\n\n"
+                    "This accounts for both the exact holding duration and capital deployed over time, "
+                    "providing an accurate portfolio-wide return rate as of each transaction date."
+                )
+            ),
+            (
+                "Q: What is the difference between 'Deposit', 'Withdrawal', 'Cum. Inv', and 'Cum. Disinv' in the Passbook?",
+                (
+                    "A: The Passbook acts as a true cash-flow bank passbook for your portfolio:\n"
+                    "• Deposit: Inflow received in bank (Sell net proceeds or Dividend credited).\n"
+                    "• Withdrawal: Outflow paid from bank (Buy investment amount).\n"
+                    "• Cum. Inv: Running total of all capital invested up to each date.\n"
+                    "• Cum. Disinv: Running total of all original capital recovered upon sales (disinvested cost basis).\n"
+                    "• Day's Disinv: Original cost basis recovered on that specific sell date.\n"
+                    "• Cum. P&L: Running total of all realized profit and dividends up to that date."
+                )
             )
         ]
         show_standard_help(pnl_win, "Portfolio Analytics Help", guide, faq)
@@ -1590,7 +1629,83 @@ def p_and_l(
         "Capital-flow statistics by financial year and for all years combined.",
     )
 
-    # --- TAB 3: Current Holdings ---
+    # --- TAB 3: Passbook ---
+    tab_passbook = ttk.Frame(notebook)
+    notebook.add(tab_passbook, text="📖 Passbook")
+
+    passbook_frame = ttk.Frame(tab_passbook)
+    passbook_frame.pack(fill="both", expand=True, padx=10, pady=10)
+    passbook_frame.grid_rowconfigure(0, weight=1)
+    passbook_frame.grid_columnconfigure(0, weight=1)
+
+    passbook_cols = (
+        "Date",
+        "Description",
+        "Deposit",
+        "Withdrawal",
+        "Cum. Inv",
+        "Cum. Disinv",
+        "Day's Disinv",
+        "Cum. P&L",
+        "Cum. Ann. %",
+    )
+    passbook_tree = ttk.Treeview(
+        passbook_frame,
+        columns=passbook_cols,
+        show="headings",
+        selectmode="browse",
+    )
+    pb_y_scroll = ttk.Scrollbar(
+        passbook_frame, orient="vertical", command=passbook_tree.yview
+    )
+    pb_x_scroll = ttk.Scrollbar(
+        passbook_frame, orient="horizontal", command=passbook_tree.xview
+    )
+    passbook_tree.configure(
+        yscrollcommand=pb_y_scroll.set, xscrollcommand=pb_x_scroll.set
+    )
+    passbook_tree.grid(row=0, column=0, sticky="nsew")
+    pb_y_scroll.grid(row=0, column=1, sticky="ns")
+    pb_x_scroll.grid(row=1, column=0, sticky="ew")
+
+    configure_tree_columns(
+        passbook_tree,
+        passbook_cols,
+        {
+            "Date": {"width": 110, "anchor": "center", "minwidth": 80},
+            "Description": {"width": 180, "anchor": "w", "minwidth": 120},
+            "Deposit": {"width": 120, "anchor": "e", "minwidth": 80},
+            "Withdrawal": {"width": 120, "anchor": "e", "minwidth": 80},
+            "Cum. Inv": {"width": 130, "anchor": "e", "minwidth": 90},
+            "Cum. Disinv": {"width": 130, "anchor": "e", "minwidth": 90},
+            "Day's Disinv": {"width": 120, "anchor": "e", "minwidth": 80},
+            "Cum. P&L": {"width": 120, "anchor": "e", "minwidth": 80},
+            "Cum. Ann. %": {"width": 120, "anchor": "e", "minwidth": 80},
+        },
+    )
+
+    passbook_tree.tag_configure("profit", foreground="#27ae60")
+    passbook_tree.tag_configure("loss", foreground="#c0392b")
+    passbook_tree.tag_configure("neutral", foreground="#2c3e50")
+
+    passbook_col_tooltips = {
+        "Date": "Transaction trade/settlement or dividend credit date.",
+        "Description": "Transaction nature and scrip symbol (e.g. BUY - INFY, SELL - TCS, DIV - ITC).",
+        "Deposit": "Cash inflow: Sell proceeds or dividend amount.",
+        "Withdrawal": "Cash outflow: Buy investment amount.",
+        "Cum. Inv": "Running total of all investments up to this date.",
+        "Cum. Disinv": "Running total of all disinvestments up to this date.",
+        "Day's Disinv": "Disinvestment specifically on this date (original cost basis recovered).",
+        "Cum. P&L": "Running total of all realized profit and dividends up to this date.",
+        "Cum. Ann. %": "Portfolio-wide annualized return computed using the cumulative rupee-day weighting method.",
+    }
+    add_tree_heading_tooltips(passbook_tree, passbook_col_tooltips)
+    add_widget_tooltip(
+        passbook_tree,
+        "Consolidated chronological passbook ledger of portfolio cash flows, investments, and returns.",
+    )
+
+    # --- TAB 4: Current Holdings ---
     tab_current = ttk.Frame(notebook)
     notebook.add(tab_current, text="💼 Current Holdings")
 
@@ -1730,7 +1845,7 @@ def p_and_l(
         "Booked gain or loss already realized across holdings.",
     )
 
-    # --- TAB 4: Portfolio Allocation ---
+    # --- TAB 5: Portfolio Allocation ---
     tab_allocation = ttk.Frame(notebook)
     notebook.add(tab_allocation, text="🥧 Portfolio Allocation")
 
@@ -1812,7 +1927,7 @@ def p_and_l(
         "Portfolio concentration broken down by individual stock.",
     )
 
-    # --- TAB 5: Master Reconciliation & Ledger ---
+    # --- TAB 6: Master Reconciliation & Ledger ---
     tab_master = ttk.Frame(notebook)
     notebook.add(tab_master, text="📚 Portfolio Ledgers")
 
@@ -1823,9 +1938,10 @@ def p_and_l(
     tab_tooltips = {
         0: "Stock-wise analysis with detailed performance, ledgers, and stock-specific drill-down tabs.",
         1: "Portfolio-level yearly return and capital-flow summaries.",
-        2: "Active holdings with current cost basis, live value, and gain/loss tracking.",
-        3: "Portfolio concentration and allocation breakdowns by sector and individual stock weightings.",
-        4: "Portfolio-wide ledgers covering trades, dividends, and corporate actions.",
+        2: "Consolidated chronological ledger of portfolio cash flows, investments, disinvestments, and returns.",
+        3: "Active holdings with current cost basis, live value, and gain/loss tracking.",
+        4: "Portfolio concentration and allocation breakdowns by sector and individual stock weightings.",
+        5: "Portfolio-wide ledgers covering trades, dividends, and corporate actions.",
     }
     NotebookTooltip(notebook, tab_tooltips)
     add_widget_tooltip(
@@ -2250,6 +2366,9 @@ def p_and_l(
         pnl_win.after(0, lambda: tree.delete(*tree.get_children()))
         pnl_win.after(0, lambda: sum_tree.delete(*sum_tree.get_children()))
         pnl_win.after(0, lambda: stats_tree.delete(*stats_tree.get_children()))
+        pnl_win.after(
+            0, lambda: passbook_tree.delete(*passbook_tree.get_children())
+        )
         pnl_win.after(0, lambda: curr_tree.delete(*curr_tree.get_children()))
         pnl_win.after(
             0, lambda: sector_tree.delete(*sector_tree.get_children())
@@ -2877,6 +2996,28 @@ def p_and_l(
             )
             pnl_win.after(
                 0, lambda: autosize_treeview_columns(master_perf_summary_tree)
+            )
+
+            # Passbook calculations and insertion
+            passbook_data = build_passbook_display_rows(
+                fetch_passbook_events(m_cursor),
+                start_date=start_date if is_yearly else None,
+                end_date=end_date if is_yearly else None,
+                date_formatter=safe_fmt_date,
+            )
+            for row, tag in zip(
+                passbook_data["detail_rows"], passbook_data["tags"]
+            ):
+                pnl_win.after(
+                    0,
+                    lambda v=row, t=tag: (
+                        passbook_tree.insert("", "end", values=v, tags=(t,))
+                        if passbook_tree.winfo_exists()
+                        else None
+                    ),
+                )
+            pnl_win.after(
+                0, lambda: autosize_treeview_columns(passbook_tree)
             )
 
         # --- YFINANCE MASTER RECONCILIATION THREAD ---

@@ -260,6 +260,7 @@ def on_submit(
     win: tk.Toplevel,
     current_session_heads: dict,
     refresh_callback,
+    cleanup_callback=None,
 ) -> None:
     """Validate inputs, persist the new budget head, and reset the form."""
     description = desc_entry.get().strip()
@@ -318,9 +319,10 @@ def on_submit(
             f"Budget category '{description}' added successfully.\n\nDo you want to add another record?",
         )
         if not _yes:
-
-            cleanup_and_close()
-
+            if callable(cleanup_callback):
+                cleanup_callback()
+            else:
+                win.destroy()
             return
         desc_entry.delete(0, tk.END)
         type_combo.set("")
@@ -543,6 +545,7 @@ def add_account_type_main(
             win,
             current_session_heads,
             _refresh_parent_combo,
+            cleanup_and_close,
         ),
     )
     submit_button.pack(side="right", padx=5)
@@ -607,6 +610,7 @@ def add_account_type_main(
             win,
             current_session_heads,
             _refresh_parent_combo,
+            cleanup_and_close,
         ),
     )
 

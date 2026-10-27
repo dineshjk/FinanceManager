@@ -1,0 +1,28 @@
+# FinanceManager / StockMan Dependencies
+# =====================================
+
+# Google Drive & Docs API Integration
+google-api-python-client>=2.190.0
+google-auth-oauthlib>=1.5.0
+google-auth-httplib2>=0.3.0
+google-auth>=2.40.0
+
+# Excel & Data Handling
+openpyxl>=3.1.5
+pandas>=2.2.0
+
+# Gemini AI / LLM APIs
+google-genai>=1.0.0
+google-generativeai>=0.8.0
+
+# Financial Data & Scraping
+yfinance>=0.2.40
+requests>=2.31.0
+
+# UI & Visualization Components
+tkcalendar>=1.6.1
+matplotlib>=3.9.0
+pillow>=11.0.0
+
+# Testing & Quality
+pytest>=8.0.0

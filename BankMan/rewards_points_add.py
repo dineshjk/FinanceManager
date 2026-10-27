@@ -28,6 +28,7 @@ from Shared.gui_utils import (
 from Shared.dialog_utils import (
     show_colorful_info,
     show_colorful_error,
+    show_colorful_yesno,
 )
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal

@@ -31,7 +31,7 @@ def export_trades(parent: Any) -> None:
     """
     Exports all tables from the database to an Excel file.
 
-    The function creates 'dinesh_stocks.xlsx' in the same directory as the
+    The function creates 'portfolio_trades_export.xlsx' in the same directory as the
     database. If the file already exists, it is backed up to a 'Backup'
     subdirectory. Each table is exported to a separate sheet in the
     Excel file.
@@ -46,7 +46,7 @@ def export_trades(parent: Any) -> None:
         return
 
     data_dir = os.path.dirname(os.path.abspath(STOCK_DB_PATH))
-    output_filename = "dinesh_stocks.xlsx"
+    output_filename = "portfolio_trades_export.xlsx"
     output_path = os.path.join(data_dir, output_filename)
 
     try:
@@ -56,7 +56,7 @@ def export_trades(parent: Any) -> None:
         if os.path.exists(output_path):
             timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
             backup_path = os.path.join(
-                backup_dir, f"dinesh_stocks_{timestamp}.xlsx.bak"
+                backup_dir, f"portfolio_trades_export_{timestamp}.xlsx.bak"
             )
             shutil.copy2(output_path, backup_path)
             logger.info(f"Backed up existing file to {backup_path}")

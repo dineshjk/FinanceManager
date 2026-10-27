@@ -105,9 +105,17 @@ def add_split_share(
 
     def _calculate_allotment(*_args):
         try:
-            old_fv = float(old_fv_var.get())
-            new_fv = float(new_fv_var.get())
-            held = int(held_qty_var.get())
+            try:
+                raw_old = split_win.getvar(old_fv_var._name)
+                raw_new = split_win.getvar(new_fv_var._name)
+                raw_held = split_win.getvar(held_qty_var._name)
+                old_fv = float(str(raw_old).strip().replace(",", "")) if raw_old and str(raw_old).strip() not in ("", ".", "-") else 0.0
+                new_fv = float(str(raw_new).strip().replace(",", "")) if raw_new and str(raw_new).strip() not in ("", ".", "-") else 0.0
+                held = int(str(raw_held).strip().replace(",", "")) if raw_held and str(raw_held).strip() not in ("", ".", "-") else 0
+            except Exception:
+                old_fv = float(old_fv_var.get())
+                new_fv = float(new_fv_var.get())
+                held = int(held_qty_var.get())
 
             if old_fv > 0 and new_fv > 0 and held > 0:
                 ratio = old_fv / new_fv
@@ -120,7 +128,7 @@ def add_split_share(
                 allotted_qty_var.set(allotted_qty)
             else:
                 allotted_qty_var.set(0)
-        except ValueError:
+        except (ValueError, tk.TclError, Exception):
             allotted_qty_var.set(0)
 
     def _on_company_selected(*_args):
@@ -176,7 +184,7 @@ def add_split_share(
 
             rec_dt = record_dt_entry.get_date().strftime("%Y-%m-%d")
             ex_dt = ex_dt_entry.get_date().strftime("%Y-%m-%d")
-        except ValueError:
+        except (ValueError, tk.TclError):
             show_colorful_error(
                 split_win,
                 "Data Error",

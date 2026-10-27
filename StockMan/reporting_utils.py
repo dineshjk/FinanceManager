@@ -2589,3 +2589,235 @@ def build_performance_summary_rows(stock_data_cache):
         "tags": [r["tag"] for r in detail_rows],
         "summary_row": summary_row,
     }
+
+
+def _clean_symbol_for_description(symbol: str) -> str:
+    """Strip standard exchange suffixes (.NS, .BO) for clean display in descriptions."""
+    sym = (symbol or "").strip()
+    for sfx in (".NS", ".BO", ".ns", ".bo"):
+        if sym.endswith(sfx):
+            sym = sym[:-len(sfx)]
+            break
+    return sym
+
+
+def fetch_passbook_events(cursor):
+    """Fetch raw Buy transactions, Sell transactions with aggregated lot stats,
+    and Dividend records for the consolidated Passbook ledger.
+    """
+    cursor.execute(
+        """
+        SELECT t.id_trd,
+               t.trd_dt,
+               CASE WHEN s.ticker != '' THEN s.ticker ELSE s.short_name END AS symbol,
+               t.net_amt_trd
+        FROM transactions t
+        JOIN stocks s ON t.id_stk = s.id_stk
+        WHERE t.trade_type_trd = 'BUY'
+        ORDER BY t.trd_dt ASC, t.id_trd ASC
+        """
+    )
+    buys = cursor.fetchall()
+
+    cursor.execute(
+        """
+        SELECT t.id_trd,
+               t.trd_dt,
+               CASE WHEN s.ticker != '' THEN s.ticker ELSE s.short_name END AS symbol,
+               t.net_amt_trd,
+               COALESCE(SUM(sr.buy_value), 0.0) AS total_buy_val,
+               COALESCE(SUM(sr.sell_value), t.net_amt_trd) AS total_sell_val,
+               COALESCE(SUM(sr.pnl_amt), 0.0) AS total_pnl,
+               COALESCE(SUM(sr.buy_value * COALESCE(sr.holding_days, julianday(sr.sell_dt) - julianday(sr.buy_dt))), 0.0) AS total_cost_holding_days
+        FROM transactions t
+        JOIN stocks s ON t.id_stk = s.id_stk
+        LEFT JOIN sell_records sr ON t.id_trd = sr.sell_id_trd
+        WHERE t.trade_type_trd = 'SELL'
+        GROUP BY t.id_trd, t.trd_dt, t.id_stk, symbol, t.net_amt_trd
+        ORDER BY t.trd_dt ASC, t.id_trd ASC
+        """
+    )
+    sells = cursor.fetchall()
+
+    cursor.execute(
+        """
+        SELECT d.id_div,
+               CASE WHEN d.credit_dt != '1900-01-01' AND d.credit_dt != '' THEN d.credit_dt ELSE d.record_dt END AS div_date,
+               CASE WHEN s.ticker != '' THEN s.ticker ELSE s.short_name END AS symbol,
+               d.net_amt
+        FROM dividends d
+        JOIN stocks s ON d.id_stk = s.id_stk
+        WHERE (d.credit_dt != '1900-01-01' AND d.credit_dt != '') OR (d.record_dt != '1900-01-01' AND d.record_dt != '')
+        ORDER BY div_date ASC, d.id_div ASC
+        """
+    )
+    dividends = cursor.fetchall()
+
+    return {
+        "buys": buys,
+        "sells": sells,
+        "dividends": dividends,
+    }
+
+
+def build_passbook_display_rows(
+    events_data: dict,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    *,
+    date_formatter=None,
+) -> dict:
+    """Consolidate Buys, Sells, and Dividends into a single chronological ledger.
+
+    Computes running cumulative investments, disinvestments, cumulative P&L,
+    and portfolio-wide annualized return using the cumulative Rupee-Day method.
+    """
+    buys = events_data.get("buys", [])
+    sells = events_data.get("sells", [])
+    dividends = events_data.get("dividends", [])
+
+    events = []
+    for b in buys:
+        events.append(
+            {
+                "date": b[1],
+                "order": 0,
+                "id": b[0],
+                "type": "BUY",
+                "symbol": b[2],
+                "deposit": None,
+                "withdrawal": float(b[3] or 0.0),
+                "disinv": 0.0,
+                "pnl": 0.0,
+            }
+        )
+
+    for s in sells:
+        sell_proceeds = float(s[5] or 0.0)
+        disinv = float(s[4] or 0.0)
+        pnl = float(s[6] or 0.0)
+        events.append(
+            {
+                "date": s[1],
+                "order": 1,
+                "id": s[0],
+                "type": "SELL",
+                "symbol": s[2],
+                "deposit": sell_proceeds,
+                "withdrawal": None,
+                "disinv": disinv,
+                "pnl": pnl,
+            }
+        )
+
+    for d in dividends:
+        net_amt = float(d[3] or 0.0)
+        events.append(
+            {
+                "date": d[1],
+                "order": 2,
+                "id": d[0],
+                "type": "DIV",
+                "symbol": d[2],
+                "deposit": net_amt,
+                "withdrawal": None,
+                "disinv": 0.0,
+                "pnl": net_amt,
+            }
+        )
+
+    events.sort(key=lambda x: (x["date"], x["order"], x["id"]))
+
+    cum_inv = 0.0
+    cum_disinv = 0.0
+    active_capital = 0.0
+    cum_pnl = 0.0
+    cum_rupee_days = 0.0
+    last_date_obj = None
+
+    detail_rows = []
+    tags = []
+
+    for ev in events:
+        raw_date = ev["date"]
+        if isinstance(raw_date, str):
+            current_date_obj = datetime.strptime(raw_date, "%Y-%m-%d").date()
+        elif isinstance(raw_date, datetime):
+            current_date_obj = raw_date.date()
+        else:
+            current_date_obj = raw_date
+
+        if last_date_obj is not None:
+            days_elapsed = (current_date_obj - last_date_obj).days
+            cum_rupee_days += active_capital * days_elapsed
+
+        last_date_obj = current_date_obj
+
+        if ev["type"] == "BUY":
+            withdrawal = ev["withdrawal"]
+            cum_inv += withdrawal
+            active_capital += withdrawal
+        elif ev["type"] == "SELL":
+            disinv = ev["disinv"]
+            pnl = ev["pnl"]
+            cum_disinv += disinv
+            cum_pnl += pnl
+            active_capital = max(0.0, active_capital - disinv)
+        elif ev["type"] == "DIV":
+            pnl = ev["pnl"]
+            cum_pnl += pnl
+
+        if cum_rupee_days > 0:
+            ann_pct = (cum_pnl / cum_rupee_days) * 365.0 * 100.0
+        else:
+            ann_pct = 0.0
+
+        ev_date = ev["date"]
+        if start_date and ev_date < start_date:
+            continue
+        if end_date and ev_date > end_date:
+            continue
+
+        sym = _clean_symbol_for_description(ev["symbol"])
+        desc = f"{ev['type']} - {sym}"
+
+        fmt_date = date_formatter(ev_date) if date_formatter else ev_date
+        dep_str = f"{ev['deposit']:,.2f}" if ev["deposit"] is not None else "-"
+        with_str = (
+            f"{ev['withdrawal']:,.2f}" if ev["withdrawal"] is not None else "-"
+        )
+        cinv_str = f"{cum_inv:,.2f}"
+        cdis_str = f"{cum_disinv:,.2f}"
+        day_dis_str = (
+            f"{ev['disinv']:,.2f}"
+            if (ev["type"] == "SELL" and ev["disinv"] > 0)
+            else "-"
+        )
+        cum_pnl_str = f"{cum_pnl:,.2f}"
+        ann_str = f"{ann_pct:+.2f}%"
+
+        tag = "neutral"
+        if cum_pnl > 0:
+            tag = "profit"
+        elif cum_pnl < 0:
+            tag = "loss"
+
+        row_tuple = (
+            fmt_date,
+            desc,
+            dep_str,
+            with_str,
+            cinv_str,
+            cdis_str,
+            day_dis_str,
+            cum_pnl_str,
+            ann_str,
+        )
+        detail_rows.append(row_tuple)
+        tags.append(tag)
+
+    return {
+        "detail_rows": detail_rows,
+        "tags": tags,
+    }
+

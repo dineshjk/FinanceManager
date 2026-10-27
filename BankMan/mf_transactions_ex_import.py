@@ -172,6 +172,7 @@ def export_mf_transactions(
                 mf_purchase,
                 mf_redemption,
                 units,
+                nav,
             ) in rows:
                 fh.write(
                     repr(

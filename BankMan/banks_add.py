@@ -221,6 +221,7 @@ def on_submit(
     cust_id_entry: tk.Entry,
     ba_win: tk.Toplevel,
     current_session_banks: dict,
+    cleanup_callback=None,
 ) -> None:
     """Validate inputs, persist the new bank, and reset the form."""
     name = bank_name_entry.get().strip()
@@ -246,9 +247,10 @@ def on_submit(
         }
         _yes = show_colorful_yesno(ba_win, 'Success', f"Bank '{name}' added successfully." + '\n\nDo you want to add another record?')
         if not _yes:
-
-            cleanup_and_close()
-
+            if callable(cleanup_callback):
+                cleanup_callback()
+            else:
+                ba_win.destroy()
             return
         bank_name_entry.delete(0, tk.END)
         branch_entry.delete(0, tk.END)
@@ -420,6 +422,7 @@ def add_bank(
             cust_id_entry,
             ba_win,
             current_session_banks,
+            cleanup_and_close,
         ),
     )
     submit_button.pack(side="right", padx=5)
@@ -478,6 +481,7 @@ def add_bank(
             cust_id_entry,
             ba_win,
             current_session_banks,
+            cleanup_and_close,
         ),
     )
 

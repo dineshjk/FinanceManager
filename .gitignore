@@ -1,5 +1,13 @@
 # API Keys and Secrets
 api_key.txt
+credentials.json
+token.json
+service_account.json
+
+# AI & Stock Intelligence Reports
+docs/*_REPORT.md
+docs/DAILY_PICK_OF_THE_DAY_REPORT.md
+docs/PORTFOLIO_SELL_ADVICE_REPORT.md
 
 # Personal Databases and User Data
 data/*
@@ -27,6 +35,8 @@ log/
 *.log
 
 # Private backup and screenshot folders
+Backup/
+*.bak
 Backup B S and S/
 Screenshot for CLI/
 aaa.txt

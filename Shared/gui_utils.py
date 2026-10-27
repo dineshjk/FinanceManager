@@ -1042,6 +1042,12 @@ def bind_date_spin(date_widget, callback=None) -> None:
     """
     def _spin(event, delta):
         try:
+            try:
+                state = str(date_widget.cget("state"))
+                if state in ("disabled", "readonly"):
+                    return "break"
+            except Exception:
+                pass
             current_date = date_widget.get_date()
             if current_date:
                 date_widget.set_date(current_date + timedelta(days=delta))

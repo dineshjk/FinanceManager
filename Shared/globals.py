@@ -141,6 +141,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("StockMan")
 
+# Enable IPv4-priority adapter to eliminate Windows IPv6 connection timeout stalls
+try:
+    from Shared.network_utils import enable_ipv4_priority
+    enable_ipv4_priority()
+except Exception:
+    pass
+
 
 @contextmanager
 def get_db_connection(
