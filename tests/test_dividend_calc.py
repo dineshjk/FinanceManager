@@ -5,8 +5,11 @@ import unittest
 
 class TestDividendCalculation(unittest.TestCase):
     def setUp(self):
-        self.root = tk.Tk()
-        self.root.withdraw()
+        try:
+            self.root = tk.Tk()
+            self.root.withdraw()
+        except tk.TclError:
+            self.skipTest("Tkinter display not available")
 
     def tearDown(self):
         try:

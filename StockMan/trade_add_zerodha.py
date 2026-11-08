@@ -122,6 +122,10 @@ def add_trade_zerodha(
             "",
             "When you save, BankMan's background engine mathematically bifurcates the consolidated levies and appropriately assigns them to the individual trades.",
             "",
+            "Automated Portfolio & Advice Sync:",
+            "• On contract save, StockMan automatically refreshes 'StockMan_Portfolio.xlsx'.",
+            "• If any traded stock matches pending AI recommendations in the Advice Tracker (e.g. 'Buy 30 HDFCBANK'), the advice status is automatically updated to 'Fully Followed' or 'Partially Followed' and uploaded to Google Drive.",
+            "",
             "Hotkeys:",
             "• Escape: Cancel and Close (Rollback)",
             "• Ctrl+Enter: Execute & Save Contract"
@@ -130,6 +134,10 @@ def add_trade_zerodha(
             (
                 "Q: Why does Zerodha have a separate entry form from ICICI?",
                 "A: Zerodha contract notes are consolidated. They provide a single sum for all taxes and levies at the bottom of the PDF, rather than breaking them down trade-by-trade like ICICI. This specialized form matches that structure exactly."
+            ),
+            (
+                "Q: Will entering a Zerodha contract note update my portfolio Excel and AI advice?",
+                "A: Yes! Saving this contract automatically recalculates stock holding averages, updates 'StockMan_Portfolio.xlsx' (both Portfolio and Advice_Log sheets), checks for matching AI advice, marks the execution status and date, and syncs to Google Drive."
             )
         ]
         show_standard_help(win, "Zerodha Contract Entry Help", guide_lines, faq_data)
@@ -1286,6 +1294,21 @@ def add_trade_zerodha(
             # 4. Recompute stock averages after commit
             for t in b_trades:
                 compute_avg_price(t["id_stk"], t["trade_type_trd"])
+
+            # 5. Automatically match advice, adjust cash in Excel, and update portfolio
+            try:
+                for t in b_trades:
+                    t["trd_dt"] = trd_dt_str
+                from .advice_tracker import auto_sync_trades_batch_with_advice
+
+                auto_sync_trades_batch_with_advice(b_trades)
+            except Exception as ex:
+                logger.warning("Failed to auto-sync trades with advice/Drive: %s", ex)
+                try:
+                    from .drive_sync import adjust_cash_for_trades
+                    adjust_cash_for_trades(b_trades)
+                except Exception as _adj_ex:
+                    logger.warning("adjust_cash_for_trades fallback notice: %s", _adj_ex)
 
             show_colorful_info(
                 win,

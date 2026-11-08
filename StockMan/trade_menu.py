@@ -26,12 +26,23 @@ def _get_trade_menu_help_data():
     guide_lines = [
         "This menu is your central hub for recording and managing your stock transactions.",
         "",
-        "• Add Trade (ICICI / Auto): Log your standard secondary market buy and sell orders.",
-        "• Add Trade (Zerodha): Log your secondary market buy and sell orders from Zerodha.",
+        "Module Task Responsibilities:",
+        "• Add Trade (ICICI / Auto): Log your standard secondary market buy and sell orders from ICICI Direct.",
+        "• Add Trade (Zerodha): Log consolidated contract notes and multi-ISIN trades from Zerodha.",
         "• Direct Trading: Record primary market transactions like IPO allotments and Rights issues.",
         "• Manage / Edit / Remove: View your trade ledger, and safely delete or edit historical transactions.",
         "• Sell Management (FIFO): Process sell orders using the First-In, First-Out accounting method.",
-        "• Import Trades: Batch import historical trades from a legacy database or file."
+        "• Import Trades: Batch import historical trades from a legacy database or file.",
+        "",
+        "Automated Excel & AI Advice Synchronization:",
+        "• Whenever you save, edit, or delete a trade, Trade Management automatically calls 'update_portfolio_excel()'.",
+        "• The system immediately regenerates 'StockMan_Portfolio.xlsx' with two sheets: 'Portfolio' and 'Advice_Log'.",
+        "• If the trade matches any pending AI advice in the Advice Tracker (e.g. 'Buy 30 HDFCBANK'), the advice status is automatically updated to 'Fully Followed' or 'Partially Followed' and uploaded to Google Drive.",
+        "",
+        "Hotkeys:",
+        "• F1: Trade Menu Help",
+        "• Ctrl+F1: Global System Help Center",
+        "• Escape: Return to StockMan Hub"
     ]
     faq_data = [
         (
@@ -41,6 +52,14 @@ def _get_trade_menu_help_data():
         (
             "Q: What does Sell Management (FIFO) do?",
             "A: To calculate capital gains accurately, sold shares must be matched against specific past purchase lots. The system uses FIFO (First-In, First-Out) to ensure the oldest shares are always 'sold' first for tax reporting purposes."
+        ),
+        (
+            "Q: Does Trade Management automatically update my portfolio Excel file?",
+            "A: Yes! Every trade addition (ICICI or Zerodha), update, or deletion automatically calls 'update_portfolio_excel()', refreshing both the 'Portfolio' and 'Advice_Log' sheets and uploading them to Google Drive in the background."
+        ),
+        (
+            "Q: How does trade execution update the AI Advice Tracker?",
+            "A: When you execute a trade (e.g. buying 30 shares of HDFC Bank), Trade Management scans 'advice_log' for open recommendations matching the stock ticker/company and trade direction. If a match is found, it automatically transitions status from 'Not Followed' to 'Fully Followed' (or 'Partially Followed' for partial quantities) and timestamps the execution date."
         )
     ]
     return guide_lines, faq_data

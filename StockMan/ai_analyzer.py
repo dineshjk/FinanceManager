@@ -972,6 +972,12 @@ def get_pick_of_the_day_advice(
                         f_out.write(cleaned)
                 except Exception:
                     pass
+                # Auto-sync advice from new AI generation to SQLite & StockMan_Portfolio.xlsx
+                try:
+                    from StockMan.advice_tracker import auto_update_advice_from_pick_of_the_day
+                    auto_update_advice_from_pick_of_the_day(cleaned)
+                except Exception as adv_e:
+                    logger.warning(f"Failed to auto-update advice from fresh AI report: {adv_e}")
             logger.info(
                 f"Pick of the Day: Returning response via tier "
                 f"'{model_or_tag}' ({len(cleaned)} chars)."

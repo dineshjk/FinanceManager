@@ -902,7 +902,7 @@ def get_last_serial_no(account_id: int) -> int | None:
     with get_db_connection(BANK_DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT MAX(serial_no) FROM bank_transactions WHERE account_id = ?",
+            "SELECT MAX(CAST(serial_no AS INTEGER)) FROM bank_transactions WHERE account_id = ? AND serial_no IS NOT NULL AND serial_no != ''",
             (account_id,),
         )
         row = cursor.fetchone()

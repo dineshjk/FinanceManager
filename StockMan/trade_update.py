@@ -1631,6 +1631,7 @@ def update_trade(
             "• Applicable (App) fields show theoretical values based on broker rates.\n"
             "• Hover over any field to see its specific hint at the bottom.\n"
             "• Press 'OK' to save changes to the database.\n"
+            "• Automated Sync: Saving changes recalculates averages, updates 'StockMan_Portfolio.xlsx', checks for matching AI advice, and syncs to Google Drive.\n"
             "• Press 'Esc' to cancel and close this window."
         )
         show_colorful_info(rat_win, "Help - Update Trade", help_text)
@@ -1717,6 +1718,21 @@ def update_trade(
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
+
+                # Fetch old trade details before update to compute cash adjustment delta
+                old_trade_type = None
+                old_net_amt = 0.0
+                try:
+                    cursor.execute(
+                        "SELECT trade_type_trd, net_amt_trd FROM transactions WHERE id_trd = ?",
+                        (data["id_trd"],),
+                    )
+                    old_row = cursor.fetchone()
+                    if old_row:
+                        old_trade_type = old_row[0]
+                        old_net_amt = float(old_row[1] or 0.0)
+                except Exception:
+                    pass
 
                 cursor.execute(
                     "UPDATE contracts SET trd_dt=?, settle_no=?, settle_dt=?, note_cont=? WHERE cont_no = ?",
@@ -1844,6 +1860,40 @@ def update_trade(
                 conn.commit()
 
                 compute_avg_price(data["id_stk"], buy_sell_var.get())
+
+                # Automatically adjust cash delta in Excel, match advice, and sync to Drive
+                try:
+                    from .advice_tracker import auto_sync_trade_with_advice
+                    from .drive_sync import adjust_cash_for_trades
+
+                    new_trade_type = buy_sell_var.get()
+                    new_net_amt = float(net_trade_var.get() or 0.0)
+
+                    # Compute net delta on cash:
+                    # Old cash effect: -old_net if old BUY else +old_net
+                    # New cash effect: -new_net if new BUY else +new_net
+                    old_effect = (-old_net_amt) if (old_trade_type and old_trade_type.upper() == "BUY") else (old_net_amt if old_trade_type else 0.0)
+                    new_effect = (-new_net_amt) if (new_trade_type and new_trade_type.upper() == "BUY") else new_net_amt
+                    cash_delta = new_effect - old_effect
+
+                    if abs(cash_delta) > 0.001:
+                        fake_trade = {
+                            "trade_type_trd": "SELL" if cash_delta > 0 else "BUY",
+                            "net_amt_trd": abs(cash_delta),
+                        }
+                        adjust_cash_for_trades([fake_trade], trigger_drive_upload=False)
+
+                    trade_info = {
+                        "id_stk": data["id_stk"],
+                        "company_name": company_name_var.get(),
+                        "trade_type_trd": buy_sell_var.get(),
+                        "qty_trd": float(qty_trd_var.get() or 0),
+                        "trd_dt": trd_date_entry.get_date().strftime("%Y-%m-%d"),
+                        "net_amt_trd": None,  # delta already applied
+                    }
+                    auto_sync_trade_with_advice(trade_info)
+                except Exception as ex:
+                    logger.warning("Failed to auto-sync updated trade with advice/Excel: %s", ex)
 
                 show_colorful_info(
                     rat_win, "Success", "Trade updated successfully!"

@@ -8,6 +8,8 @@ service_account.json
 docs/*_REPORT.md
 docs/DAILY_PICK_OF_THE_DAY_REPORT.md
 docs/PORTFOLIO_SELL_ADVICE_REPORT.md
+Pick_of_the_day*.md
+Pick_of_the_day*.txt
 
 # Personal Databases and User Data
 data/*

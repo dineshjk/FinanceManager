@@ -26,6 +26,7 @@ from StockMan.reporting_utils import (
     build_master_dividend_tree_rows,
     build_master_ledger_display_rows,
     build_passbook_display_rows,
+    build_yearly_passbook_data,
     build_scrip_wise_dividend_data,
     build_performance_summary_rows,
     build_online_action_entries,
@@ -1726,27 +1727,27 @@ def test_build_passbook_display_rows():
     assert len(detail_rows) == 4
 
     # 1. First BUY
-    # Date, Description, Deposit, Withdrawal, Cum. Inv, Cum. Disinv, Day's Disinv, Cum. P&L, Cum. Ann. %
+    # Date, Description, Deposit, Withdrawal, Cum. Inv, Cum. Disinv, Investment, Day's Disinv, Cum. P&L, Cum. Ann. %
     assert detail_rows[0] == (
-        "2024-01-10", "BUY - INFY", "-", "10,000.00", "10,000.00", "0.00", "-", "0.00", "+0.00%"
+        "2024-01-10", "BUY - INFY", "-", "10,000.00", "10,000.00", "0.00", "10,000.00", "-", "0.00", "+0.00%"
     )
     assert tags[0] == "neutral"
 
     # 2. Second BUY
     assert detail_rows[1] == (
-        "2024-02-15", "BUY - TCS", "-", "20,000.00", "30,000.00", "0.00", "-", "0.00", "+0.00%"
+        "2024-02-15", "BUY - TCS", "-", "20,000.00", "30,000.00", "0.00", "30,000.00", "-", "0.00", "+0.00%"
     )
     assert tags[1] == "neutral"
 
     # 3. Dividend (order 2, on 2024-03-01)
     assert detail_rows[2] == (
-        "2024-03-01", "DIV - ITC", "250.00", "-", "30,000.00", "0.00", "-", "250.00", "+11.27%"
+        "2024-03-01", "DIV - ITC", "250.00", "-", "30,000.00", "0.00", "30,000.00", "-", "250.00", "+11.27%"
     )
     assert tags[2] == "profit"
 
     # 4. Multi-lot SELL (2024-06-01)
     assert detail_rows[3] == (
-        "2024-06-01", "SELL - INFY", "11,400.00", "-", "30,000.00", "10,000.00", "10,000.00", "1,650.00", "+16.87%"
+        "2024-06-01", "SELL - INFY", "11,400.00", "-", "30,000.00", "10,000.00", "20,000.00", "10,000.00", "1,650.00", "+16.87%"
     )
     assert tags[3] == "profit"
 
@@ -1779,20 +1780,106 @@ def test_build_passbook_display_rows_with_date_filter():
     assert detail_rows[0][0] == "2024-05-01"
     assert detail_rows[0][1] == "BUY - TCS"
     assert detail_rows[0][4] == "25,000.00"
-    assert detail_rows[0][7] == "0.00"
+    assert detail_rows[0][5] == "0.00"
+    assert detail_rows[0][6] == "25,000.00"  # Investment
+    assert detail_rows[0][8] == "0.00"
 
     # 2024-06-01 Div: cum_pnl = 300.00
     assert detail_rows[1][0] == "2024-06-01"
     assert detail_rows[1][1] == "DIV - INFY"
-    assert detail_rows[1][7] == "300.00"
-    assert detail_rows[1][8] == "+2.47%"
+    assert detail_rows[1][6] == "25,000.00"  # Investment unchanged on Dividend
+    assert detail_rows[1][8] == "300.00"
+    assert detail_rows[1][9] == "+2.47%"
 
     # 2024-07-01 Sell: cum_disinv = 10,000, cum_pnl = 2,300.00
     assert detail_rows[2][0] == "2024-07-01"
     assert detail_rows[2][1] == "SELL - INFY"
+    assert detail_rows[2][4] == "25,000.00"
     assert detail_rows[2][5] == "10,000.00"
-    assert detail_rows[2][7] == "2,300.00"
-    assert detail_rows[2][8] == "+16.19%"
+    assert detail_rows[2][6] == "15,000.00"  # Investment: 25,000 - 10,000 = 15,000
+    assert detail_rows[2][7] == "10,000.00"
+    assert detail_rows[2][8] == "2,300.00"
+    assert detail_rows[2][9] == "+16.19%"
+
+
+def test_build_yearly_passbook_data():
+    mock_events = {
+        "buys": [
+            (1, "2023-05-10", "INFY.NS", 10000.0),
+            (2, "2024-05-01", "TCS.NS", 20000.0),
+        ],
+        "sells": [
+            (3, "2024-06-01", "INFY.NS", 12000.0, 10000.0, 12000.0, 2000.0, 4270000.0),
+        ],
+        "dividends": [
+            (1, "2024-07-01", "TCS.NS", 500.0),
+        ],
+    }
+
+    res = build_yearly_passbook_data(mock_events)
+    assert "grand_summary_row" in res
+    assert "hisaab_summary_rows" in res
+    assert "fy_ledgers" in res
+
+    # Grand summary checks
+    grand = res["grand_summary_row"]
+    assert grand[0] == "ALL YEARS"
+    assert grand[2] == "0.00"       # Initial opening investment
+    assert grand[3] == "30,000.00"  # Total investment added
+    assert grand[4] == "10,000.00"  # Total disinvestment
+    assert grand[5] == "20,000.00"  # Latest closing investment (30,000 - 10,000)
+    assert grand[6] == "12,000.00"  # Sell proceeds
+    assert grand[7] == "500.00"     # Dividends
+    assert grand[8] == "2,000.00"   # Realized P&L
+    assert grand[9] == "2,500.00"   # Total gain
+
+    # Check FY 2023-24 ledger:
+    fy_23 = res["fy_ledgers"]["FY 2023-24"]
+    rows_23 = fy_23["rows"]
+    # Row 0: 01-Apr-2023 Opening Investment (0.00)
+    assert rows_23[0][0] == "2023-04-01"
+    assert "Opening Investment" in rows_23[0][1]
+    assert rows_23[0][4] == "0.00"
+    assert rows_23[0][6] == "0.00"
+    # Row 1: Buy INFY (10,000)
+    assert rows_23[1][0] == "2023-05-10"
+    assert rows_23[1][1] == "BUY - INFY"
+    assert rows_23[1][3] == "10,000.00"
+    assert rows_23[1][4] == "10,000.00"
+    assert rows_23[1][6] == "10,000.00"
+    # Row 2: 31-Mar-2024 Closing Investment (10,000.00)
+    assert rows_23[2][0] == "2024-03-31"
+    assert "Closing Investment" in rows_23[2][1]
+    assert rows_23[2][6] == "10,000.00"
+
+    # Check FY 2024-25 ledger:
+    fy_24 = res["fy_ledgers"]["FY 2024-25"]
+    rows_24 = fy_24["rows"]
+    # Row 0: 01-Apr-2024 Opening Investment (brought forward 10,000.00!)
+    assert rows_24[0][0] == "2024-04-01"
+    assert "Opening Investment" in rows_24[0][1]
+    assert rows_24[0][4] == "10,000.00"
+    assert rows_24[0][6] == "10,000.00"  # Opening Investment carried forward!
+    # Row 1: Buy TCS 20,000 -> Cum. Inv = 30,000, Investment = 30,000
+    assert rows_24[1][0] == "2024-05-01"
+    assert rows_24[1][1] == "BUY - TCS"
+    assert rows_24[1][4] == "30,000.00"
+    assert rows_24[1][6] == "30,000.00"
+    # Row 2: Sell INFY 12,000 (cost 10,000) -> Investment drops to 20,000!
+    assert rows_24[2][0] == "2024-06-01"
+    assert rows_24[2][1] == "SELL - INFY"
+    assert rows_24[2][5] == "10,000.00"
+    assert rows_24[2][6] == "20,000.00"
+    assert rows_24[2][8] == "2,000.00"
+    # Row 3: Dividend TCS 500 -> Total P&L = 2,500
+    assert rows_24[3][0] == "2024-07-01"
+    assert rows_24[3][1] == "DIV - TCS"
+    assert rows_24[3][6] == "20,000.00"
+    assert rows_24[3][8] == "2,500.00"
+    # Row 4: Closing Investment on 31-Mar-2025
+    assert rows_24[4][0] == "2025-03-31"
+    assert "Closing Investment" in rows_24[4][1]
+    assert rows_24[4][6] == "20,000.00"
 
 
 def test_fetch_passbook_events():

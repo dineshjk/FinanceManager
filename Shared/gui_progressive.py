@@ -151,7 +151,7 @@ def progressive_selection(combobox, values_list):
     setattr(combobox, "manual_select", manual_select)
 
     combobox.bind("<KeyRelease>", on_key_release)
-    combobox.bind("<<ComboboxSelected>>", on_select)
+    combobox.bind("<<ComboboxSelected>>", on_select, add="+")
     combobox.bind("<Button-1>", on_dropdown_click)
 
 

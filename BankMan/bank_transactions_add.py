@@ -2002,9 +2002,11 @@ def add_bank_transaction_main(
     _band_label(acct_lrow, "Value Dt", _C_ACCT, _F, padx=20)
     _band_label(acct_lrow, "Trans Dt", _C_ACCT, _F, padx=90)
 
+    account_var = tk.StringVar(win)
     account_combo = ttk.Combobox(
-        acct_erow, width=25, values=list(account_map.keys()), font=_F
+        acct_erow, width=25, textvariable=account_var, values=list(account_map.keys()), font=_F
     )
+    account_combo.account_var = account_var
     account_combo.pack(side="left", padx=(0, 4))
     apply_entry_theme(account_combo)
     progressive_selection(account_combo, list(account_map.keys()))
@@ -2016,6 +2018,7 @@ def add_bank_transaction_main(
         account_map.update({f"{a[1]} : [{a[3]}]": a[0] for a in new_accounts})
         account_combo["values"] = list(account_map.keys())
         progressive_selection(account_combo, list(account_map.keys()))
+        account_combo.bind("<<ComboboxSelected>>", lambda e: _on_account_change(), add="+")
 
     def on_account_focus_out(_event=None):
         try:
@@ -2023,6 +2026,8 @@ def add_bank_transaction_main(
                 return
         except (tk.TclError, NameError):
             return
+        if hasattr(account_combo, "manual_select"):
+            account_combo.manual_select()
         typed = account_combo.get().strip()
         if not typed:
             return
@@ -2044,6 +2049,11 @@ def add_bank_transaction_main(
                 )
                 flash_error(account_combo)
                 account_combo.focus_set()
+        else:
+            try:
+                _on_account_change()
+            except NameError:
+                pass
 
     account_combo.bind("<FocusOut>", on_account_focus_out, add="+")
 
@@ -2057,7 +2067,7 @@ def add_bank_transaction_main(
     serial_no_entry = tk.Spinbox(
         acct_erow,
         from_=1,
-        to=9999,
+        to=999999,
         width=5,
         font=_F,
         validate="key",
@@ -3032,17 +3042,23 @@ def add_bank_transaction_main(
     bind_date_spin(trans_dt, callback=_on_trans_dt_change)
 
     # ── Account change → Value Dt default ─────────────────────────────────
-    def _on_account_change(*_):
-        acct_name = account_combo.get()
+    _last_active_acct = [None]
+
+    def _on_account_change(*_, force=False):
+        acct_name = account_combo.get().strip()
         if not acct_name or acct_name not in account_map:
             return
+        if not force and acct_name == _last_active_acct[0]:
+            return
+        _last_active_acct[0] = acct_name
+        aid = account_map[acct_name]
 
         # --- NEW GUARD ---
         # If Pair ID is populated (e.g., via auto-fill), we are completing a transfer.
         # Do NOT auto-advance the dates; they must strictly match the originating side.
         if not pair_id_var.get().strip():
             try:
-                last_dt = get_last_trans_date(account_map[acct_name])
+                last_dt = get_last_trans_date(aid)
                 default_dt = (
                     _next_working_day(last_dt)
                     if last_dt
@@ -3055,10 +3071,10 @@ def add_bank_transaction_main(
         # -----------------
 
         try:
-            last_serial = get_last_serial_no(account_map[acct_name])
+            last_serial = get_last_serial_no(aid)
             serial_no_entry.delete(0, tk.END)
-            if last_serial is not None:
-                serial_no_entry.insert(0, str(last_serial + 1))
+            next_serial = (last_serial + 1) if last_serial is not None else 1
+            serial_no_entry.insert(0, str(next_serial))
         except Exception as exc:  # noqa: BLE001
             logger.debug("Serial No default failed: %s", exc)
         try:
@@ -3067,8 +3083,11 @@ def add_bank_transaction_main(
             logger.debug("Last balance fetch failed: %s", exc)
         _bal_updater()
 
-    account_combo.bind("<<ComboboxSelected>>", _on_account_change)
-    win.after(50, _on_account_change)
+    account_combo.bind("<<ComboboxSelected>>", lambda e: _on_account_change(), add="+")
+    account_var.trace_add("write", lambda *_: _on_account_change())
+    if not _last_active_acct[0] and account_combo.get().strip() in account_map:
+        _on_account_change(force=True)
+    win.after(50, lambda: _on_account_change())
     withdrawal_entry.bind("<FocusOut>", _bal_updater, add="+")
     deposit_entry.bind("<FocusOut>", _bal_updater, add="+")
     withdrawal_entry.bind("<KeyRelease>", _bal_updater, add="+")
@@ -3115,7 +3134,7 @@ def add_bank_transaction_main(
         tax_section_var.set("")
         _update_tax_display()
         _rebuild_prev_bal()
-        _on_account_change()
+        _on_account_change(force=True)
         account_combo.focus_set()
 
     # ── Commit to database ────────────────────────────────────────────────
@@ -3198,7 +3217,9 @@ def add_bank_transaction_main(
                 deposit_entry.delete(0, tk.END)
                 deposit_entry.insert(0, f"{withdrawal_amount:.2f}")
                 pair_id_var.set(str(new_trans_id))
+                _last_active_acct[0] = None
                 account_combo.set("")
+                serial_no_entry.delete(0, tk.END)
                 balance_entry.delete(0, tk.END)
                 _prev_balance[0] = None
                 account_combo.focus_set()
@@ -3682,10 +3703,12 @@ def add_bank_transaction_main(
                 target_lbl = next((lbl for lbl, a_id in account_map.items() if a_id == data['account_id']), None)
                 if target_lbl:
                     account_combo.set(target_lbl)
+                    _last_active_acct[0] = target_lbl
             else:
                 icici_lbl = next((lbl for lbl in account_map if "0085001101" in lbl), None)
                 if icici_lbl:
                     account_combo.set(icici_lbl)
+                    _last_active_acct[0] = icici_lbl
 
             def parse_dt(dstr):
                 for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d %H:%M:%S"):
@@ -3886,7 +3909,13 @@ def add_bank_transaction_main(
     _bind_radio_group(mt_radios, module_type_var, _module_types, _mt_next_focus)
 
     # ── Return-key focus traversal (rows 0 → 12 → Submit) ────────────────
-    account_combo.bind("<Return>", lambda e: serial_no_entry.focus_set())
+    def _on_account_return(_event=None):
+        if hasattr(account_combo, "manual_select"):
+            account_combo.manual_select()
+        _on_account_change()
+        serial_no_entry.focus_set()
+
+    account_combo.bind("<Return>", _on_account_return)
     serial_no_entry.bind("<Return>", lambda e: value_dt.focus_set())
     value_dt.bind("<Return>", lambda e: trans_dt.focus_set())
     trans_dt.bind("<Return>", lambda e: cheque_no_entry.focus_set())
@@ -3945,6 +3974,8 @@ def add_bank_transaction_main(
     if prefill_serial is not None:
         serial_no_entry.delete(0, tk.END)
         serial_no_entry.insert(0, str(prefill_serial))
+        if account_combo.get().strip() in account_map:
+            _last_active_acct[0] = account_combo.get().strip()
     if prefill_cheque:
         cheque_no_entry.delete(0, tk.END)
         cheque_no_entry.insert(0, prefill_cheque)

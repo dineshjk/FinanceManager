@@ -23,6 +23,7 @@ from .trade_utils import rebuild_sell_allocations
 from Shared.modal_utils import disable_parent
 from Shared.window_manager import push_window, safe_close_modal
 from Shared.gui_utils import apply_button_animations, universal_tree_sort
+from Shared.help_utils import show_standard_help
 
 
 def show_trade_manager(
@@ -194,18 +195,22 @@ def show_trade_manager(
         if trd_id is None:
             return
 
-        # Fetch id_stk before deletion for FIFO rebalance
+        # Fetch id_stk, trade_type_trd, and net_amt_trd before deletion for FIFO rebalance and cash reversal
         id_stk = None
+        trd_type_db = None
+        trd_net_amt = 0.0
         try:
             with get_db_connection() as conn:
                 cur = conn.cursor()
                 cur.execute(
-                    "SELECT id_stk FROM transactions WHERE id_trd = ?",
+                    "SELECT id_stk, trade_type_trd, net_amt_trd FROM transactions WHERE id_trd = ?",
                     (trd_id,),
                 )
                 row = cur.fetchone()
                 if row:
                     id_stk = row[0]
+                    trd_type_db = row[1]
+                    trd_net_amt = float(row[2] or 0.0)
         except Exception:
             pass
 
@@ -223,6 +228,46 @@ def show_trade_manager(
                 # Rebuild FIFO allocations for the affected stock
                 if id_stk is not None:
                     rebuild_sell_allocations([id_stk])
+
+                # Automatically adjust cash in StockMan_Portfolio.xlsx and sync to Drive
+                try:
+                    from .drive_sync import (
+                        GOOGLE_DRIVE_AVAILABLE,
+                        get_credentials_file,
+                        get_drive_service,
+                        update_portfolio_excel,
+                        upload_portfolio_to_drive,
+                        adjust_cash_for_trade,
+                    )
+                    import threading
+
+                    if trd_type_db and trd_net_amt > 0:
+                        # Reversing a BUY refunds cash (+net_amt -> SELL adjustment);
+                        # Reversing a SELL removes cash proceeds (-net_amt -> BUY adjustment).
+                        reverse_type = "SELL" if trd_type_db.upper() == "BUY" else "BUY"
+                        new_cash, appetite, excel_path = adjust_cash_for_trade(
+                            trade_type=reverse_type,
+                            net_amount=trd_net_amt,
+                        )
+                        logger.info(
+                            f"Reversed cash for deleted {trd_type_db} trade #{trd_id}: New cash = ₹{new_cash:,.2f}"
+                        )
+                    else:
+                        excel_path = update_portfolio_excel()
+                        if GOOGLE_DRIVE_AVAILABLE:
+                            def _bg_upload():
+                                try:
+                                    cred_file = get_credentials_file()
+                                    if cred_file:
+                                        svc = get_drive_service()
+                                        upload_portfolio_to_drive(svc, file_path=excel_path)
+                                except Exception as up_err:
+                                    logger.warning("Background Google Drive upload notice: %s", up_err)
+
+                            threading.Thread(target=_bg_upload, daemon=True).start()
+                except Exception as ex:
+                    logger.warning("Failed to refresh portfolio excel on trade delete: %s", ex)
+
                 show_colorful_info(
                     mgr_win,
                     "Delete Successful",
@@ -293,6 +338,38 @@ def show_trade_manager(
         close_manager()
         return "break"  # This is the magic bullet that stops the event from reaching the parent
 
+    def _show_help(e=None):
+        if e and (getattr(e, "state", 0) & 0x0004):
+            return  # Let global handler process Ctrl+F1
+        guide_lines = [
+            "Trade Manager provides a centralized ledger to review, edit, or delete stock trades.",
+            "",
+            "Features:",
+            "• Search & Sort: Click column headers to sort; use search bar to filter by ticker or company name.",
+            "• Edit Selected: Modify trade details, brokerage, or exchange execution rates.",
+            "• Delete Selected: Safely delete an incorrect trade with full mathematical rollback.",
+            "",
+            "Automated Synchronization:",
+            "• Deleting or editing a trade automatically recalculates FIFO allocations and holding averages.",
+            "• 'StockMan_Portfolio.xlsx' (both Portfolio and Advice_Log sheets) is immediately regenerated and uploaded to Google Drive.",
+            "",
+            "Hotkeys:",
+            "• Escape: Close Trade Manager",
+            "• F1: Show this Help window"
+        ]
+        faq_data = [
+            (
+                "Q: What happens when I delete a trade?",
+                "A: The trade record is removed, FIFO sell allocations are automatically rebalanced, stock average prices are recomputed, and 'StockMan_Portfolio.xlsx' is updated and synced to Google Drive."
+            ),
+            (
+                "Q: Will deleting a trade affect BankMan?",
+                "A: Yes, associated computed bank ledger entries are reversed to maintain complete financial reconciliation."
+            )
+        ]
+        show_standard_help(mgr_win, "Trade Manager Help", guide_lines, faq_data)
+
+    mgr_win.bind("<F1>", _show_help)
     mgr_win.bind("<Escape>", on_esc)
     # mgr_win.bind("<KeyRelease-Escape>", on_esc)
     mgr_win.protocol("WM_DELETE_WINDOW", close_manager)

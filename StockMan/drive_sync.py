@@ -25,11 +25,22 @@ import glob
 import json
 import logging
 import sqlite3
+import concurrent.futures
 from datetime import datetime, timedelta, time as dtime
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
 
 import tkinter as tk
 
@@ -158,68 +169,180 @@ def record_startup_prompt_completed(
         )
 
 
+def reset_startup_cycle_to_first_run(
+    state_file: str = STATE_FILE_PATH,
+    excel_path: str = PORTFOLIO_EXCEL_PATH,
+) -> None:
+    """
+    Resets the startup sync state and Excel file modification time to prior to
+    the current 8:00 AM daily cycle.
+    This guarantees that the next run of the application is treated as the
+    'first run of the day', prompting the user for Appetite & Cash, updating
+    StockMan_Portfolio.xlsx with the latest Advice_Log data, and uploading to Google Drive.
+    """
+    global _STARTUP_COMPLETED
+    _STARTUP_COMPLETED = False
+
+    prior_dt = datetime.now() - timedelta(days=1)
+
+    # 1. Update state file
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(state_file)), exist_ok=True)
+        data = {
+            "last_prompt_time": prior_dt.isoformat(),
+            "appetite": DEFAULT_APPETITE,
+            "cash": DEFAULT_CASH,
+        }
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, "r", encoding="utf-8") as f:
+                    old_data = json.load(f)
+                data["appetite"] = old_data.get("appetite", DEFAULT_APPETITE)
+                data["cash"] = old_data.get("cash", DEFAULT_CASH)
+            except Exception:
+                pass
+        with open(state_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        logger.info(f"Reset '{state_file}' last_prompt_time to {prior_dt.isoformat()}.")
+    except Exception as e:
+        logger.warning(f"Failed to reset state file '{state_file}': {e}")
+
+    # 2. Adjust Excel file modification time
+    if os.path.exists(excel_path):
+        try:
+            prior_ts = prior_dt.timestamp()
+            os.utime(excel_path, (prior_ts, prior_ts))
+            logger.info(f"Set '{excel_path}' modification time to prior cycle ({prior_dt}).")
+        except Exception as e:
+            logger.warning(f"Failed to adjust mtime for '{excel_path}': {e}")
+
+
 # -----------------------------------------------------------------------------
 # Step A: Read Investment Parameters from Excel
 # -----------------------------------------------------------------------------
 def read_investment_parameters(
-    excel_path: str = PORTFOLIO_EXCEL_PATH,
+    excel_path: Optional[str] = None,
 ) -> Tuple[float, float]:
     """
     Step A:
-    Reads StockMan_Portfolio.xlsx. Extracts:
+    Reads StockMan_Portfolio.xlsx (specifically Sheet 'Portfolio'). Extracts:
       - 'Current Appetite' from Row 1, Column 2 (or Col 3 fallback)
       - 'Cash Available for Investment' from Row 2, Column 2 (or Col 3 fallback)
     Returns (current_appetite, cash_available).
-    Returns (DEFAULT_APPETITE, DEFAULT_CASH) if the file doesn't exist or is unreadable.
+    Falls back to startup_sync_state.json, then DEFAULT_APPETITE and DEFAULT_CASH
+    if the file does not exist or values are missing.
     """
-    if not os.path.exists(excel_path):
+    if excel_path is None:
+        excel_path = PORTFOLIO_EXCEL_PATH
+    # 1. Determine target file to read (prefer newer _auto_updated.xlsx fallback if present)
+    target_path = excel_path
+    fb_path = os.path.splitext(excel_path)[0] + "_auto_updated.xlsx"
+    if os.path.exists(fb_path):
+        if not os.path.exists(excel_path) or os.path.getmtime(fb_path) >= os.path.getmtime(excel_path):
+            target_path = fb_path
+            # If excel_path is now unlocked/writable, attempt to promote fb_path
+            if os.path.exists(excel_path):
+                try:
+                    with open(excel_path, "a+b"):
+                        pass
+                    import shutil
+                    shutil.copy2(fb_path, excel_path)
+                    os.remove(fb_path)
+                    target_path = excel_path
+                except Exception:
+                    pass
+
+    if not os.path.exists(target_path):
         logger.info(
-            f"Excel file not found at '{excel_path}'. Using default parameters."
+            f"Excel file not found at '{target_path}'. Using default parameters."
         )
         return DEFAULT_APPETITE, DEFAULT_CASH
+
+    appetite = None
+    cash = None
+
+    def _clean_val(val, default):
+        if val is None:
+            return default
+        if isinstance(val, (int, float)):
+            return float(val)
+        cleaned = re.sub(r"[^\d.-]", "", str(val).strip())
+        try:
+            return float(cleaned) if cleaned else default
+        except ValueError:
+            return default
 
     wb = None
     try:
-        wb = openpyxl.load_workbook(excel_path, data_only=True)
-        ws = wb.active
+        wb = openpyxl.load_workbook(target_path, data_only=True)
+        ws = wb["Portfolio"] if "Portfolio" in wb.sheetnames else wb.active
 
-        def _clean_val(val, default):
-            if val is None:
-                return default
-            if isinstance(val, (int, float)):
-                return float(val)
-            # Remove currency symbols and formatting commas
-            cleaned = re.sub(r"[^\d.-]", "", str(val).strip())
-            try:
-                return float(cleaned) if cleaned else default
-            except ValueError:
-                return default
+        # Check primary expected locations (Row 1 Col 2/3 for appetite, Row 2 Col 2/3 for cash)
+        r1_c1 = str(ws.cell(row=1, column=1).value or "").lower()
+        if "appetite" in r1_c1:
+            raw_appetite = ws.cell(row=1, column=2).value
+            if raw_appetite is None:
+                raw_appetite = ws.cell(row=1, column=3).value
+            appetite = _clean_val(raw_appetite, None)
 
-        # Check Column 2, fallback to Column 3 if Col 2 is empty/None
-        raw_appetite = ws.cell(row=1, column=2).value
-        if raw_appetite is None:
-            raw_appetite = ws.cell(row=1, column=3).value
-        appetite = _clean_val(raw_appetite, DEFAULT_APPETITE)
+        r2_c1 = str(ws.cell(row=2, column=1).value or "").lower()
+        if "cash" in r2_c1:
+            raw_cash = ws.cell(row=2, column=2).value
+            if raw_cash is None:
+                raw_cash = ws.cell(row=2, column=3).value
+            cash = _clean_val(raw_cash, None)
 
-        raw_cash = ws.cell(row=2, column=2).value
-        if raw_cash is None:
-            raw_cash = ws.cell(row=2, column=3).value
-        cash = _clean_val(raw_cash, DEFAULT_CASH)
+        # If either wasn't found at row 1/row 2, scan top rows
+        if appetite is None or cash is None:
+            for r in range(1, min(ws.max_row + 1, 15)):
+                for c in range(1, min(ws.max_column + 1, 6)):
+                    cell_str = str(ws.cell(row=r, column=c).value or "").strip().lower()
+                    if appetite is None and "appetite" in cell_str:
+                        val = ws.cell(row=r, column=c + 1).value
+                        if val is None and c + 2 <= ws.max_column:
+                            val = ws.cell(row=r, column=c + 2).value
+                        appetite = _clean_val(val, None)
+                    if cash is None and "cash" in cell_str:
+                        val = ws.cell(row=r, column=c + 1).value
+                        if val is None and c + 2 <= ws.max_column:
+                            val = ws.cell(row=r, column=c + 2).value
+                        cash = _clean_val(val, None)
 
-        logger.info(
-            f"Step A: Extracted parameters — Appetite: ₹{appetite:,.2f}, Cash: ₹{cash:,.2f}"
-        )
-        return appetite, cash
+        # Fallback to direct row 1 col 2 and row 2 col 2 if label scan failed
+        if appetite is None:
+            appetite = _clean_val(ws.cell(row=1, column=2).value, None)
+        if cash is None:
+            cash = _clean_val(ws.cell(row=2, column=2).value, None)
 
     except Exception as e:
-        logger.warning(f"Error reading '{excel_path}': {e}. Using defaults.")
-        return DEFAULT_APPETITE, DEFAULT_CASH
+        logger.warning(f"Error reading '{target_path}': {e}.")
     finally:
         if wb is not None:
             try:
                 wb.close()
             except Exception:
                 pass
+
+    # Secondary fallback: Read from startup_sync_state.json if either is still None
+    if (appetite is None or cash is None) and os.path.exists(STATE_FILE_PATH):
+        try:
+            with open(STATE_FILE_PATH, "r", encoding="utf-8") as f:
+                s_data = json.load(f)
+            if appetite is None and "appetite" in s_data:
+                appetite = _clean_val(s_data.get("appetite"), None)
+            if cash is None and "cash" in s_data:
+                cash = _clean_val(s_data.get("cash"), None)
+        except Exception:
+            pass
+
+    # Tertiary fallback: global defaults
+    final_appetite = appetite if appetite is not None else DEFAULT_APPETITE
+    final_cash = cash if cash is not None else DEFAULT_CASH
+
+    logger.info(
+        f"Step A: Extracted parameters — Appetite: ₹{final_appetite:,.2f}, Cash: ₹{final_cash:,.2f}"
+    )
+    return final_appetite, final_cash
 
 
 # -----------------------------------------------------------------------------
@@ -444,24 +567,295 @@ def prompt_startup_parameters_dialog(
 
 
 # -----------------------------------------------------------------------------
+# Live Market Data & Portfolio DataFrame Builders (yfinance & pandas)
+# -----------------------------------------------------------------------------
+def fetch_live_cmp(ticker: str) -> float:
+    """
+    Fetches the Current Market Price (CMP) for a stock ticker using yfinance.
+    Ensures '.NS' is appended to the ticker to correctly fetch Indian equities
+    from the National Stock Exchange (NSE).
+    """
+    if not ticker or (pd is not None and pd.isna(ticker)):
+        return 0.0
+
+    raw_str = str(ticker).strip().upper()
+    if not raw_str:
+        return 0.0
+
+    if raw_str.endswith(".NS") or raw_str.endswith(".BO"):
+        symbol = raw_str
+    else:
+        symbol = f"{raw_str}.NS"
+
+    if yf is None:
+        logger.warning(
+            f"yfinance library is not available to fetch CMP for '{symbol}'."
+        )
+        return 0.0
+
+    try:
+        t = yf.Ticker(symbol)
+
+        # 1. Check fast_info (quickest metadata access)
+        if hasattr(t, "fast_info") and t.fast_info is not None:
+            val = None
+            try:
+                if hasattr(t.fast_info, "get"):
+                    val = t.fast_info.get("lastPrice") or t.fast_info.get("last_price")
+                if val is None:
+                    val = getattr(t.fast_info, "last_price", None) or getattr(
+                        t.fast_info, "lastPrice", None
+                    )
+            except Exception:
+                val = None
+            if (
+                val is not None
+                and (pd is None or not pd.isna(val))
+                and float(val) > 0
+            ):
+                return round(float(val), 2)
+
+        # 2. Check info dictionary (regularMarketPrice / currentPrice)
+        if hasattr(t, "info") and isinstance(t.info, dict):
+            for k in ("regularMarketPrice", "currentPrice", "previousClose"):
+                val = t.info.get(k)
+                if (
+                    val is not None
+                    and (pd is None or not pd.isna(val))
+                    and float(val) > 0
+                ):
+                    return round(float(val), 2)
+
+        # 3. Check 1-day history close
+        if hasattr(t, "history"):
+            try:
+                hist = t.history(period="1d")
+                if hist is not None and not hist.empty and "Close" in hist:
+                    val = hist["Close"].dropna().iloc[-1]
+                    if (
+                        val is not None
+                        and (pd is None or not pd.isna(val))
+                        and float(val) > 0
+                    ):
+                        return round(float(val), 2)
+            except Exception:
+                pass
+
+    except Exception as e:
+        logger.warning(
+            f"Error fetching live market price (CMP) for '{symbol}': {e}"
+        )
+
+    return 0.0
+
+
+def fetch_multiple_cmp(
+    tickers: List[Any], max_workers: int = 10
+) -> Dict[str, float]:
+    """
+    Fetches live Current Market Prices (CMPs) for a collection of stock tickers
+    concurrently using ThreadPoolExecutor.
+    Returns mapping of {original_ticker: cmp_float}.
+    """
+    clean_tickers = [
+        str(t).strip()
+        for t in tickers
+        if t is not None
+        and (pd is None or not pd.isna(t))
+        and str(t).strip()
+    ]
+    unique_tickers = list(dict.fromkeys(clean_tickers))
+    if not unique_tickers:
+        return {}
+
+    results: Dict[str, float] = {}
+    workers = min(max_workers, len(unique_tickers))
+    if workers <= 1:
+        for t in unique_tickers:
+            results[t] = fetch_live_cmp(t)
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            future_to_ticker = {
+                executor.submit(fetch_live_cmp, t): t for t in unique_tickers
+            }
+            for future in concurrent.futures.as_completed(future_to_ticker):
+                t = future_to_ticker[future]
+                try:
+                    results[t] = future.result()
+                except Exception as e:
+                    logger.warning(f"Failed to fetch CMP for '{t}': {e}")
+                    results[t] = 0.0
+
+    return results
+
+
+def build_portfolio_dataframe(
+    db_path: str = STOCK_DB_PATH,
+) -> "pd.DataFrame":
+    """
+    Queries local SQLite table 'stocks', fetches Current Market Price (CMP) via
+    yfinance (appending '.NS' for Indian equities), and computes Unrealized PnL.
+
+    Adds three new columns to the Pandas DataFrame:
+      - CMP: The fetched live market price.
+      - Unrealized_PnL_Amount: Calculated as (CMP - curr_avg_price) * current_qty.
+      - Unrealized_PnL_Percentage: Calculated as ((CMP - curr_avg_price) / curr_avg_price) * 100.
+
+    Returns the populated Pandas DataFrame with all 10 columns.
+    """
+    columns = [
+        "id_stk",
+        "stk_code",
+        "isin",
+        "company_name",
+        "curr_avg_price",
+        "current_qty",
+        "curr_investment_amt",
+        "CMP",
+        "Unrealized_PnL_Amount",
+        "Unrealized_PnL_Percentage",
+    ]
+
+    if pd is None:
+        raise ImportError(
+            "The 'pandas' library is required to build the portfolio DataFrame."
+        )
+
+    if not os.path.exists(db_path):
+        logger.warning(
+            f"Database file '{db_path}' not found. Returning empty portfolio DataFrame."
+        )
+        return pd.DataFrame(columns=columns)
+
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'stocks'"
+        )
+        if not cursor.fetchone():
+            logger.warning(
+                f"Table 'stocks' not found in '{db_path}'. Returning empty portfolio DataFrame."
+            )
+            return pd.DataFrame(columns=columns)
+
+        cursor.execute("PRAGMA table_info(stocks)")
+        table_cols = [c[1] for c in cursor.fetchall()]
+        has_ticker = "ticker" in table_cols
+
+        if has_ticker:
+            query = """
+                SELECT s.id_stk, s.stk_code, s.isin, s.company_name, s.curr_avg_price,
+                       (s.buy_qty - s.sell_qty) AS current_qty,
+                       ROUND((s.buy_qty - s.sell_qty) * s.curr_avg_price, 2) AS curr_investment_amt,
+                       s.ticker
+                FROM stocks s
+                ORDER BY s.id_stk ASC
+            """
+        else:
+            query = """
+                SELECT s.id_stk, s.stk_code, s.isin, s.company_name, s.curr_avg_price,
+                       (s.buy_qty - s.sell_qty) AS current_qty,
+                       ROUND((s.buy_qty - s.sell_qty) * s.curr_avg_price, 2) AS curr_investment_amt
+                FROM stocks s
+                ORDER BY s.id_stk ASC
+            """
+        df = pd.read_sql_query(query, conn)
+    except Exception as e:
+        logger.error(f"Error reading stocks from database '{db_path}': {e}")
+        return pd.DataFrame(columns=columns)
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    if df.empty:
+        return pd.DataFrame(columns=columns)
+
+    # Resolve ticker symbols for yfinance querying
+    if "ticker" in df.columns:
+        query_tickers = df.apply(
+            lambda r: str(r["ticker"]).strip()
+            if str(r["ticker"]).strip()
+            else str(r["stk_code"]).strip(),
+            axis=1,
+        )
+    else:
+        query_tickers = df["stk_code"].astype(str).str.strip()
+
+    # Fetch live CMP prices
+    cmp_map = fetch_multiple_cmp(list(query_tickers.unique()))
+
+    # Add three new columns to the Pandas DataFrame before exporting
+    df["CMP"] = query_tickers.map(cmp_map).fillna(0.0).astype(float).round(2)
+    df["curr_avg_price"] = (
+        pd.to_numeric(df["curr_avg_price"], errors="coerce").fillna(0.0).astype(float)
+    )
+    df["current_qty"] = (
+        pd.to_numeric(df["current_qty"], errors="coerce").fillna(0).astype(int)
+    )
+
+    # Unrealized_PnL_Amount: Calculated as (CMP - curr_avg_price) * current_qty
+    df["Unrealized_PnL_Amount"] = (
+        (df["CMP"] - df["curr_avg_price"]) * df["current_qty"]
+    ).round(2)
+
+    # Unrealized_PnL_Percentage: Calculated as ((CMP - curr_avg_price) / curr_avg_price) * 100
+    def _calc_pnl_percentage(row):
+        avg = row["curr_avg_price"]
+        if avg and avg != 0:
+            return round(((row["CMP"] - avg) / avg) * 100.0, 2)
+        return 0.0
+
+    df["Unrealized_PnL_Percentage"] = df.apply(_calc_pnl_percentage, axis=1)
+
+    return df[columns]
+
+
+# -----------------------------------------------------------------------------
 # Step C: Write Updated Data Back to StockMan_Portfolio.xlsx
 # -----------------------------------------------------------------------------
 def update_portfolio_excel(
-    excel_path: str = PORTFOLIO_EXCEL_PATH,
-    current_appetite: float = DEFAULT_APPETITE,
-    cash_available: float = DEFAULT_CASH,
-    db_path: str = STOCK_DB_PATH,
+    excel_path: Optional[str] = None,
+    current_appetite: Optional[float] = None,
+    cash_available: Optional[float] = None,
+    db_path: Optional[str] = None,
+    df: Optional["pd.DataFrame"] = None,
 ) -> str:
     """
     Step C:
     Writes updated data back to StockMan_Portfolio.xlsx:
-      - Cell Row 1, Column 1: 'Current Appetite' | Cell Row 1, Column 2: current_appetite
-      - Cell Row 2, Column 1: 'Cash Available for Investment' | Cell Row 2, Column 2: cash_available
-      - Row 3: Headers ['id_stk', 'stk_code', 'isin', 'company_name', 'curr_avg_price', 'current_qty', 'curr_investment_amt']
-      - Row 4 onwards: Query local SQLite table 'stocks' and fill the rows.
+      - Sheet 'Portfolio':
+          - Cell Row 1, Column 1: 'Current Appetite' | Cell Row 1, Column 2: current_appetite
+          - Cell Row 2, Column 1: 'Cash Available for Investment' | Cell Row 2, Column 2: cash_available
+          - Row 3: Headers ['id_stk', 'stk_code', 'isin', 'company_name', 'curr_avg_price',
+                            'current_qty', 'curr_investment_amt', 'CMP',
+                            'Unrealized_PnL_Amount', 'Unrealized_PnL_Percentage']
+          - Row 4 onwards: Query local SQLite table 'stocks', fetch live market CMP via
+                           yfinance, compute Unrealized PnL, and populate from Pandas DataFrame.
+      - Sheet 'Advice_Log':
+          - Row 1: Headers ['Date of Advice', 'The Advice Given', 'Execution Status', 'Execution Date', 'Notes']
+          - Row 2 onwards: Query local SQLite table 'advice_log' ordered by advice_date DESC.
+    If current_appetite or cash_available is None, the existing values from the
+    Excel file (or state file) are read and preserved.
     Saves the file and returns the file path.
     """
+    if excel_path is None:
+        excel_path = PORTFOLIO_EXCEL_PATH
+    if db_path is None:
+        db_path = STOCK_DB_PATH
     os.makedirs(os.path.dirname(os.path.abspath(excel_path)), exist_ok=True)
+
+    # Resolve appetite and cash if not explicitly passed
+    if current_appetite is None or cash_available is None:
+        read_app, read_cash = read_investment_parameters(excel_path)
+        if current_appetite is None:
+            current_appetite = read_app
+        if cash_available is None:
+            cash_available = read_cash
 
     # Load or create new workbook
     wb = openpyxl.Workbook()
@@ -470,12 +864,12 @@ def update_portfolio_excel(
 
     # Row 1: Current Appetite
     ws.cell(row=1, column=1, value="Current Appetite")
-    cell_app = ws.cell(row=1, column=2, value=current_appetite)
+    cell_app = ws.cell(row=1, column=2, value=float(current_appetite))
     cell_app.number_format = "#,##0.00"
 
     # Row 2: Cash Available
     ws.cell(row=2, column=1, value="Cash Available for Investment")
-    cell_cash = ws.cell(row=2, column=2, value=cash_available)
+    cell_cash = ws.cell(row=2, column=2, value=float(cash_available))
     cell_cash.number_format = "#,##0.00"
 
     # Row 3: Headers
@@ -487,6 +881,9 @@ def update_portfolio_excel(
         "curr_avg_price",
         "current_qty",
         "curr_investment_amt",
+        "CMP",
+        "Unrealized_PnL_Amount",
+        "Unrealized_PnL_Percentage",
     ]
     header_fill = PatternFill(
         start_color="1E3A5F", end_color="1E3A5F", fill_type="solid"
@@ -501,65 +898,408 @@ def update_portfolio_excel(
             horizontal="center" if col_idx in (1, 6) else "left"
         )
 
-    # Row 4+: Query SQLite stocks table
+    # Build or adapt portfolio Pandas DataFrame
+    if df is None:
+        portfolio_df = build_portfolio_dataframe(db_path=db_path)
+    else:
+        portfolio_df = df.copy()
+        if "CMP" not in portfolio_df.columns:
+            query_tkrs = (
+                portfolio_df["ticker"]
+                if "ticker" in portfolio_df.columns
+                else portfolio_df["stk_code"]
+            ).astype(str).str.strip()
+            cmp_dict = fetch_multiple_cmp(list(query_tkrs.unique()))
+            portfolio_df["CMP"] = (
+                query_tkrs.map(cmp_dict).fillna(0.0).astype(float).round(2)
+            )
+
+        portfolio_df["curr_avg_price"] = (
+            pd.to_numeric(portfolio_df["curr_avg_price"], errors="coerce")
+            .fillna(0.0)
+            .astype(float)
+        )
+        portfolio_df["current_qty"] = (
+            pd.to_numeric(portfolio_df["current_qty"], errors="coerce")
+            .fillna(0)
+            .astype(int)
+        )
+        portfolio_df["CMP"] = (
+            pd.to_numeric(portfolio_df["CMP"], errors="coerce")
+            .fillna(0.0)
+            .astype(float)
+        )
+
+        if "Unrealized_PnL_Amount" not in portfolio_df.columns:
+            portfolio_df["Unrealized_PnL_Amount"] = (
+                (portfolio_df["CMP"] - portfolio_df["curr_avg_price"])
+                * portfolio_df["current_qty"]
+            ).round(2)
+
+        if "Unrealized_PnL_Percentage" not in portfolio_df.columns:
+            def _calc_pct(r):
+                avg = r["curr_avg_price"]
+                if avg and avg != 0:
+                    return round(((r["CMP"] - avg) / avg) * 100.0, 2)
+                return 0.0
+
+            portfolio_df["Unrealized_PnL_Percentage"] = portfolio_df.apply(
+                _calc_pct, axis=1
+            )
+
+        for col_name in headers:
+            if col_name not in portfolio_df.columns:
+                portfolio_df[col_name] = 0.0
+        portfolio_df = portfolio_df[headers]
+
+    # Populate Row 4+: Stock records from DataFrame
+    for row_offset, record in enumerate(
+        portfolio_df.itertuples(index=False), start=4
+    ):
+        for col_idx, val in enumerate(record, 1):
+            cell = ws.cell(row=row_offset, column=col_idx, value=val)
+            # Formatting
+            if col_idx in (5, 7, 8, 9, 10):
+                cell.number_format = "#,##0.00"
+            elif col_idx == 6:
+                cell.number_format = "#,##0"
+
+    logger.info(
+        f"Step C: Written {len(portfolio_df)} stock rows from DataFrame into '{excel_path}'."
+    )
+
+    # -----------------------------------------------------------------
+    # Dedicated Sheet: Advice_Log
+    # -----------------------------------------------------------------
+    advice_rows = []
     if os.path.exists(db_path):
         conn = None
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
+            # Query advice_log table if present
             cursor.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'advice_log'"
+            )
+            if cursor.fetchone():
+                cursor.execute(
+                    """
+                    SELECT advice_date, advice_text, status,
+                           COALESCE(execution_date, ''), COALESCE(notes, '')
+                    FROM advice_log
+                    ORDER BY advice_date DESC, id_advice DESC
                 """
-                SELECT s.id_stk, s.stk_code, s.isin, s.company_name, s.curr_avg_price,
-                       (s.buy_qty - s.sell_qty) AS current_qty,
-                       ROUND((s.buy_qty - s.sell_qty) * s.curr_avg_price, 2) AS curr_investment_amt
-                FROM stocks s
-                ORDER BY s.id_stk ASC
-            """
-            )
-            rows = cursor.fetchall()
-
-            for row_offset, record in enumerate(rows, start=4):
-                for col_idx, val in enumerate(record, 1):
-                    cell = ws.cell(row=row_offset, column=col_idx, value=val)
-                    # Formatting
-                    if col_idx in (5, 7):
-                        cell.number_format = "#,##0.00"
-                    elif col_idx == 6:
-                        cell.number_format = "#,##0"
-
-            logger.info(
-                f"Step C: Written {len(rows)} stock rows from SQLite into '{excel_path}'."
-            )
+                )
+                advice_rows = cursor.fetchall()
         except Exception as e:
-            logger.error(f"Error reading stocks table from '{db_path}': {e}")
+            logger.error(f"Error reading advice_log from '{db_path}': {e}")
         finally:
             if conn is not None:
                 try:
                     conn.close()
                 except Exception:
                     pass
-    else:
-        logger.warning(
-            f"Database file '{db_path}' not found. Excel saved without stock rows."
+
+    ws_advice = wb.create_sheet(title="Advice_Log")
+    advice_headers = [
+        "Date of Advice",
+        "The Advice Given",
+        "Execution Status",
+        "Execution Date",
+        "Notes",
+    ]
+    for col_idx, h in enumerate(advice_headers, 1):
+        c = ws_advice.cell(row=1, column=col_idx, value=h)
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = Alignment(
+            horizontal="center" if col_idx in (1, 3, 4) else "left"
         )
 
-    # Auto-adjust column widths
+    for row_offset, record in enumerate(advice_rows, start=2):
+        for col_idx, val in enumerate(record, 1):
+            cell = ws_advice.cell(row=row_offset, column=col_idx, value=val)
+            if col_idx in (1, 3, 4):
+                cell.alignment = Alignment(horizontal="center")
+            else:
+                cell.alignment = Alignment(horizontal="left")
+
+    # Auto-adjust column widths for Portfolio sheet
     for col in ws.columns:
         max_len = max(len(str(cell.value or "")) for cell in col)
         col_letter = openpyxl.utils.get_column_letter(col[0].column)
         ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
 
+    # Auto-adjust column widths for Advice_Log sheet
+    for col in ws_advice.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws_advice.column_dimensions[col_letter].width = max(max_len + 3, 14)
+
+    logger.info(
+        f"Step C: Written {len(advice_rows)} advice log rows into '{excel_path}' (Sheet: Advice_Log)."
+    )
+
+    saved_path = excel_path
     try:
         wb.save(excel_path)
+        logger.info(
+            f"Step C: Portfolio Excel saved successfully to '{excel_path}'."
+        )
+        fb_path = os.path.splitext(excel_path)[0] + "_auto_updated.xlsx"
+        if os.path.exists(fb_path):
+            try:
+                os.remove(fb_path)
+            except Exception:
+                pass
+    except PermissionError as pe:
+        fb_path = os.path.splitext(excel_path)[0] + "_auto_updated.xlsx"
+        logger.warning(
+            f"Step C: '{excel_path}' is open in Microsoft Excel or locked ({pe}). "
+            f"Saved updated portfolio to '{fb_path}'. Please close Excel to allow direct overwrite."
+        )
+        try:
+            wb.save(fb_path)
+            saved_path = fb_path
+            logger.info(f"Step C: Staged Excel saved successfully to '{fb_path}'.")
+        except Exception as fb_err:
+            logger.error(f"Step C: Failed to save staged Excel: {fb_err}")
     finally:
         try:
             wb.close()
         except Exception:
             pass
+
+    # Synchronize appetite and cash to startup_sync_state.json
+    try:
+        if os.path.exists(STATE_FILE_PATH):
+            with open(STATE_FILE_PATH, "r", encoding="utf-8") as f:
+                s_data = json.load(f)
+            s_data["appetite"] = float(current_appetite)
+            s_data["cash"] = float(cash_available)
+            with open(STATE_FILE_PATH, "w", encoding="utf-8") as f:
+                json.dump(s_data, f, indent=2)
+    except Exception as e:
+        logger.debug(f"Could not sync state file with updated cash/appetite: {e}")
+
+    return saved_path
+
+
+def update_available_cash_in_excel(
+    new_cash: float,
+    current_appetite: Optional[float] = None,
+    excel_path: Optional[str] = None,
+) -> bool:
+    """
+    Fast direct update of Cash Available for Investment in StockMan_Portfolio.xlsx
+    without regenerating the entire stock list or querying CMP over the network.
+    Row 2, Column 2 is set to new_cash.
+    Row 1, Column 2 is updated to current_appetite if supplied.
+    Also updates startup_sync_state.json.
+    """
+    if excel_path is None:
+        excel_path = PORTFOLIO_EXCEL_PATH
+
+    if not os.path.exists(excel_path):
+        update_portfolio_excel(
+            excel_path=excel_path,
+            current_appetite=current_appetite or DEFAULT_APPETITE,
+            cash_available=new_cash,
+        )
+        return True
+
+    wb = None
+    saved = False
+    try:
+        wb = openpyxl.load_workbook(excel_path)
+        ws = wb["Portfolio"] if "Portfolio" in wb.sheetnames else wb.active
+
+        ws.cell(row=2, column=1, value="Cash Available for Investment")
+        cell_cash = ws.cell(row=2, column=2, value=float(new_cash))
+        cell_cash.number_format = "#,##0.00"
+
+        if current_appetite is not None:
+            ws.cell(row=1, column=1, value="Current Appetite")
+            cell_app = ws.cell(row=1, column=2, value=float(current_appetite))
+            cell_app.number_format = "#,##0.00"
+
+        try:
+            wb.save(excel_path)
+            saved = True
+            logger.info(f"Updated available cash to ₹{new_cash:,.2f} in '{excel_path}'.")
+        except PermissionError as pe:
+            fb_path = os.path.splitext(excel_path)[0] + "_auto_updated.xlsx"
+            wb.save(fb_path)
+            saved = True
+            logger.warning(
+                f"'{excel_path}' locked by Excel ({pe}). Updated available cash in '{fb_path}'."
+            )
+    except Exception as err:
+        logger.error(f"Failed to directly update cash in '{excel_path}': {err}")
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+    # Synchronize state file
+    try:
+        if os.path.exists(STATE_FILE_PATH):
+            with open(STATE_FILE_PATH, "r", encoding="utf-8") as f:
+                s_data = json.load(f)
+            s_data["cash"] = float(new_cash)
+            if current_appetite is not None:
+                s_data["appetite"] = float(current_appetite)
+            with open(STATE_FILE_PATH, "w", encoding="utf-8") as f:
+                json.dump(s_data, f, indent=2)
+    except Exception:
+        pass
+
+    return saved
+
+
+def adjust_cash_for_trades(
+    trades: List[Dict[str, Any]],
+    excel_path: Optional[str] = None,
+    db_path: Optional[str] = None,
+    trigger_drive_upload: bool = True,
+) -> Tuple[float, float, str]:
+    """
+    On each trade or batch of trades (BUY or SELL):
+      1. Accesses StockMan_Portfolio.xlsx to read current Appetite and Cash Available.
+      2. Adjusts Cash Available:
+         - BUY: cash decreases by net_amount (cash - net_amount)
+         - SELL: cash increases by net_amount (cash + net_amount)
+      3. Updates StockMan_Portfolio.xlsx with the new cash value.
+      4. Refreshes the Portfolio sheet with updated stock records from SQLite mystocks.db.
+      5. Syncs the updated values to startup_sync_state.json.
+      6. If trigger_drive_upload is True and Drive is available, initiates background upload.
+
+    Returns (new_cash, appetite, saved_excel_path).
+    """
+    if excel_path is None:
+        excel_path = PORTFOLIO_EXCEL_PATH
+    if db_path is None:
+        db_path = STOCK_DB_PATH
+
+    appetite, current_cash = read_investment_parameters(excel_path)
+    delta = 0.0
+    for t in trades:
+        t_type = str(t.get("trade_type_trd") or t.get("trade_type") or "").strip().upper()
+        amt = float(t.get("net_amt_trd") or t.get("net_amt") or 0.0)
+        if t_type == "BUY":
+            delta -= abs(amt)
+        elif t_type == "SELL":
+            delta += abs(amt)
+        else:
+            logger.warning(f"Unrecognized trade type '{t_type}', cash delta unchanged.")
+
+    new_cash = round(current_cash + delta, 2)
     logger.info(
-        f"Step C: Portfolio Excel saved successfully to '{excel_path}'."
+        f"Adjusting cash for trade(s): Previous Cash: ₹{current_cash:,.2f}, "
+        f"Delta: ₹{delta:,.2f}, New Cash: ₹{new_cash:,.2f}"
     )
-    return excel_path
+
+    # First do fast direct update so Excel and state immediately reflect new cash
+    update_available_cash_in_excel(
+        new_cash=new_cash,
+        current_appetite=appetite,
+        excel_path=excel_path,
+    )
+
+    # Then regenerate full workbook with updated stock holdings & advice log
+    saved_path = update_portfolio_excel(
+        excel_path=excel_path,
+        current_appetite=appetite,
+        cash_available=new_cash,
+        db_path=db_path,
+    )
+
+    # Background Google Drive upload if requested
+    if trigger_drive_upload and GOOGLE_DRIVE_AVAILABLE:
+        def _bg_upload():
+            try:
+                cred_file = get_credentials_file()
+                if cred_file:
+                    svc = get_drive_service()
+                    upload_portfolio_to_drive(svc, file_path=saved_path)
+                    logger.info("Background Google Drive upload completed after trade cash adjustment.")
+            except Exception as up_err:
+                logger.warning(f"Background Google Drive upload notice after trade: {up_err}")
+
+        import threading
+        threading.Thread(target=_bg_upload, daemon=True).start()
+
+    return new_cash, appetite, saved_path
+
+
+def adjust_cash_for_trade(
+    trade_type: str,
+    net_amount: float,
+    excel_path: Optional[str] = None,
+    db_path: Optional[str] = None,
+    trigger_drive_upload: bool = True,
+) -> Tuple[float, float, str]:
+    """
+    Convenience wrapper to adjust cash available for a single trade.
+    """
+    return adjust_cash_for_trades(
+        [{"trade_type_trd": trade_type, "net_amt_trd": net_amount}],
+        excel_path=excel_path,
+        db_path=db_path,
+        trigger_drive_upload=trigger_drive_upload,
+    )
+
+
+# Aliases for export functionality
+export_portfolio_excel = update_portfolio_excel
+export_portfolio = update_portfolio_excel
+
+
+def export_and_upload_portfolio(
+    excel_path: str = PORTFOLIO_EXCEL_PATH,
+    db_path: str = STOCK_DB_PATH,
+    folder_name: str = "Finance",
+) -> Dict[str, Any]:
+    """
+    Exports latest Portfolio & Advice_Log sheets to StockMan_Portfolio.xlsx,
+    and uploads/syncs to Google Drive if credentials and connection are available.
+    Returns summary dict with keys: 'excel_path', 'uploaded', 'drive_result', 'error'.
+    """
+    result: Dict[str, Any] = {
+        "excel_path": excel_path,
+        "uploaded": False,
+        "drive_result": None,
+        "error": None,
+    }
+    try:
+        appetite, cash = read_investment_parameters(excel_path)
+        update_portfolio_excel(
+            excel_path=excel_path,
+            current_appetite=appetite,
+            cash_available=cash,
+            db_path=db_path,
+        )
+        if GOOGLE_DRIVE_AVAILABLE:
+            cred_file = get_credentials_file()
+            if cred_file:
+                service = get_drive_service()
+                upload_res = upload_portfolio_to_drive(
+                    service, excel_path, folder_name=folder_name
+                )
+                result["uploaded"] = True
+                result["drive_result"] = upload_res
+            else:
+                result["error"] = "Google Drive credentials not found. Local Excel updated."
+        else:
+            result["error"] = "Google Drive libraries not available. Local Excel updated."
+    except Exception as e:
+        logger.error(f"export_and_upload_portfolio failed: {e}")
+        result["error"] = str(e)
+
+    return result
 
 
 # -----------------------------------------------------------------------------
@@ -712,31 +1452,192 @@ def get_or_create_drive_folder(service, folder_name: str = "Finance") -> str:
 
 
 # -----------------------------------------------------------------------------
+# Dynamic Pick of the Day Candidate Matcher & Ranker
+# -----------------------------------------------------------------------------
+def _extract_version_from_filename(filename: str) -> int:
+    """
+    Extracts version/revision number from filenames:
+      - Pick_of_the_day_2026-11-01_v3.md -> 3
+      - Pick_of_the_day_2026-11-01_v2.md -> 2
+      - Pick_of_the_day_2026-11-01_v1.md -> 1
+      - Pick_of_the_day_2026-11-01_Sorted.md -> 2
+      - Pick_of_the_day_2026-11-01.md -> 1
+      - Pick_of_the_day_latest.md -> 0
+    """
+    if not filename:
+        return 0
+    base = os.path.splitext(filename)[0]
+    # Check for _v(\d+) or -v(\d+) or v(\d+)
+    m = re.search(r"[-_ ]v(?:er(?:sion)?)?[-_ ]?(\d+)\b", base, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+
+    # Also check suffix like _3 or (3) at the end: e.g. Pick_of_the_day_2026-11-01 (1).md or _3
+    m_num = re.search(r"[-_ ]\(?(\d+)\)?$", base)
+    if m_num:
+        val = int(m_num.group(1))
+        # Ensure it's not the day part of date (e.g. 01)
+        if not re.search(r"\d{4}[-_]\d{2}[-_]" + re.escape(m_num.group(1)) + r"$", base):
+            return val
+
+    # Suffixes indicating revised/sorted versions
+    if any(k in base.lower() for k in ("sorted", "final", "revised", "updated")):
+        return 2
+
+    # Generic alias files
+    if "latest" in base.lower():
+        return 0
+
+    # Base unversioned file
+    return 1
+
+
+def _extract_date_from_filename(filename: str) -> Optional[datetime]:
+    """
+    Extracts a calendar date from filenames like Pick_of_the_day_2026-11-01.md,
+    Pick_of_the_day_20261101.md, or Pick_of_the_Day_Report2026-10-23.md.
+    """
+    if not filename:
+        return None
+    # YYYY-MM-DD or YYYY_MM_DD
+    m = re.search(r"(\d{4})[-_](\d{2})[-_](\d{2})", filename)
+    if m:
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            pass
+    # YYYYMMDD
+    m2 = re.search(r"(\d{4})(\d{2})(\d{2})", filename)
+    if m2:
+        try:
+            return datetime(int(m2.group(1)), int(m2.group(2)), int(m2.group(3)))
+        except ValueError:
+            pass
+    return None
+
+
+def _parse_drive_timestamp(ts_str: Optional[str]) -> datetime:
+    """Parses ISO 8601 timestamp string from Google Drive API metadata."""
+    if not ts_str:
+        return datetime.min
+    try:
+        cleaned = ts_str.rstrip("Z")
+        return datetime.fromisoformat(cleaned)
+    except Exception:
+        return datetime.min
+
+
+def _is_pick_of_the_day_file(file_meta: Dict[str, Any]) -> bool:
+    """Checks whether a Google Drive file item matches the Pick of the Day naming convention."""
+    name = file_meta.get("name", "").strip()
+    mime = file_meta.get("mimeType", "")
+    if mime == "application/vnd.google-apps.folder":
+        return False
+    norm = name.lower().replace(" ", "_")
+    norm_no_underscore = norm.replace("_", "")
+    return norm.startswith("pick_of_the_day") or norm_no_underscore.startswith("pickoftheday")
+
+
+def _filter_and_sort_candidates(file_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Filters and ranks Pick of the Day candidates dynamically:
+      1. Effective date (date extracted from filename if present, or modified date)
+      2. Version number extracted from filename (e.g. _v3 > _v2 > v1/unversioned)
+      3. Drive created timestamp (files created later in the day are newer revisions)
+      4. Drive modified timestamp
+      5. Specific filename preference over generic 'latest' alias on tie
+    """
+    candidates = [f for f in file_list if _is_pick_of_the_day_file(f)]
+
+    def _rank_key(item: Dict[str, Any]):
+        name = item.get("name", "")
+        dt_name = _extract_date_from_filename(name)
+        version = _extract_version_from_filename(name)
+        dt_created = _parse_drive_timestamp(item.get("createdTime"))
+        dt_mod = _parse_drive_timestamp(item.get("modifiedTime"))
+        effective_date = dt_name.date() if dt_name else max(dt_created.date(), dt_mod.date())
+        is_latest_alias = "latest" in name.lower()
+        return (
+            effective_date,
+            version,
+            dt_created,
+            dt_mod,
+            0 if not is_latest_alias else -1,
+        )
+
+    candidates.sort(key=_rank_key, reverse=True)
+    return candidates
+
+
+# -----------------------------------------------------------------------------
 # Step D: Upload / Overwrite StockMan_Portfolio.xlsx to Google Drive
 # -----------------------------------------------------------------------------
 def upload_portfolio_to_drive(
-    service,
-    file_path: str = PORTFOLIO_EXCEL_PATH,
-    folder_name: str = "Finance",
+    service=None,
+    file_path: Optional[str] = None,
+    folder_name: Optional[str] = "Finance",
 ) -> Dict[str, Any]:
     """
-    Step D:
-    Uploads or overwrites StockMan_Portfolio.xlsx into the Google Drive 'Finance' folder.
+    Step D / Two-Way Pipeline Upload:
+    Automatically authenticates (if service is not supplied) and uploads or updates
+    StockMan_Portfolio.xlsx on Google Drive dynamically without hardcoded file IDs.
+
+    Workflow:
+      1. Dynamic folder lookup or creation (e.g. 'Finance').
+      2. Dynamic search for existing 'StockMan_Portfolio.xlsx' in the target folder.
+      3. Fallback dynamic search across the entire Drive if not in folder.
+      4. If existing file found: updates file content in place (service.files().update).
+      5. If no file found: creates new file (service.files().create).
+    
     Returns a dict with 'id', 'name', and 'status' ('created' or 'updated').
     """
+    if file_path is None:
+        file_path = PORTFOLIO_EXCEL_PATH
+
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Local file to upload not found: {file_path}")
+        if file_path == PORTFOLIO_EXCEL_PATH:
+            logger.info(f"Local portfolio file '{file_path}' not found. Generating...")
+            update_portfolio_excel(excel_path=file_path)
+        else:
+            raise FileNotFoundError(f"Local file to upload not found: {file_path}")
 
-    folder_id = get_or_create_drive_folder(service, folder_name)
+    if service is None:
+        service = get_drive_service()
 
-    # Check if file already exists in the folder
-    query = f"'{folder_id}' in parents and name = 'StockMan_Portfolio.xlsx' and trashed = false"
-    response = (
-        service.files()
-        .list(q=query, spaces="drive", fields="files(id, name)")
-        .execute()
-    )
-    existing_files = response.get("files", [])
+    target_filename = os.path.basename(file_path)
+    folder_id = None
+    if folder_name:
+        try:
+            folder_id = get_or_create_drive_folder(service, folder_name)
+        except Exception as e:
+            logger.warning(f"Could not locate folder '{folder_name}': {e}")
+
+    # Dynamic search for existing file without hardcoding any file IDs
+    existing_files = []
+    if folder_id:
+        query_folder = f"'{folder_id}' in parents and name = '{target_filename}' and trashed = false"
+        try:
+            response = (
+                service.files()
+                .list(q=query_folder, spaces="drive", fields="files(id, name, modifiedTime)")
+                .execute()
+            )
+            existing_files = response.get("files", [])
+        except Exception as e:
+            logger.warning(f"Error querying folder for '{target_filename}': {e}")
+
+    # Fallback: search across entire Google Drive if not found in folder
+    if not existing_files:
+        query_global = f"name = '{target_filename}' and trashed = false"
+        try:
+            response_global = (
+                service.files()
+                .list(q=query_global, spaces="drive", fields="files(id, name, modifiedTime, parents)")
+                .execute()
+            )
+            existing_files = response_global.get("files", [])
+        except Exception as e:
+            logger.warning(f"Error querying entire Drive for '{target_filename}': {e}")
 
     media = MediaFileUpload(
         file_path,
@@ -748,7 +1649,7 @@ def upload_portfolio_to_drive(
         if existing_files:
             file_id = existing_files[0]["id"]
             logger.info(
-                f"Step D: Updating existing 'StockMan_Portfolio.xlsx' on Drive (ID: {file_id})..."
+                f"Step D: Dynamically updating existing '{target_filename}' on Drive (ID: {file_id})..."
             )
             updated_file = (
                 service.files()
@@ -761,18 +1662,20 @@ def upload_portfolio_to_drive(
             )
             return {
                 "id": file_id,
-                "name": "StockMan_Portfolio.xlsx",
+                "name": target_filename,
                 "status": "updated",
                 "time": updated_file.get("modifiedTime"),
             }
         else:
             logger.info(
-                f"Step D: Uploading new 'StockMan_Portfolio.xlsx' to Drive folder '{folder_name}'..."
+                f"Step D: Uploading new '{target_filename}' to Drive folder '{folder_name or 'root'}'..."
             )
-            file_metadata = {
-                "name": "StockMan_Portfolio.xlsx",
-                "parents": [folder_id],
+            file_metadata: Dict[str, Any] = {
+                "name": target_filename,
             }
+            if folder_id:
+                file_metadata["parents"] = [folder_id]
+
             new_file = (
                 service.files()
                 .create(
@@ -784,7 +1687,7 @@ def upload_portfolio_to_drive(
             )
             return {
                 "id": new_file.get("id"),
-                "name": "StockMan_Portfolio.xlsx",
+                "name": target_filename,
                 "status": "created",
                 "time": new_file.get("modifiedTime"),
             }
@@ -800,49 +1703,80 @@ def upload_portfolio_to_drive(
 # Step E: Download Most Recent Pick_of_the_day_ from Google Drive
 # -----------------------------------------------------------------------------
 def download_latest_pick_of_the_day(
-    service,
-    folder_name: str = "Finance",
-    dest_dir: str = DATA_DIR,
+    service=None,
+    folder_name: Optional[str] = "Finance",
+    dest_dir: Optional[str] = None,
+    sync_to_workspace_root: bool = True,
 ) -> Optional[Tuple[str, str]]:
     """
-    Step E:
-    Searches for the most recently updated file starting with 'Pick_of_the_day_'.
-    - If it is a raw file (text/plain, text/markdown, .md, .txt): downloads natively with alt=media.
-    - If it is a Google Doc: exports natively as text/markdown (which preserves all markdown table pipes).
-    Saves the file locally as a .md file (both specific name and Pick_of_the_day_latest.md).
+    Step E / Two-Way Pipeline Download:
+    Dynamically searches Google Drive for the latest Pick_of_the_day_*.md file
+    and downloads it to the local VS Code workspace. Removes any hardcoded file IDs.
+    
+    Workflow:
+      1. Automatically authenticates using Google API client if service is not passed.
+      2. Dynamically queries Drive folder (e.g. 'Finance') and global Drive root.
+      3. Identifies the latest file by date in filename and modification timestamp.
+      4. Downloads raw files natively via MediaIoBaseDownload, or exports Google Docs
+         natively as 'text/markdown' (preserving markdown tables and pipes).
+      5. Saves to the local destination directory (data/) as both the specific .md
+         filename and Pick_of_the_day_latest.md.
+      6. Also mirrors the file into the local VS Code workspace root directory.
+    
     Returns (saved_local_filepath, remote_file_name), or None if no matching file exists.
     """
+    if dest_dir is None:
+        dest_dir = DATA_DIR
+
     os.makedirs(dest_dir, exist_ok=True)
-    folder_id = get_or_create_drive_folder(service, folder_name)
 
-    def _filter_candidates(file_list):
-        candidates = []
-        for f in file_list:
-            name = f.get("name", "")
-            if name.startswith("Pick_of_the_day_"):
-                candidates.append(f)
-        return candidates
+    if service is None:
+        service = get_drive_service()
 
-    # 1. Search in target folder ('Finance')
-    query_folder = f"'{folder_id}' in parents and name contains 'Pick_of_the_day_' and trashed = false"
-    response = (
-        service.files()
-        .list(
-            q=query_folder,
-            spaces="drive",
-            fields="files(id, name, mimeType, createdTime, modifiedTime)",
-            orderBy="modifiedTime desc",
-        )
-        .execute()
-    )
-    files = _filter_candidates(response.get("files", []))
+    folder_id = None
+    if folder_name:
+        try:
+            folder_id = get_or_create_drive_folder(service, folder_name)
+        except Exception as e:
+            logger.warning(f"Could not locate folder '{folder_name}': {e}")
 
-    # 2. If not found in folder, search entire Google Drive
+    files = []
+    # 1. Search in target folder ('Finance') if folder_id is specified
+    if folder_id:
+        try:
+            query_folder = (
+                f"'{folder_id}' in parents and "
+                f"(name contains 'Pick_of_the_day' or name contains 'Pick of the day' or "
+                f"name contains 'PickOfTheDay' or name contains 'Pick') and trashed = false"
+            )
+            response = (
+                service.files()
+                .list(
+                    q=query_folder,
+                    spaces="drive",
+                    fields="files(id, name, mimeType, createdTime, modifiedTime)",
+                    orderBy="modifiedTime desc",
+                )
+                .execute()
+            )
+            files = _filter_and_sort_candidates(response.get("files", []))
+        except Exception as e:
+            logger.warning(f"Error querying folder '{folder_name}': {e}")
+
+    # 2. If not found in folder or folder_name is None, search entire Google Drive (e.g. Gemini web root export)
     if not files:
-        logger.info(
-            f"Step E: No 'Pick_of_the_day_' file in '{folder_name}'. Searching entire Drive..."
+        if folder_name:
+            logger.info(
+                f"Step E: No Pick of the Day file in '{folder_name}'. Searching entire Drive..."
+            )
+        else:
+            logger.info(
+                "Searching entire Google Drive for latest Pick of the Day report..."
+            )
+        query_global = (
+            "(name contains 'Pick_of_the_day' or name contains 'Pick of the day' or "
+            "name contains 'PickOfTheDay' or name contains 'Pick') and trashed = false"
         )
-        query_global = "name contains 'Pick_of_the_day_' and trashed = false"
         response_global = (
             service.files()
             .list(
@@ -853,21 +1787,21 @@ def download_latest_pick_of_the_day(
             )
             .execute()
         )
-        files = _filter_candidates(response_global.get("files", []))
+        files = _filter_and_sort_candidates(response_global.get("files", []))
 
     if not files:
         logger.warning(
-            f"Step E: No file starting with 'Pick_of_the_day_' found in Google Drive folder '{folder_name}' or root."
+            f"Step E: No file starting with 'Pick_of_the_day' found in Google Drive folder '{folder_name}' or root."
         )
         return None
 
-    # Pick the most recently modified file
+    # Pick the most recently modified / highest ranked report dynamically
     target = files[0]
     file_id = target["id"]
     remote_name = target["name"]
     mime_type = target.get("mimeType", "")
     logger.info(
-        f"Step E: Found report '{remote_name}' (ID: {file_id}, mimeType: {mime_type})."
+        f"Step E: Identified latest report '{remote_name}' (ID: {file_id}, mimeType: {mime_type})."
     )
 
     # Native media download or markdown export
@@ -904,11 +1838,23 @@ def download_latest_pick_of_the_day(
     try:
         content_str = content_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        content_str = content_bytes.decode("utf-8-sig", errors="replace")
+        try:
+            content_str = content_bytes.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            content_str = content_bytes.decode("latin-1", errors="replace")
 
-    # Save locally as a .md file
-    base_stem = os.path.splitext(remote_name)[0]
-    md_filename = f"{base_stem}.md"
+    # Format destination filename as .md
+    if remote_name.lower().endswith(".md"):
+        safe_stem = re.sub(r'[\\/*?:"<>|]', "_", remote_name[:-3]).strip()
+        md_filename = f"{safe_stem}.md"
+    elif remote_name.lower().endswith(".txt"):
+        safe_stem = re.sub(r'[\\/*?:"<>|]', "_", remote_name[:-4]).strip()
+        md_filename = f"{safe_stem}.md"
+    else:
+        base_stem = os.path.splitext(remote_name)[0]
+        safe_stem = re.sub(r'[\\/*?:"<>|]', "_", base_stem).strip()
+        md_filename = f"{safe_stem}.md"
+
     original_save_path = os.path.join(dest_dir, md_filename)
     latest_alias_path = os.path.join(dest_dir, "Pick_of_the_day_latest.md")
 
@@ -918,10 +1864,152 @@ def download_latest_pick_of_the_day(
     with open(latest_alias_path, "w", encoding="utf-8") as f_latest:
         f_latest.write(content_str)
 
+    # Mirror into local VS Code workspace root directory
+    if sync_to_workspace_root and os.path.abspath(dest_dir) != os.path.abspath(PROJECT_ROOT):
+        try:
+            workspace_file = os.path.join(PROJECT_ROOT, md_filename)
+            workspace_alias = os.path.join(PROJECT_ROOT, "Pick_of_the_day_latest.md")
+            with open(workspace_file, "w", encoding="utf-8") as fw:
+                fw.write(content_str)
+            with open(workspace_alias, "w", encoding="utf-8") as fa:
+                fa.write(content_str)
+            logger.info(
+                f"Step E: Mirrored '{md_filename}' to VS Code workspace root: '{workspace_alias}'."
+            )
+        except Exception as we:
+            logger.warning(f"Could not mirror report to workspace root: {we}")
+
     logger.info(
         f"Step E: Successfully saved markdown report to '{original_save_path}' and '{latest_alias_path}'."
     )
+
+    # Automatically parse and sync advice from downloaded report into SQLite and StockMan_Portfolio.xlsx
+    try:
+        from StockMan.advice_tracker import auto_update_advice_from_pick_of_the_day
+        adv_res = auto_update_advice_from_pick_of_the_day(
+            report_text_or_path=content_str,
+            excel_path=PORTFOLIO_EXCEL_PATH,
+            trigger_drive_upload=False,
+        )
+        if adv_res:
+            logger.info(
+                f"Step E: Auto-updated advice for '{adv_res.get('advice_date')}' "
+                f"into SQLite & Excel ({adv_res.get('excel_path')})."
+            )
+    except Exception as adv_e:
+        logger.warning(f"Step E: Auto-update advice to Excel notice: {adv_e}")
+
     return latest_alias_path, md_filename
+
+
+# -----------------------------------------------------------------------------
+# Two-Way Google Drive Pipeline Orchestrator
+# -----------------------------------------------------------------------------
+def sync_two_way_pipeline(
+    service=None,
+    excel_path: str = PORTFOLIO_EXCEL_PATH,
+    db_path: str = STOCK_DB_PATH,
+    folder_name: str = "Finance",
+    dest_dir: Optional[str] = None,
+    sync_to_workspace_root: bool = True,
+) -> Dict[str, Any]:
+    """
+    Automates the complete two-way Google Drive pipeline:
+      1. Automatically authenticates using Google API client (google-api-python-client).
+      2. Uploads the locally generated StockMan_Portfolio.xlsx to Google Drive,
+         dynamically searching for and updating the existing file without hardcoded IDs.
+      3. Dynamically searches for, identifies, and downloads the latest Pick_of_the_day_*.md
+         file from Google Drive to the local VS Code workspace.
+    
+    Returns:
+      dict with summary details:
+      {
+        'success': bool,
+        'upload_result': Dict[str, Any],
+        'download_result': Optional[Tuple[str, str]],
+        'downloaded_file': Optional[str],
+        'excel_path': str,
+        'error': Optional[str]
+      }
+    """
+    if dest_dir is None:
+        dest_dir = DATA_DIR
+
+    result: Dict[str, Any] = {
+        "success": False,
+        "upload_result": None,
+        "download_result": None,
+        "downloaded_file": None,
+        "excel_path": excel_path,
+        "error": None,
+    }
+
+    if not GOOGLE_DRIVE_AVAILABLE:
+        err = "Google Drive client libraries (google-api-python-client) not available."
+        logger.error(err)
+        result["error"] = err
+        return result
+
+    try:
+        # Step 1: Automatic Authentication
+        if service is None:
+            cred_file = get_credentials_file()
+            if not cred_file:
+                err = "Google Drive credentials file not found in workspace."
+                logger.error(err)
+                result["error"] = err
+                return result
+            service = get_drive_service()
+
+        # Step 2: Refresh local Excel workbook & Upload / Update on Google Drive
+        appetite, cash = read_investment_parameters(excel_path)
+        update_portfolio_excel(
+            excel_path=excel_path,
+            current_appetite=appetite,
+            cash_available=cash,
+            db_path=db_path,
+        )
+
+        upload_res = upload_portfolio_to_drive(
+            service=service,
+            file_path=excel_path,
+            folder_name=folder_name,
+        )
+        result["upload_result"] = upload_res
+        logger.info(
+            f"Two-way Pipeline: Upload succeeded ({upload_res.get('status')} ID: {upload_res.get('id')})"
+        )
+
+        # Step 3: Dynamically search, identify, and download latest Pick_of_the_day_*.md
+        download_res = download_latest_pick_of_the_day(
+            service=service,
+            folder_name=folder_name,
+            dest_dir=dest_dir,
+            sync_to_workspace_root=sync_to_workspace_root,
+        )
+        result["download_result"] = download_res
+        if download_res:
+            result["downloaded_file"] = download_res[0]
+            logger.info(f"Two-way Pipeline: Download succeeded ({download_res[1]})")
+            # Sync updated advice Excel back to Google Drive
+            try:
+                upload_portfolio_to_drive(
+                    service=service,
+                    file_path=excel_path,
+                    folder_name=folder_name,
+                )
+            except Exception as re_up_err:
+                logger.debug(f"Two-way sync re-upload notice: {re_up_err}")
+        else:
+            logger.info("Two-way Pipeline: No Pick_of_the_day report found on Google Drive.")
+
+        result["success"] = True
+        return result
+
+    except Exception as e:
+        logger.error(f"Two-way Google Drive pipeline error: {e}", exc_info=True)
+        result["error"] = str(e)
+        return result
 
 
 # -----------------------------------------------------------------------------
@@ -933,33 +2021,55 @@ def get_local_pick_of_the_day(
     """
     Locates and reads the latest Pick of the Day report on disk.
     Checks:
-      1. data/Pick_of_the_day_latest.md
-      2. Any file in data/ matching Pick_of_the_day_*.md or Pick_of_the_day_*.txt (sorted newest first)
-      3. docs/DAILY_PICK_OF_THE_DAY_REPORT.md (legacy cache fallback)
+      1. Matching files in data_dir (Pick_of_the_day_*.md, Pick_of_the_day_*.txt, PickOfTheDay*.md)
+      2. Matching files in PROJECT_ROOT (local VS Code workspace root)
+      3. data_dir/Pick_of_the_day_latest.md & PROJECT_ROOT/Pick_of_the_day_latest.md
+      4. docs/DAILY_PICK_OF_THE_DAY_REPORT.md (legacy cache fallback)
     Returns (content_string, filename, formatted_modified_time) or None.
     """
+    search_dirs = [data_dir]
+    if os.path.abspath(data_dir) != os.path.abspath(PROJECT_ROOT):
+        search_dirs.append(PROJECT_ROOT)
+
     candidates = []
+    for d in search_dirs:
+        if not os.path.isdir(d):
+            continue
+        glob_patterns = [
+            os.path.join(d, "Pick_of_the_day_*.md"),
+            os.path.join(d, "Pick_of_the_day_*.txt"),
+            os.path.join(d, "PickOfTheDay*.md"),
+        ]
+        matched = []
+        for pat in glob_patterns:
+            matched.extend(glob.glob(pat))
 
-    # 1. Alias file
-    alias = os.path.join(data_dir, "Pick_of_the_day_latest.md")
-    if os.path.isfile(alias):
-        candidates.append(alias)
+        # Sort matched by effective date descending, then version, then modified time
+        def _sort_key(p):
+            fname = os.path.basename(p)
+            dt = _extract_date_from_filename(fname)
+            version = _extract_version_from_filename(fname)
+            mtime = os.path.getmtime(p)
+            dt_effective = dt.date() if dt else datetime.fromtimestamp(mtime).date()
+            is_latest_alias = "latest" in fname.lower()
+            return (
+                dt_effective,
+                version,
+                mtime,
+                0 if not is_latest_alias else -1,
+            )
 
-    # 2. Glob matching Pick_of_the_day_* in data/
-    glob_patterns = [
-        os.path.join(data_dir, "Pick_of_the_day_*.md"),
-        os.path.join(data_dir, "Pick_of_the_day_*.txt"),
-    ]
-    matched = []
-    for pat in glob_patterns:
-        matched.extend(glob.glob(pat))
-    # Sort matched by modified time descending
-    matched.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    for m in matched:
-        if m not in candidates:
-            candidates.append(m)
+        matched.sort(key=_sort_key, reverse=True)
+        for m in matched:
+            if m not in candidates:
+                candidates.append(m)
 
-    # 3. Legacy docs fallback
+        # Alias file fallback
+        alias = os.path.join(d, "Pick_of_the_day_latest.md")
+        if os.path.isfile(alias) and alias not in candidates:
+            candidates.append(alias)
+
+    # Legacy docs fallback
     legacy = os.path.join(
         PROJECT_ROOT, "docs", "DAILY_PICK_OF_THE_DAY_REPORT.md"
     )
@@ -1059,6 +2169,17 @@ def run_startup_sequence(
                 "Step B: Skipping prompt dialog (already answered for today's 8:00 AM cycle)."
             )
 
+        # Auto-sync any un-synced Pick of the Day reports on disk into advice_log & Excel
+        try:
+            from StockMan.advice_tracker import sync_all_pending_pick_of_the_day_advices
+            sync_all_pending_pick_of_the_day_advices(
+                db_path=STOCK_DB_PATH,
+                excel_path=PORTFOLIO_EXCEL_PATH,
+                trigger_drive_upload=False,
+            )
+        except Exception as s_adv_err:
+            logger.warning(f"Startup sequence advice sync notice: {s_adv_err}")
+
         # Step C: Write to Excel & SQLite population
         if prompt_needed:
             status["step"] = "Step C (Write Excel)"
@@ -1114,6 +2235,11 @@ def run_startup_sequence(
         if download_res:
             status["downloaded_file"] = download_res[0]
             logger.info(f"Drive Download successful: {download_res}")
+            # Ensure updated Excel is synced to Drive
+            try:
+                upload_portfolio_to_drive(drive_service, PORTFOLIO_EXCEL_PATH, folder_name="Finance")
+            except Exception as up_e:
+                logger.debug(f"Startup sequence advice re-upload notice: {up_e}")
         else:
             logger.info(
                 "No Pick_of_the_day_ file found in Drive 'Finance' folder yet."
@@ -1131,3 +2257,37 @@ def run_startup_sequence(
         )
         status["error"] = str(e)
         return status
+
+
+if __name__ == "__main__":
+    import sys
+
+    # Ensure UTF-8 output if possible on Windows terminals
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    print("=" * 70)
+    print(" StockMan Google Drive Two-Way Pipeline Automation")
+    print("=" * 70)
+    pipeline_result = sync_two_way_pipeline()
+    if pipeline_result.get("success"):
+        print("\n[SUCCESS] Pipeline executed successfully!")
+        up = pipeline_result.get("upload_result") or {}
+        print(f"   [Upload]   File: {up.get('name')} | Status: {up.get('status')} | ID: {up.get('id')}")
+        down = pipeline_result.get("download_result")
+        if down:
+            print(f"   [Download] Latest Report: {down[1]}")
+            print(f"              Saved Locally: {down[0]}")
+        else:
+            print("   [Download] No Pick_of_the_day report found on Google Drive.")
+        sys.exit(0)
+    else:
+        print(f"\n[ERROR] Pipeline failed: {pipeline_result.get('error')}")
+        sys.exit(1)

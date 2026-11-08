@@ -1205,7 +1205,14 @@ def add_trade(
             "• F2: View Session Trades (Trades completed so far)",
             "• Escape: Rollback the trade (Clears unsaved data)",
             "• Enter/Space: Advance field or Execute button",
-            "• Ctrl+Enter: Submit Trade"
+            "• Ctrl+Enter: Submit Trade",
+            "",
+            "Automated Portfolio & Advice Sync:",
+            "• Every completed trade automatically triggers update_portfolio_excel() to keep",
+            "  StockMan_Portfolio.xlsx instantly updated.",
+            "• If an unfulfilled AI recommendation matches this trade (e.g. 'Buy 30 HDFCBANK'),",
+            "  the Advice Log is automatically marked as 'Fully Followed' (or 'Partially Followed')",
+            "  with the trade date, and synced to Google Drive in the background."
         ]
         
         faq_data = [
@@ -1216,6 +1223,10 @@ def add_trade(
             (
                 "Q: Why does the form lock fields after I enter the Quantity?",
                 "A: Once the trade quantity and direction are set, the system locks the header fields (Contract No, Date, Company) to prevent accidental modification while you are entering the granular exchange orders."
+            ),
+            (
+                "Q: Do I need to manually update StockMan_Portfolio.xlsx or the Advice Log after entering a trade?",
+                "A: No! Saving the trade automatically updates StockMan_Portfolio.xlsx (Portfolio sheet), checks for matching AI advice to auto-mark it as 'Fully Followed' (Advice_Log sheet), and syncs with Google Drive in the background."
             )
         ]
         
@@ -1580,6 +1591,31 @@ def add_trade(
                     logger.debug("Failed to record session trade: %s", _exc)
 
             compute_avg_price(data["id_stk"], data.get("trade_type_trd"))
+
+            # Auto-sync with Advice Log, adjust cash in Excel, and refresh StockMan_Portfolio.xlsx
+            try:
+                from .advice_tracker import auto_sync_trade_with_advice
+
+                trade_payload = {
+                    "id_stk": data.get("id_stk"),
+                    "stk_code": data.get("stk_code") or data.get("company_name"),
+                    "company_name": data.get("company_name"),
+                    "trade_type_trd": data.get("trade_type_trd"),
+                    "qty_trd": data.get("qty_trd") or qty_trd_var.get(),
+                    "trd_dt": data.get("trd_dt"),
+                    "net_amt_trd": float(net_trade_var.get() or 0.0),
+                }
+                auto_sync_trade_with_advice(trade_payload)
+            except Exception as _sync_ex:
+                logger.warning("auto_sync_trade_with_advice notice: %s", _sync_ex)
+                try:
+                    from .drive_sync import adjust_cash_for_trade
+                    adjust_cash_for_trade(
+                        trade_type=data.get("trade_type_trd"),
+                        net_amount=float(net_trade_var.get() or 0.0),
+                    )
+                except Exception as _adj_ex:
+                    logger.warning("adjust_cash_for_trade fallback notice: %s", _adj_ex)
 
         except (sqlite3.Error, ValueError) as e:
             logger.error("Error saving trade: %s", str(e))

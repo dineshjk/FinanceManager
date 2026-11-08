@@ -50,6 +50,7 @@ from .company_menu import show_company_menu_modal
 from .trade_menu import show_trade_menu_modal
 from .maint_menu import show_maint_menu_modal
 from .watchlist_menu import show_watchlist
+from .advice_tracker import show_advice_tracker  # noqa: E402
 from .transfer_data import export_transfer_data_gui
 
 
@@ -57,17 +58,32 @@ def _get_stockman_hub_help_data():
     guide_lines = [
         "This menu acts as the central launchpad for managing your equity portfolio.",
         "",
+        "Module Task Responsibilities:",
         "• Company Management: Register new stock tickers, define sectors, and update company details.",
-        "• Trade Management: Log your Buy and Sell orders to maintain your portfolio ledger.",
+        "• Trade Management: Log and manage secondary/primary market trades (ICICI & Zerodha); auto-updates portfolio Excel and advice matches.",
         "• Corporate Actions: Record dividends, stock splits, bonuses, and rights issues.",
         "• Maintenance: Update current market prices (CMP) and perform database backups.",
         "• Reports: Generate capital gains statements, holding summaries, and performance metrics.",
-        "• Transfer Data: Calculate and export discrepant holding data for shares transferred from ICICI Direct to Zerodha."
+        "• Watchlist & Alerts: Track target buy/sell prices, signals, and view daily AI Pick of the Day.",
+        "• Advice Tracking: Track daily AI Pick of the Day recommendations, log execution status, and sync to Drive.",
+        "• Transfer Data: Calculate and export discrepant holding data for shares transferred from ICICI Direct to Zerodha.",
+        "",
+        "Automated Synchronization:",
+        "• Trade Management automatically triggers 'update_portfolio_excel()' on trade entry, edit, or deletion.",
+        "• Advice Tracking maintains the 'Advice_Log' worksheet alongside 'Portfolio' in 'StockMan_Portfolio.xlsx' and syncs to Google Drive."
     ]
     faq_data = [
         (
             "Q: Do I need to manually update prices every day?",
             "A: No. You only need to update the Current Market Price (CMP) via the 'Maintenance' menu when you want to view a fresh valuation of your portfolio in the Reports section."
+        ),
+        (
+            "Q: How are AI Pick of the Day recommendations tracked?",
+            "A: When you run the AI Pick of the Day scan in Watchlist, click 'Log Advice' to log the winner into the Advice Tracker. When you subsequently execute the trade in Trade Management, it automatically detects the matching advice, transitions its status to 'Fully Followed', and updates 'StockMan_Portfolio.xlsx' and Google Drive.",
+        ),
+        (
+            "Q: Where is the exported advice log stored?",
+            "A: The advice history is exported to the 'Advice_Log' sheet inside 'data/StockMan_Portfolio.xlsx' and uploaded to Google Drive in your Finance folder for external AI agents to read.",
         )
     ]
     return guide_lines, faq_data
@@ -92,7 +108,7 @@ def show_stock_portfolio_menu(parent, come_back_index=None):
 
     menu_config = {
         "title": "Stock Portfolio Management",
-        "geometry": "400x580",
+        "geometry": "400x630",
         "style": "Menu.TButton",
         "parent": parent,
         "modal": True,  # This tells the factory to create a Toplevel window
@@ -134,6 +150,11 @@ def show_stock_portfolio_menu(parent, come_back_index=None):
                 "text": "Watchlist & Alerts",
                 "hotkey": "W",
                 "command": lambda: show_watchlist(stock_menu_window),
+            },
+            {
+                "text": "Advice Tracking",
+                "hotkey": "V",
+                "command": lambda: show_advice_tracker(stock_menu_window),
             },
             {
                 "text": "Transfer Data",
@@ -313,7 +334,7 @@ def main():
     # No longer needed: windows.main_window_instance = root
     menu_config = {
         "title": STOCK_APP_TITLE,
-        "geometry": "400x580",
+        "geometry": "400x630",
         "style": "MainMenu.TButton",
         "parent": root,
         "modal": False,
@@ -353,6 +374,11 @@ def main():
                 "text": "Watchlist & Alerts",
                 "hotkey": "W",
                 "command": lambda: show_watchlist(root),
+            },
+            {
+                "text": "Advice Tracking",
+                "hotkey": "V",
+                "command": lambda: show_advice_tracker(root),
             },
             {
                 "text": "Transfer Data",

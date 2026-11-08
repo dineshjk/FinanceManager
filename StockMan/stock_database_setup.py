@@ -654,6 +654,36 @@ def run_schema_migrations():
                 """)
             migrations_applied.append("watchlist_table_created")
 
+        if not _table_exists(cursor, "advice_log"):
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS advice_log (
+                    id_advice INTEGER PRIMARY KEY AUTOINCREMENT,
+                    advice_date TEXT NOT NULL CHECK (
+                        length(advice_date) = 10 AND
+                        substr(advice_date, 5, 1) = '-' AND
+                        substr(advice_date, 8, 1) = '-' AND
+                        advice_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                    ),
+                    advice_text TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'Not Followed' CHECK(status IN ('Fully Followed', 'Partially Followed', 'Not Followed')),
+                    execution_date TEXT DEFAULT NULL CHECK (
+                        execution_date IS NULL OR
+                        execution_date = '' OR (
+                            length(execution_date) = 10 AND
+                            substr(execution_date, 5, 1) = '-' AND
+                            substr(execution_date, 8, 1) = '-' AND
+                            execution_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                        )
+                    ),
+                    notes TEXT DEFAULT ''
+                );
+            """)
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_advice_log_date "
+                "ON advice_log(advice_date);"
+            )
+            migrations_applied.append("advice_log_table_created")
+
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_offer_allot_id_comp_bt "
             "ON offer_allotments(id_comp_bt);"
@@ -725,6 +755,50 @@ def run_schema_migrations():
         raise
     finally:
         if conn:
+            conn.close()
+
+
+def ensure_advice_log_table(conn: sqlite3.Connection | None = None, db_path: str | None = None) -> None:
+    """Ensures the advice_log table and its index exist in the database."""
+    target_path = db_path or STOCK_DB_PATH
+    should_close = False
+    if conn is None:
+        if not os.path.exists(target_path):
+            return
+        conn = sqlite3.connect(target_path)
+        should_close = True
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS advice_log (
+                id_advice INTEGER PRIMARY KEY AUTOINCREMENT,
+                advice_date TEXT NOT NULL CHECK (
+                    length(advice_date) = 10 AND
+                    substr(advice_date, 5, 1) = '-' AND
+                    substr(advice_date, 8, 1) = '-' AND
+                    advice_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                ),
+                advice_text TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Not Followed' CHECK(status IN ('Fully Followed', 'Partially Followed', 'Not Followed')),
+                execution_date TEXT DEFAULT NULL CHECK (
+                    execution_date IS NULL OR
+                    execution_date = '' OR (
+                        length(execution_date) = 10 AND
+                        substr(execution_date, 5, 1) = '-' AND
+                        substr(execution_date, 8, 1) = '-' AND
+                        execution_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                    )
+                ),
+                notes TEXT DEFAULT ''
+            );
+        """)
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_advice_log_date ON advice_log(advice_date);"
+        )
+        conn.commit()
+    finally:
+        if should_close and conn:
             conn.close()
 
 
@@ -1361,6 +1435,31 @@ def create_stockman_database(_parent) -> Tuple[bool, str]:
                 );
             """)
 
+        # ------------------- Table: advice_log -------------------
+        cursor.execute("""
+                CREATE TABLE IF NOT EXISTS advice_log (
+                    id_advice INTEGER PRIMARY KEY AUTOINCREMENT,
+                    advice_date TEXT NOT NULL CHECK (
+                        length(advice_date) = 10 AND
+                        substr(advice_date, 5, 1) = '-' AND
+                        substr(advice_date, 8, 1) = '-' AND
+                        advice_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                    ),
+                    advice_text TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'Not Followed' CHECK(status IN ('Fully Followed', 'Partially Followed', 'Not Followed')),
+                    execution_date TEXT DEFAULT NULL CHECK (
+                        execution_date IS NULL OR
+                        execution_date = '' OR (
+                            length(execution_date) = 10 AND
+                            substr(execution_date, 5, 1) = '-' AND
+                            substr(execution_date, 8, 1) = '-' AND
+                            execution_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                        )
+                    ),
+                    notes TEXT DEFAULT ''
+                );
+            """)
+
         # ------------------- Indexes  ---
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_transactions_id_stk ON "
@@ -1413,6 +1512,9 @@ def create_stockman_database(_parent) -> Tuple[bool, str]:
         )
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_dividends_credit_dt ON dividends(credit_dt);"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_advice_log_date ON advice_log(advice_date);"
         )
 
         # ------------------- View: buy_lots -------------------

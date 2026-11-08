@@ -65,6 +65,7 @@ from .reporting_utils import (
     build_master_dividend_tree_rows,
     build_master_ledger_display_rows,
     build_passbook_display_rows,
+    build_yearly_passbook_data,
     build_scrip_wise_dividend_data,
     build_performance_summary_rows,
     build_online_action_entries,
@@ -918,6 +919,7 @@ def p_and_l(
             "• Stock-wise Analysis: Select a stock on the left to see its narrative report, ledgers, and intraday chart.",
             "• Portfolio Summary: View aggregate Capital Gains, XIRR, and Capital Flow statistics by Financial Year.",
             "• Passbook: Consolidated chronological ledger of portfolio cash flows (Buys, Sells, Dividends), investments, disinvestments, and returns.",
+            "• Yearly Passbook: Listing investments starting from 1 April every financial year with Opening Investment for a complete yearly Hisaab.",
             "• Current Holdings: Live mark-to-market valuation of your active positions.",
             "• Portfolio Allocation: See your portfolio's concentration by sector and stock weighting.",
             "• Portfolio Ledgers: A master view of all trades, dividends, and corporate actions across all stocks.",
@@ -929,6 +931,7 @@ def p_and_l(
             "• Withdrawal: Cash outflow (Net buy investment amount).",
             "• Cum. Inv: Running total of all capital invested up to that date.",
             "• Cum. Disinv: Running total of all capital disinvested (cost basis recovered) up to that date.",
+            "• Investment: Net capital invested on that date (Cumulative Investment minus Cumulative Disinvestment).",
             "• Day's Disinv: Capital disinvested specifically on that date (original cost basis of sold shares).",
             "• Cum. P&L: Running total of all realized profit and dividends up to that date.",
             "• Cum. Ann. %: Portfolio-wide annualized return computed using the cumulative rupee-day weighting method."
@@ -1645,6 +1648,7 @@ def p_and_l(
         "Withdrawal",
         "Cum. Inv",
         "Cum. Disinv",
+        "Investment",
         "Day's Disinv",
         "Cum. P&L",
         "Cum. Ann. %",
@@ -1678,6 +1682,7 @@ def p_and_l(
             "Withdrawal": {"width": 120, "anchor": "e", "minwidth": 80},
             "Cum. Inv": {"width": 130, "anchor": "e", "minwidth": 90},
             "Cum. Disinv": {"width": 130, "anchor": "e", "minwidth": 90},
+            "Investment": {"width": 130, "anchor": "e", "minwidth": 90},
             "Day's Disinv": {"width": 120, "anchor": "e", "minwidth": 80},
             "Cum. P&L": {"width": 120, "anchor": "e", "minwidth": 80},
             "Cum. Ann. %": {"width": 120, "anchor": "e", "minwidth": 80},
@@ -1695,6 +1700,7 @@ def p_and_l(
         "Withdrawal": "Cash outflow: Buy investment amount.",
         "Cum. Inv": "Running total of all investments up to this date.",
         "Cum. Disinv": "Running total of all disinvestments up to this date.",
+        "Investment": "Net invested capital on this date (Cumulative Investment minus Cumulative Disinvestment).",
         "Day's Disinv": "Disinvestment specifically on this date (original cost basis recovered).",
         "Cum. P&L": "Running total of all realized profit and dividends up to this date.",
         "Cum. Ann. %": "Portfolio-wide annualized return computed using the cumulative rupee-day weighting method.",
@@ -1705,7 +1711,205 @@ def p_and_l(
         "Consolidated chronological passbook ledger of portfolio cash flows, investments, and returns.",
     )
 
-    # --- TAB 4: Current Holdings ---
+    # --- TAB 4: Yearly Passbook ---
+    tab_yearly_passbook = ttk.Frame(notebook)
+    notebook.add(tab_yearly_passbook, text="📅 Yearly Passbook")
+
+    yearly_panes = ttk.PanedWindow(tab_yearly_passbook, orient=tk.VERTICAL)
+    yearly_panes.pack(fill="both", expand=True, padx=10, pady=10)
+
+    yearly_summary_frame = ttk.LabelFrame(
+        yearly_panes,
+        text="📅 Yearly Hisaab (Capital & Returns by Financial Year)",
+    )
+    yearly_ledger_frame = ttk.LabelFrame(
+        yearly_panes,
+        text="📖 Yearly Passbook Ledger (Transactions starting from 1 April)",
+    )
+    yearly_panes.add(yearly_summary_frame, weight=1)
+    yearly_panes.add(yearly_ledger_frame, weight=2)
+
+    yearly_summary_body = ttk.Frame(yearly_summary_frame)
+    yearly_summary_body.pack(fill="both", expand=True, padx=6, pady=6)
+    yearly_summary_body.grid_rowconfigure(0, weight=1)
+    yearly_summary_body.grid_columnconfigure(0, weight=1)
+
+    yearly_hisaab_cols = (
+        "Financial Year",
+        "Opening Date",
+        "Opening Investment",
+        "Investment Added",
+        "Disinvestment",
+        "Closing Investment",
+        "Sell Proceeds",
+        "Net Dividends",
+        "Realized Gain/Loss",
+        "Total Return",
+        "Annualized Return %",
+    )
+    yearly_hisaab_tree = ttk.Treeview(
+        yearly_summary_body,
+        columns=yearly_hisaab_cols,
+        show="headings",
+        selectmode="browse",
+    )
+    yh_y_scroll = ttk.Scrollbar(
+        yearly_summary_body, orient="vertical", command=yearly_hisaab_tree.yview
+    )
+    yh_x_scroll = ttk.Scrollbar(
+        yearly_summary_body, orient="horizontal", command=yearly_hisaab_tree.xview
+    )
+    yearly_hisaab_tree.configure(
+        yscrollcommand=yh_y_scroll.set, xscrollcommand=yh_x_scroll.set
+    )
+    yearly_hisaab_tree.grid(row=0, column=0, sticky="nsew")
+    yh_y_scroll.grid(row=0, column=1, sticky="ns")
+    yh_x_scroll.grid(row=1, column=0, sticky="ew")
+
+    configure_tree_columns(
+        yearly_hisaab_tree,
+        yearly_hisaab_cols,
+        {
+            "Financial Year": {"width": 120, "anchor": "w", "minwidth": 100},
+            "Opening Date": {"width": 110, "anchor": "center", "minwidth": 80},
+            "Opening Investment": {"width": 145, "anchor": "e", "minwidth": 100},
+            "Investment Added": {"width": 140, "anchor": "e", "minwidth": 90},
+            "Disinvestment": {"width": 135, "anchor": "e", "minwidth": 90},
+            "Closing Investment": {"width": 145, "anchor": "e", "minwidth": 100},
+            "Sell Proceeds": {"width": 135, "anchor": "e", "minwidth": 90},
+            "Net Dividends": {"width": 125, "anchor": "e", "minwidth": 80},
+            "Realized Gain/Loss": {"width": 140, "anchor": "e", "minwidth": 90},
+            "Total Return": {"width": 140, "anchor": "e", "minwidth": 90},
+            "Annualized Return %": {"width": 130, "anchor": "e", "minwidth": 80},
+        },
+    )
+    configure_summary_row(yearly_hisaab_tree)
+
+    yearly_hisaab_tree.tag_configure("profit", foreground="#27ae60")
+    yearly_hisaab_tree.tag_configure("loss", foreground="#c0392b")
+    yearly_hisaab_tree.tag_configure("neutral", foreground="#2c3e50")
+
+    yearly_ledger_body = ttk.Frame(yearly_ledger_frame)
+    yearly_ledger_body.pack(fill="both", expand=True, padx=6, pady=6)
+    yearly_ledger_body.grid_rowconfigure(0, weight=1)
+    yearly_ledger_body.grid_columnconfigure(0, weight=1)
+
+    yearly_ledger_cols = (
+        "Date",
+        "Description",
+        "Deposit",
+        "Withdrawal",
+        "Cum. Inv",
+        "Cum. Disinv",
+        "Investment",
+        "Day's Disinv",
+        "Cum. P&L",
+        "Cum. Ann. %",
+    )
+    yearly_ledger_tree = ttk.Treeview(
+        yearly_ledger_body,
+        columns=yearly_ledger_cols,
+        show="headings",
+        selectmode="browse",
+    )
+    yl_y_scroll = ttk.Scrollbar(
+        yearly_ledger_body, orient="vertical", command=yearly_ledger_tree.yview
+    )
+    yl_x_scroll = ttk.Scrollbar(
+        yearly_ledger_body, orient="horizontal", command=yearly_ledger_tree.xview
+    )
+    yearly_ledger_tree.configure(
+        yscrollcommand=yl_y_scroll.set, xscrollcommand=yl_x_scroll.set
+    )
+    yearly_ledger_tree.grid(row=0, column=0, sticky="nsew")
+    yl_y_scroll.grid(row=0, column=1, sticky="ns")
+    yl_x_scroll.grid(row=1, column=0, sticky="ew")
+
+    configure_tree_columns(
+        yearly_ledger_tree,
+        yearly_ledger_cols,
+        {
+            "Date": {"width": 110, "anchor": "center", "minwidth": 80},
+            "Description": {"width": 180, "anchor": "w", "minwidth": 120},
+            "Deposit": {"width": 120, "anchor": "e", "minwidth": 80},
+            "Withdrawal": {"width": 120, "anchor": "e", "minwidth": 80},
+            "Cum. Inv": {"width": 130, "anchor": "e", "minwidth": 90},
+            "Cum. Disinv": {"width": 130, "anchor": "e", "minwidth": 90},
+            "Investment": {"width": 130, "anchor": "e", "minwidth": 90},
+            "Day's Disinv": {"width": 120, "anchor": "e", "minwidth": 80},
+            "Cum. P&L": {"width": 120, "anchor": "e", "minwidth": 80},
+            "Cum. Ann. %": {"width": 120, "anchor": "e", "minwidth": 80},
+        },
+    )
+
+    yearly_ledger_tree.tag_configure("profit", foreground="#27ae60")
+    yearly_ledger_tree.tag_configure("loss", foreground="#c0392b")
+    yearly_ledger_tree.tag_configure("neutral", foreground="#2c3e50")
+    yearly_ledger_tree.tag_configure(
+        "opening_balance",
+        background="#e0f2fe",
+        foreground="#0369a1",
+        font=("Helvetica", 11, "bold"),
+    )
+    yearly_ledger_tree.tag_configure(
+        "closing_balance",
+        background="#f0fdf4",
+        foreground="#15803d",
+        font=("Helvetica", 11, "bold"),
+    )
+
+    yearly_hisaab_tooltips = {
+        "Financial Year": "Financial year label (Apr 1 - Mar 31).",
+        "Opening Date": "Financial year start date (01-Apr).",
+        "Opening Investment": "Net capital invested as of 01-Apr (carried forward from previous year's closing).",
+        "Investment Added": "Fresh capital invested (sum of all BUY transactions) during the financial year.",
+        "Disinvestment": "Capital recovered on sales (original cost basis of sold shares) during the financial year.",
+        "Closing Investment": "Net capital invested at year-end (Opening Investment + Added - Disinvested).",
+        "Sell Proceeds": "Gross cash inflow received from sales during the financial year.",
+        "Net Dividends": "Total dividend income credited during the financial year.",
+        "Realized Gain/Loss": "Net capital gain/loss realized upon sales in the financial year.",
+        "Total Return": "Total profit generated in the financial year (Realized Gain/Loss + Net Dividends).",
+        "Annualized Return %": "Annualized rate of return for the financial year using the rupee-day weighting method.",
+    }
+    add_tree_heading_tooltips(yearly_hisaab_tree, yearly_hisaab_tooltips)
+    add_tree_heading_tooltips(yearly_ledger_tree, passbook_col_tooltips)
+    add_widget_tooltip(
+        yearly_hisaab_tree,
+        "Annual hisaab summary showing opening investment from 1 April, fresh investments, disinvestments, and returns.",
+    )
+    add_widget_tooltip(
+        yearly_ledger_tree,
+        "Detailed transactions for the financial year, starting on 1 April with opening investment benchmark.",
+    )
+
+    yearly_pb_cache = {"fy_ledgers": {}, "all_ledger": ([], [])}
+
+    def _populate_yearly_ledger_for_fy(target_fy: str):
+        if not yearly_ledger_tree.winfo_exists():
+            return
+        yearly_ledger_tree.delete(*yearly_ledger_tree.get_children())
+        if target_fy == "ALL YEARS":
+            rows, tags = yearly_pb_cache.get("all_ledger", ([], []))
+        else:
+            fy_data = yearly_pb_cache.get("fy_ledgers", {}).get(target_fy, {})
+            rows = fy_data.get("rows", [])
+            tags = fy_data.get("tags", [])
+        for r, t in zip(rows, tags):
+            yearly_ledger_tree.insert("", "end", values=r, tags=(t,))
+        autosize_treeview_columns(yearly_ledger_tree)
+
+    def on_yearly_hisaab_select(event=None):
+        selected = yearly_hisaab_tree.selection()
+        if not selected:
+            return
+        vals = yearly_hisaab_tree.item(selected[0], "values")
+        if vals:
+            target_fy = vals[0]
+            _populate_yearly_ledger_for_fy(target_fy)
+
+    yearly_hisaab_tree.bind("<<TreeviewSelect>>", on_yearly_hisaab_select)
+
+    # --- TAB 5: Current Holdings ---
     tab_current = ttk.Frame(notebook)
     notebook.add(tab_current, text="💼 Current Holdings")
 
@@ -1939,14 +2143,15 @@ def p_and_l(
         0: "Stock-wise analysis with detailed performance, ledgers, and stock-specific drill-down tabs.",
         1: "Portfolio-level yearly return and capital-flow summaries.",
         2: "Consolidated chronological ledger of portfolio cash flows, investments, disinvestments, and returns.",
-        3: "Active holdings with current cost basis, live value, and gain/loss tracking.",
-        4: "Portfolio concentration and allocation breakdowns by sector and individual stock weightings.",
-        5: "Portfolio-wide ledgers covering trades, dividends, and corporate actions.",
+        3: "Yearly Passbook listing opening investments starting from 1 April and annual hisaab of capital and returns.",
+        4: "Active holdings with current cost basis, live value, and gain/loss tracking.",
+        5: "Portfolio concentration and allocation breakdowns by sector and individual stock weightings.",
+        6: "Portfolio-wide ledgers covering trades, dividends, and corporate actions.",
     }
     NotebookTooltip(notebook, tab_tooltips)
     add_widget_tooltip(
         notebook,
-        "Use the main tabs to switch between stock-wise analysis, portfolio summary, current holdings, and portfolio ledgers.",
+        "Use the main tabs to switch between stock-wise analysis, portfolio summary, passbook, yearly passbook, current holdings, and portfolio ledgers.",
     )
 
     # Master Ledger
@@ -2368,6 +2573,12 @@ def p_and_l(
         pnl_win.after(0, lambda: stats_tree.delete(*stats_tree.get_children()))
         pnl_win.after(
             0, lambda: passbook_tree.delete(*passbook_tree.get_children())
+        )
+        pnl_win.after(
+            0, lambda: yearly_hisaab_tree.delete(*yearly_hisaab_tree.get_children())
+        )
+        pnl_win.after(
+            0, lambda: yearly_ledger_tree.delete(*yearly_ledger_tree.get_children())
         )
         pnl_win.after(0, lambda: curr_tree.delete(*curr_tree.get_children()))
         pnl_win.after(
@@ -2998,9 +3209,10 @@ def p_and_l(
                 0, lambda: autosize_treeview_columns(master_perf_summary_tree)
             )
 
-            # Passbook calculations and insertion
+            # Passbook and Yearly Passbook calculations and insertion
+            raw_pb_events = fetch_passbook_events(m_cursor)
             passbook_data = build_passbook_display_rows(
-                fetch_passbook_events(m_cursor),
+                raw_pb_events,
                 start_date=start_date if is_yearly else None,
                 end_date=end_date if is_yearly else None,
                 date_formatter=safe_fmt_date,
@@ -3018,6 +3230,61 @@ def p_and_l(
                 )
             pnl_win.after(
                 0, lambda: autosize_treeview_columns(passbook_tree)
+            )
+
+            yearly_pb_data = build_yearly_passbook_data(
+                raw_pb_events,
+                selected_fy=selected_fy if is_yearly else None,
+                date_formatter=safe_fmt_date,
+                financial_year_sort_key=financial_year_sort_key,
+            )
+            yearly_pb_cache["fy_ledgers"] = yearly_pb_data["fy_ledgers"]
+            yearly_pb_cache["all_ledger"] = (
+                yearly_pb_data["all_ledger_rows"],
+                yearly_pb_data["all_ledger_tags"],
+            )
+
+            pnl_win.after(
+                0,
+                lambda v=yearly_pb_data["grand_summary_row"]: (
+                    yearly_hisaab_tree.insert("", 0, values=v, tags=("summary",))
+                    if yearly_hisaab_tree.winfo_exists()
+                    else None
+                ),
+            )
+            for row, tag in zip(
+                yearly_pb_data["hisaab_summary_rows"],
+                yearly_pb_data["hisaab_summary_tags"],
+            ):
+                pnl_win.after(
+                    0,
+                    lambda v=row, t=tag: (
+                        yearly_hisaab_tree.insert("", "end", values=v, tags=(t,))
+                        if yearly_hisaab_tree.winfo_exists()
+                        else None
+                    ),
+                )
+            pnl_win.after(
+                0,
+                lambda: (
+                    autosize_treeview_columns(yearly_hisaab_tree)
+                    if yearly_hisaab_tree.winfo_exists()
+                    else None
+                ),
+            )
+
+            init_fy = (
+                selected_fy
+                if is_yearly
+                else (
+                    yearly_pb_data["latest_fy"]
+                    if yearly_pb_data.get("latest_fy")
+                    else "ALL YEARS"
+                )
+            )
+            pnl_win.after(
+                0,
+                lambda target=init_fy: _populate_yearly_ledger_for_fy(target),
             )
 
         # --- YFINANCE MASTER RECONCILIATION THREAD ---

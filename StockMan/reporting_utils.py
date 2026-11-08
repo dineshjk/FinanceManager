@@ -2788,6 +2788,7 @@ def build_passbook_display_rows(
         )
         cinv_str = f"{cum_inv:,.2f}"
         cdis_str = f"{cum_disinv:,.2f}"
+        inv_str = f"{(cum_inv - cum_disinv):,.2f}"
         day_dis_str = (
             f"{ev['disinv']:,.2f}"
             if (ev["type"] == "SELL" and ev["disinv"] > 0)
@@ -2809,6 +2810,7 @@ def build_passbook_display_rows(
             with_str,
             cinv_str,
             cdis_str,
+            inv_str,
             day_dis_str,
             cum_pnl_str,
             ann_str,
@@ -2820,4 +2822,404 @@ def build_passbook_display_rows(
         "detail_rows": detail_rows,
         "tags": tags,
     }
+
+
+def build_yearly_passbook_data(
+    events_data: dict,
+    selected_fy: str | None = None,
+    *,
+    date_formatter=None,
+    financial_year_sort_key=None,
+) -> dict:
+    """Consolidate Buys, Sells, and Dividends into a Yearly Passbook ledger and Hisaab.
+
+    For each financial year starting from 1 April:
+    - Lists opening investment (brought forward from previous year's closing balance)
+    - Records fresh investments added, disinvestments (cost basis recovered), and closing balance
+    - Tracks sell proceeds, dividend credits, realized P&L, total return, and annualized return
+    - Provides detailed transaction ledgers starting on 01-April with opening investment benchmark.
+    """
+    def _parse_date(d_val) -> date:
+        if isinstance(d_val, str):
+            return datetime.strptime(d_val[:10], "%Y-%m-%d").date()
+        if isinstance(d_val, datetime):
+            return d_val.date()
+        return d_val
+
+    def _get_fy_start_year(d_obj: date) -> int:
+        return d_obj.year if d_obj.month >= 4 else d_obj.year - 1
+
+    def _make_fy_label(start_year: int) -> str:
+        return f"FY {start_year}-{str(start_year + 1)[-2:]}"
+
+    buys = events_data.get("buys", [])
+    sells = events_data.get("sells", [])
+    dividends = events_data.get("dividends", [])
+
+    events = []
+    for b in buys:
+        events.append(
+            {
+                "date": b[1],
+                "order": 0,
+                "id": b[0],
+                "type": "BUY",
+                "symbol": b[2],
+                "deposit": None,
+                "withdrawal": float(b[3] or 0.0),
+                "disinv": 0.0,
+                "pnl": 0.0,
+            }
+        )
+
+    for s in sells:
+        sell_proceeds = float(s[5] or 0.0)
+        disinv = float(s[4] or 0.0)
+        pnl = float(s[6] or 0.0)
+        events.append(
+            {
+                "date": s[1],
+                "order": 1,
+                "id": s[0],
+                "type": "SELL",
+                "symbol": s[2],
+                "deposit": sell_proceeds,
+                "withdrawal": None,
+                "disinv": disinv,
+                "pnl": pnl,
+            }
+        )
+
+    for d in dividends:
+        net_amt = float(d[3] or 0.0)
+        events.append(
+            {
+                "date": d[1],
+                "order": 2,
+                "id": d[0],
+                "type": "DIV",
+                "symbol": d[2],
+                "deposit": net_amt,
+                "withdrawal": None,
+                "disinv": 0.0,
+                "pnl": net_amt,
+            }
+        )
+
+    events.sort(key=lambda x: (x["date"], x["order"], x["id"]))
+
+    if not events:
+        empty_summary = (
+            "ALL YEARS",
+            "-",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "+0.00%",
+        )
+        return {
+            "grand_summary_row": empty_summary,
+            "hisaab_summary_rows": [],
+            "hisaab_summary_tags": [],
+            "fy_ledgers": {},
+            "all_ledger_rows": [],
+            "all_ledger_tags": [],
+            "latest_fy": None,
+        }
+
+    event_start_years = {_get_fy_start_year(_parse_date(ev["date"])) for ev in events}
+    min_year = min(event_start_years)
+    current_fy_start = _get_fy_start_year(date.today())
+    max_year = max(max(event_start_years), current_fy_start)
+
+    running_cum_inv = 0.0
+    running_cum_disinv = 0.0
+    all_time_pnl = 0.0
+    all_time_rupee_days = 0.0
+    all_time_active_capital = 0.0
+    all_time_last_date = None
+
+    hisaab_items = []
+    fy_ledgers = {}
+    all_ledger_rows = []
+    all_ledger_tags = []
+
+    events_by_sy = {}
+    for ev in events:
+        sy = _get_fy_start_year(_parse_date(ev["date"]))
+        events_by_sy.setdefault(sy, []).append(ev)
+
+    for sy in range(min_year, max_year + 1):
+        fy_label = _make_fy_label(sy)
+        fy_start_dt = date(sy, 4, 1)
+        fy_end_dt = date(sy + 1, 3, 31)
+
+        opening_inv = max(0.0, running_cum_inv - running_cum_disinv)
+
+        fy_inv_added = 0.0
+        fy_disinv = 0.0
+        fy_sell_proceeds = 0.0
+        fy_dividends = 0.0
+        fy_realized_pnl = 0.0
+        fy_rupee_days = 0.0
+        fy_active_capital = opening_inv
+        fy_last_date = fy_start_dt
+
+        fy_ledger_rows = []
+        fy_ledger_tags = []
+
+        fmt_open_date = (
+            date_formatter(fy_start_dt.strftime("%Y-%m-%d"))
+            if date_formatter
+            else fy_start_dt.strftime("%Y-%m-%d")
+        )
+
+        # 1-April Opening Investment benchmark row
+        opening_row = (
+            fmt_open_date,
+            "🏁 Opening Investment (B/F)",
+            "-",
+            "-",
+            f"{opening_inv:,.2f}",
+            "0.00",
+            f"{opening_inv:,.2f}",
+            "-",
+            "0.00",
+            "-",
+        )
+        fy_ledger_rows.append(opening_row)
+        fy_ledger_tags.append("opening_balance")
+
+        sy_events = events_by_sy.get(sy, [])
+
+        for ev in sy_events:
+            ev_date = _parse_date(ev["date"])
+
+            fy_days = (ev_date - fy_last_date).days
+            if fy_days > 0 and fy_active_capital > 0:
+                fy_rupee_days += fy_active_capital * fy_days
+            fy_last_date = ev_date
+
+            if all_time_last_date is not None:
+                at_days = (ev_date - all_time_last_date).days
+                if at_days > 0 and all_time_active_capital > 0:
+                    all_time_rupee_days += all_time_active_capital * at_days
+            all_time_last_date = ev_date
+
+            if ev["type"] == "BUY":
+                withdrawal = ev["withdrawal"]
+                running_cum_inv += withdrawal
+                fy_inv_added += withdrawal
+                fy_active_capital += withdrawal
+                all_time_active_capital += withdrawal
+                dep_str = "-"
+                with_str = f"{withdrawal:,.2f}"
+                day_dis_str = "-"
+            elif ev["type"] == "SELL":
+                deposit = ev["deposit"]
+                disinv = ev["disinv"]
+                pnl = ev["pnl"]
+                running_cum_disinv += disinv
+                fy_disinv += disinv
+                fy_sell_proceeds += deposit
+                fy_realized_pnl += pnl
+                all_time_pnl += pnl
+                fy_active_capital = max(0.0, fy_active_capital - disinv)
+                all_time_active_capital = max(0.0, all_time_active_capital - disinv)
+                dep_str = f"{deposit:,.2f}"
+                with_str = "-"
+                day_dis_str = f"{disinv:,.2f}" if disinv > 0 else "-"
+            elif ev["type"] == "DIV":
+                deposit = ev["deposit"]
+                pnl = ev["pnl"]
+                fy_dividends += deposit
+                all_time_pnl += pnl
+                dep_str = f"{deposit:,.2f}"
+                with_str = "-"
+                day_dis_str = "-"
+
+            cum_inv_fy = opening_inv + fy_inv_added
+            cum_disinv_fy = fy_disinv
+            inv_fy = cum_inv_fy - cum_disinv_fy
+            fy_gain_so_far = fy_realized_pnl + fy_dividends
+            ann_pct = (
+                (fy_gain_so_far / fy_rupee_days) * 365.0 * 100.0
+                if fy_rupee_days > 0
+                else 0.0
+            )
+
+            fmt_date = date_formatter(ev["date"]) if date_formatter else ev["date"]
+            sym = _clean_symbol_for_description(ev["symbol"])
+            desc = f"{ev['type']} - {sym}"
+            tag = (
+                "profit"
+                if fy_gain_so_far > 0
+                else ("loss" if fy_gain_so_far < 0 else "neutral")
+            )
+
+            row_tuple = (
+                fmt_date,
+                desc,
+                dep_str,
+                with_str,
+                f"{cum_inv_fy:,.2f}",
+                f"{cum_disinv_fy:,.2f}",
+                f"{inv_fy:,.2f}",
+                day_dis_str,
+                f"{fy_gain_so_far:,.2f}",
+                f"{ann_pct:+.2f}%",
+            )
+            fy_ledger_rows.append(row_tuple)
+            fy_ledger_tags.append(tag)
+
+        today_dt = date.today()
+        period_end_dt = min(fy_end_dt, today_dt)
+        fy_remaining_days = (period_end_dt - fy_last_date).days
+        if fy_remaining_days > 0 and fy_active_capital > 0:
+            fy_rupee_days += fy_active_capital * fy_remaining_days
+
+        closing_inv = max(0.0, opening_inv + fy_inv_added - fy_disinv)
+        fy_total_gain = fy_realized_pnl + fy_dividends
+        fy_ann_return = (
+            (fy_total_gain / fy_rupee_days) * 365.0 * 100.0
+            if fy_rupee_days > 0
+            else 0.0
+        )
+
+        fmt_close_date = (
+            date_formatter(fy_end_dt.strftime("%Y-%m-%d"))
+            if date_formatter
+            else fy_end_dt.strftime("%Y-%m-%d")
+        )
+
+        # 31-March Closing Investment benchmark row
+        closing_row = (
+            fmt_close_date,
+            "🏁 Closing Investment (C/F)",
+            "-",
+            "-",
+            f"{opening_inv + fy_inv_added:,.2f}",
+            f"{fy_disinv:,.2f}",
+            f"{closing_inv:,.2f}",
+            "-",
+            f"{fy_total_gain:,.2f}",
+            f"{fy_ann_return:+.2f}%",
+        )
+        fy_ledger_rows.append(closing_row)
+        fy_ledger_tags.append("closing_balance")
+
+        fy_ledgers[fy_label] = {
+            "rows": fy_ledger_rows,
+            "tags": fy_ledger_tags,
+        }
+
+        all_ledger_rows.extend(fy_ledger_rows)
+        all_ledger_tags.extend(fy_ledger_tags)
+
+        hisaab_items.append(
+            {
+                "fy_label": fy_label,
+                "start_year": sy,
+                "opening_date": fmt_open_date,
+                "opening_inv": opening_inv,
+                "inv_added": fy_inv_added,
+                "disinv": fy_disinv,
+                "closing_inv": closing_inv,
+                "sell_proceeds": fy_sell_proceeds,
+                "dividends": fy_dividends,
+                "realized_pnl": fy_realized_pnl,
+                "total_gain": fy_total_gain,
+                "ann_return": fy_ann_return,
+            }
+        )
+
+    if all_time_last_date is not None:
+        at_remaining_days = (date.today() - all_time_last_date).days
+        if at_remaining_days > 0 and all_time_active_capital > 0:
+            all_time_rupee_days += all_time_active_capital * at_remaining_days
+
+    all_time_ann_pct = (
+        (all_time_pnl / all_time_rupee_days) * 365.0 * 100.0
+        if all_time_rupee_days > 0
+        else 0.0
+    )
+
+    total_inv_added = sum(x["inv_added"] for x in hisaab_items)
+    total_disinv = sum(x["disinv"] for x in hisaab_items)
+    initial_opening_inv = hisaab_items[0]["opening_inv"] if hisaab_items else 0.0
+    latest_closing_inv = hisaab_items[-1]["closing_inv"] if hisaab_items else 0.0
+    total_sell_proceeds = sum(x["sell_proceeds"] for x in hisaab_items)
+    total_dividends = sum(x["dividends"] for x in hisaab_items)
+    total_realized_pnl = sum(x["realized_pnl"] for x in hisaab_items)
+    grand_total_gain = total_realized_pnl + total_dividends
+
+    grand_summary_row = (
+        "ALL YEARS",
+        "-",
+        f"{initial_opening_inv:,.2f}",
+        f"{total_inv_added:,.2f}",
+        f"{total_disinv:,.2f}",
+        f"{latest_closing_inv:,.2f}",
+        f"{total_sell_proceeds:,.2f}",
+        f"{total_dividends:,.2f}",
+        f"{total_realized_pnl:,.2f}",
+        f"{grand_total_gain:,.2f}",
+        f"{all_time_ann_pct:+.2f}%",
+    )
+
+    sort_func = financial_year_sort_key or (
+        lambda x: int(x.split(" ")[1].split("-")[0])
+    )
+    sorted_items = sorted(
+        hisaab_items, key=lambda x: sort_func(x["fy_label"]), reverse=True
+    )
+
+    hisaab_summary_rows = []
+    hisaab_summary_tags = []
+
+    for item in sorted_items:
+        if (
+            selected_fy
+            and selected_fy != "All Years"
+            and item["fy_label"] != selected_fy
+        ):
+            continue
+        row = (
+            item["fy_label"],
+            item["opening_date"],
+            f"{item['opening_inv']:,.2f}",
+            f"{item['inv_added']:,.2f}",
+            f"{item['disinv']:,.2f}",
+            f"{item['closing_inv']:,.2f}",
+            f"{item['sell_proceeds']:,.2f}",
+            f"{item['dividends']:,.2f}",
+            f"{item['realized_pnl']:,.2f}",
+            f"{item['total_gain']:,.2f}",
+            f"{item['ann_return']:+.2f}%",
+        )
+        tag = (
+            "profit"
+            if item["total_gain"] > 0
+            else ("loss" if item["total_gain"] < 0 else "neutral")
+        )
+        hisaab_summary_rows.append(row)
+        hisaab_summary_tags.append(tag)
+
+    latest_fy = sorted_items[0]["fy_label"] if sorted_items else None
+
+    return {
+        "grand_summary_row": grand_summary_row,
+        "hisaab_summary_rows": hisaab_summary_rows,
+        "hisaab_summary_tags": hisaab_summary_tags,
+        "fy_ledgers": fy_ledgers,
+        "all_ledger_rows": all_ledger_rows,
+        "all_ledger_tags": all_ledger_tags,
+        "latest_fy": latest_fy,
+    }
+
 

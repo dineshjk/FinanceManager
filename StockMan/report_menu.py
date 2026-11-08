@@ -24,7 +24,7 @@ def _get_report_menu_help_data():
         "This menu generates insights into your portfolio performance and trading history.",
         "",
         "• Latest Trade: View your most recent transactions to quickly verify your data entry.",
-        "• Profit & Loss: Generate detailed realized P&L statements for tax reporting and performance tracking."
+        "• Profit & Loss: Master analytics dashboard covering Stock Performance, Portfolio Summary, Passbook, Yearly Passbook (Annual Hisaab from 1 April), Current Holdings, and Master Ledgers."
     ]
     faq_data = [
         (

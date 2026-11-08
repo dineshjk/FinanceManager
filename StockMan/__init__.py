@@ -72,6 +72,27 @@ from .transfer_data import (
     generate_and_export_transfer_data,
     export_transfer_data_gui,
 )
+from .drive_sync import (
+    update_portfolio_excel,
+    export_portfolio_excel,
+    build_portfolio_dataframe,
+    fetch_live_cmp,
+    get_drive_service,
+    upload_portfolio_to_drive,
+    download_latest_pick_of_the_day,
+    sync_two_way_pipeline,
+    get_local_pick_of_the_day,
+    run_startup_sequence,
+    adjust_cash_for_trade,
+    adjust_cash_for_trades,
+    update_available_cash_in_excel,
+)
+from .advice_tracker import (
+    show_advice_tracker,
+    parse_advice_from_pick_of_the_day,
+    auto_update_advice_from_pick_of_the_day,
+    sync_all_pending_pick_of_the_day_advices,
+)
 
 # Define explicitly what this package exports
 __all__ = [
@@ -126,4 +147,23 @@ __all__ = [
     "export_transfer_data_to_excel",
     "generate_and_export_transfer_data",
     "export_transfer_data_gui",
+    # Portfolio Excel Export & Google Drive Pipeline
+    "update_portfolio_excel",
+    "export_portfolio_excel",
+    "build_portfolio_dataframe",
+    "fetch_live_cmp",
+    "get_drive_service",
+    "upload_portfolio_to_drive",
+    "download_latest_pick_of_the_day",
+    "sync_two_way_pipeline",
+    "get_local_pick_of_the_day",
+    "run_startup_sequence",
+    "adjust_cash_for_trade",
+    "adjust_cash_for_trades",
+    "update_available_cash_in_excel",
+    # Advice Tracking
+    "show_advice_tracker",
+    "parse_advice_from_pick_of_the_day",
+    "auto_update_advice_from_pick_of_the_day",
+    "sync_all_pending_pick_of_the_day_advices",
 ]

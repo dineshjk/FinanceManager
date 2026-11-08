@@ -267,6 +267,27 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
     win.focus_set()
     push_window(win, parent)
 
+    win_is_open = [True]
+
+    orig_win_destroy = win.destroy
+
+    def safe_win_destroy():
+        win_is_open[0] = False
+        orig_win_destroy()
+
+    win.destroy = safe_win_destroy
+
+    try:
+        orig_parent_destroy = parent.destroy
+
+        def safe_parent_destroy():
+            win_is_open[0] = False
+            orig_parent_destroy()
+
+        parent.destroy = safe_parent_destroy
+    except Exception:
+        pass
+
     # --- Header ---
     header_frame = tk.Frame(win, bg=UI_THEME.get("bg_header", "#1e293b"))
     header_frame.pack(fill="x")
@@ -1817,6 +1838,15 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         # Bind Escape key to close
         pod_win.bind("<Escape>", lambda e: pod_win.destroy())
 
+        pod_is_open = [True]
+        orig_pod_destroy = pod_win.destroy
+
+        def safe_pod_destroy():
+            pod_is_open[0] = False
+            orig_pod_destroy()
+
+        pod_win.destroy = safe_pod_destroy
+
         top_header_frame = tk.Frame(pod_win, bg=UI_THEME["bg_input"])
         top_header_frame.pack(fill="x", padx=15, pady=(12, 6))
 
@@ -1895,7 +1925,23 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 font=("Helvetica", base_size + 4, "bold"),
                 foreground="#fbbf24",
                 spacing1=16,
-                spacing3=10,
+                spacing3=8,
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "h2_review",
+                font=("Helvetica", base_size + 4, "bold"),
+                foreground="#38bdf8",
+                spacing1=16,
+                spacing3=8,
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "h2_news",
+                font=("Helvetica", base_size + 4, "bold"),
+                foreground="#fbbf24",
+                spacing1=16,
+                spacing3=8,
                 wrap="word",
             )
             text_widget.tag_configure(
@@ -1903,7 +1949,15 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 font=("Helvetica", base_size + 2, "bold"),
                 foreground="#34d399",
                 spacing1=12,
-                spacing3=8,
+                spacing3=6,
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "h4",
+                font=("Helvetica", base_size + 1, "bold"),
+                foreground="#a78bfa",
+                spacing1=8,
+                spacing3=4,
                 wrap="word",
             )
             text_widget.tag_configure(
@@ -1913,11 +1967,32 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 wrap="word",
             )
             text_widget.tag_configure(
+                "italic",
+                font=("Helvetica", base_size, "italic"),
+                foreground="#93c5fd",
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "bold_italic",
+                font=("Helvetica", base_size, "bold italic"),
+                foreground="#f8fafc",
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "inline_code",
+                font=("Consolas", max(11, base_size - 1)),
+                background="#1e293b",
+                foreground="#38bdf8",
+            )
+            text_widget.tag_configure(
                 "normal",
                 font=("Helvetica", base_size),
                 foreground="#cbd5e1",
-                spacing1=3,
-                spacing3=4,
+                spacing1=4,
+                spacing2=3,
+                spacing3=6,
+                lmargin1=16,
+                lmargin2=16,
                 wrap="word",
             )
             text_widget.tag_configure(
@@ -1925,15 +2000,21 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 font=("Helvetica", base_size),
                 foreground="#cbd5e1",
                 spacing1=3,
+                spacing2=2,
                 spacing3=4,
-                lmargin1=28,
-                lmargin2=50,
+                lmargin1=32,
+                lmargin2=56,
                 wrap="word",
             )
             text_widget.tag_configure(
                 "bullet_sym",
                 font=("Helvetica", base_size, "bold"),
                 foreground="#38bdf8",
+            )
+            text_widget.tag_configure(
+                "num_bullet_sym",
+                font=("Helvetica", base_size, "bold"),
+                foreground="#fbbf24",
             )
             text_widget.tag_configure(
                 "blockquote",
@@ -1961,6 +2042,116 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 spacing1=3,
                 spacing3=3,
                 wrap="none",
+            )
+
+            # Review Card Styling (Execution & Accountability)
+            text_widget.tag_configure(
+                "review_card",
+                font=("Helvetica", base_size),
+                background="#132238",
+                foreground="#e2e8f0",
+                spacing1=6,
+                spacing2=4,
+                spacing3=6,
+                lmargin1=24,
+                lmargin2=24,
+                rmargin=24,
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "review_card_bold",
+                font=("Helvetica", base_size, "bold"),
+                background="#132238",
+                foreground="#ffffff",
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "review_card_badge",
+                font=("Helvetica", max(11, base_size - 1), "bold"),
+                background="#132238",
+                foreground="#38bdf8",
+                lmargin1=24,
+                lmargin2=24,
+                rmargin=24,
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "review_card_key",
+                font=("Helvetica", base_size, "bold"),
+                background="#132238",
+                foreground="#38bdf8",
+                wrap="word",
+            )
+
+            # News Card Styling (Macro & Portfolio News Impact)
+            text_widget.tag_configure(
+                "news_card",
+                font=("Helvetica", base_size),
+                background="#1c2536",
+                foreground="#e2e8f0",
+                spacing1=6,
+                spacing2=4,
+                spacing3=6,
+                lmargin1=24,
+                lmargin2=24,
+                rmargin=24,
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "news_card_bold",
+                font=("Helvetica", base_size, "bold"),
+                background="#1c2536",
+                foreground="#fde047",
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "news_card_badge",
+                font=("Helvetica", max(11, base_size - 1), "bold"),
+                background="#1c2536",
+                foreground="#fbbf24",
+                lmargin1=24,
+                lmargin2=24,
+                rmargin=24,
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "news_bullet",
+                font=("Helvetica", base_size),
+                background="#1c2536",
+                foreground="#e2e8f0",
+                spacing1=4,
+                spacing2=3,
+                spacing3=4,
+                lmargin1=44,
+                lmargin2=66,
+                rmargin=24,
+                wrap="word",
+            )
+            text_widget.tag_configure(
+                "news_bullet_sym",
+                font=("Helvetica", base_size, "bold"),
+                background="#1c2536",
+                foreground="#fbbf24",
+            )
+
+            # Status Badges
+            text_widget.tag_configure(
+                "status_fully_followed",
+                font=("Helvetica", max(11, base_size - 1), "bold"),
+                background="#064e3b",
+                foreground="#4ade80",
+            )
+            text_widget.tag_configure(
+                "status_partially_followed",
+                font=("Helvetica", max(11, base_size - 1), "bold"),
+                background="#78350f",
+                foreground="#facc15",
+            )
+            text_widget.tag_configure(
+                "status_not_followed",
+                font=("Helvetica", max(11, base_size - 1), "bold"),
+                background="#7f1d1d",
+                foreground="#f87171",
             )
 
             # Table styling with clear monospace fonts (14pt at 15pt baseline)
@@ -2043,22 +2234,37 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 wrap="word",
             )
 
+            # Tag raise priorities
             text_widget.tag_raise("action_buy")
             text_widget.tag_raise("action_hold")
             text_widget.tag_raise("action_wait")
             text_widget.tag_raise("action_exit")
+            text_widget.tag_raise("status_fully_followed")
+            text_widget.tag_raise("status_partially_followed")
+            text_widget.tag_raise("status_not_followed")
             text_widget.tag_raise("edu_callout_bold")
             text_widget.tag_raise("edu_callout_badge")
+            text_widget.tag_raise("review_card_key")
+            text_widget.tag_raise("review_card_bold")
+            text_widget.tag_raise("news_card_bold")
+            text_widget.tag_raise("bold_italic")
             text_widget.tag_raise("bold")
 
             # Pre-compiled high performance patterns
             re_cite = re.compile(r"\[cite:[^\]]*\]")
             re_divider_cell = re.compile(r"^:?-+:?$")
-            re_span = re.compile(r"(\*\*[^*]+?\*\*|\*[^*]+?\*)")
+            re_span = re.compile(
+                r"(\*\*\*[^*]+?\*\*\*|\*\*[^*]+?\*\*|\*[^*]+?\*|`[^`]+?`|\[[^\]]+?\]\([^)]+?\))"
+            )
             re_action_word = re.compile(
                 r"\b(BUY|ADD|ACCUMULATE|HOLD|WAIT|WATCH|REDUCE|EXIT|AVOID|OVER-INVESTED|UNDER-INVESTED|NEUTRAL)\b",
                 re.IGNORECASE,
             )
+            re_status_word = re.compile(
+                r"\b(Fully Followed|Partially Followed|Not Followed)\b",
+                re.IGNORECASE,
+            )
+
             action_tag_map = {
                 "BUY": "action_buy",
                 "ADD": "action_buy",
@@ -2073,6 +2279,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 "AVOID": "action_exit",
                 "OVER-INVESTED": "action_exit",
             }
+
             re_edu_start = re.compile(
                 r"^(?:>\s*)?"
                 r"(?:[-*•]\s+)?"
@@ -2100,19 +2307,79 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
             cleaned_md = re_cite.sub("", md_text)
             lines = cleaned_md.split("\n")
             idx_line = 0
+            current_section = None  # None, 'review', 'news', 'general'
 
-            def _insert_spans(text_w, text_span, base_tag, bold_tag="bold"):
-                parts = re_span.split(text_span)
+            def _insert_spans_styled(text_w, text_span, base_tag, bold_tag="bold", key_tag=None):
+                cleaned_span = (
+                    text_span.replace(r"\~", "~")
+                    .replace(r"\*", "*")
+                    .replace(r"\_", "_")
+                )
+                parts = re_span.split(cleaned_span)
                 args = []
                 for p in parts:
                     if not p:
                         continue
-                    if p.startswith("**") and p.endswith("**") and len(p) >= 4:
-                        args.extend([p[2:-2], (bold_tag, base_tag)])
+                    if p.startswith("***") and p.endswith("***") and len(p) >= 6:
+                        args.extend([p[3:-3], ("bold_italic", base_tag)])
+                    elif p.startswith("**") and p.endswith("**") and len(p) >= 4:
+                        inner = p[2:-2]
+                        if key_tag and (
+                            inner.endswith(":")
+                            or inner
+                            in (
+                                "Status",
+                                "Action Logged",
+                                "Impact on Strategy",
+                                "Macro Market",
+                                "Portfolio Heavyweights",
+                            )
+                        ):
+                            args.extend([inner, (key_tag, bold_tag, base_tag)])
+                        else:
+                            args.extend([inner, (bold_tag, base_tag)])
                     elif p.startswith("*") and p.endswith("*") and len(p) >= 2:
-                        args.extend([p[1:-1], (bold_tag, base_tag)])
+                        inner = p[1:-1]
+                        m_st = re_status_word.match(inner)
+                        if m_st:
+                            st_val = m_st.group(1).title()
+                            tag_st = (
+                                "status_fully_followed"
+                                if st_val == "Fully Followed"
+                                else (
+                                    "status_partially_followed"
+                                    if st_val == "Partially Followed"
+                                    else "status_not_followed"
+                                )
+                            )
+                            args.extend([inner, (tag_st, base_tag)])
+                        else:
+                            args.extend([inner, ("italic", base_tag)])
+                    elif p.startswith("`") and p.endswith("`") and len(p) >= 2:
+                        args.extend([p[1:-1], ("inline_code", base_tag)])
+                    elif p.startswith("[") and "](" in p and p.endswith(")"):
+                        link_text = p[1 : p.index("](")]
+                        args.extend([link_text, ("bold", base_tag)])
                     else:
-                        args.extend([p, base_tag])
+                        last_idx = 0
+                        for st_match in re_status_word.finditer(p):
+                            st_start, st_end = st_match.span()
+                            if st_start > last_idx:
+                                args.extend([p[last_idx:st_start], base_tag])
+                            st_word = st_match.group(1).title()
+                            tag_st = (
+                                "status_fully_followed"
+                                if st_word == "Fully Followed"
+                                else (
+                                    "status_partially_followed"
+                                    if st_word == "Partially Followed"
+                                    else "status_not_followed"
+                                )
+                            )
+                            args.extend([st_match.group(1), (tag_st, base_tag)])
+                            last_idx = st_end
+                        if last_idx < len(p):
+                            args.extend([p[last_idx:], base_tag])
                 if args:
                     text_w.insert(tk.END, *args)
 
@@ -2127,8 +2394,19 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                 curr_table = []
                 for tl in t_lines:
                     st = tl.strip()
-                    c_test = [c.strip() for c in (st[1:-1] if st.startswith("|") and st.endswith("|") else st.strip("|")).split("|")]
-                    is_div = bool(c_test and all(re_divider_cell.match(c) for c in c_test if c) and any("-" in c for c in c_test))
+                    c_test = [
+                        c.strip()
+                        for c in (
+                            st[1:-1]
+                            if st.startswith("|") and st.endswith("|")
+                            else st.strip("|")
+                        ).split("|")
+                    ]
+                    is_div = bool(
+                        c_test
+                        and all(re_divider_cell.match(c) for c in c_test if c)
+                        and any("-" in c for c in c_test)
+                    )
                     if is_div and len(curr_table) > 1:
                         prev_header = curr_table.pop()
                         if curr_table:
@@ -2147,7 +2425,10 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                             st = st[1:]
                         if st.endswith("|"):
                             st = st[:-1]
-                        cells = [c.replace("**", "").replace("*", "").strip() for c in st.split("|")]
+                        cells = [
+                            c.replace("**", "").replace("*", "").strip()
+                            for c in st.split("|")
+                        ]
                         if any(c for c in cells):
                             rows.append(cells)
 
@@ -2157,7 +2438,9 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     # Filter out pure markdown divider rows
                     data_rows = []
                     for r in rows:
-                        if all(re_divider_cell.match(c) for c in r if c) and any("-" in c for c in r):
+                        if all(re_divider_cell.match(c) for c in r if c) and any(
+                            "-" in c for c in r
+                        ):
                             continue
                         data_rows.append(r)
 
@@ -2185,15 +2468,27 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
 
                     table_args = []
                     header_row = normalized_rows[0]
-                    header_str = " | ".join(header_row[c_i].ljust(pad_widths[c_i]) for c_i in range(num_cols))
+                    header_str = " | ".join(
+                        header_row[c_i].ljust(pad_widths[c_i])
+                        for c_i in range(num_cols)
+                    )
                     table_args.extend([f"| {header_str} |\n", "table_header"])
 
-                    div_str = "-+-".join("-" * pad_widths[c_i] for c_i in range(num_cols))
+                    div_str = "-+-".join(
+                        "-" * pad_widths[c_i] for c_i in range(num_cols)
+                    )
                     table_args.extend([f"+-{div_str}-+\n", "divider"])
 
                     for row_idx, r in enumerate(normalized_rows[1:], start=1):
-                        row_tag = "table_row_even" if row_idx % 2 == 0 else "table_row_odd"
-                        row_str = " | ".join(r[c_i].ljust(pad_widths[c_i]) for c_i in range(num_cols))
+                        row_tag = (
+                            "table_row_even"
+                            if row_idx % 2 == 0
+                            else "table_row_odd"
+                        )
+                        row_str = " | ".join(
+                            r[c_i].ljust(pad_widths[c_i])
+                            for c_i in range(num_cols)
+                        )
                         line_str = f"| {row_str} |\n"
 
                         last_pos = 0
@@ -2203,7 +2498,9 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                                 table_args.extend([line_str[last_pos:start], row_tag])
                             word = m.group(0).upper()
                             act_tag = action_tag_map.get(word, row_tag)
-                            table_args.extend([line_str[start:end], (row_tag, act_tag)])
+                            table_args.extend(
+                                [line_str[start:end], (row_tag, act_tag)]
+                            )
                             last_pos = end
                         if last_pos < len(line_str):
                             table_args.extend([line_str[last_pos:], row_tag])
@@ -2247,31 +2544,61 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                         else:
                             break
                     _render_table(text_widget, table_block, tab_size)
+                    current_section = None
                     continue
 
                 # Top-level Title (# )
                 if s_line.startswith("# ") and not s_line.startswith("## "):
-                    text_widget.insert(tk.END, "\n" + s_line[2:] + "\n", "title")
+                    t_text = re.sub(r"^#\s+", "", s_line).strip()
+                    text_widget.insert(tk.END, "\n" + t_text + "\n", "title")
                     text_widget.insert(tk.END, "━" * wrap_width + "\n", "divider")
+                    current_section = None
                     idx_line += 1
                     continue
 
                 # Major Section Headers (## )
-                if s_line.startswith("## "):
-                    text_widget.insert(tk.END, "\n" + s_line[3:] + "\n", "h2")
-                    text_widget.insert(tk.END, "─" * wrap_width + "\n", "divider")
+                if s_line.startswith("## ") and not s_line.startswith("### "):
+                    h_text = re.sub(r"^##\s+(?:\d+[\.\)]\s+)?", "", s_line).strip()
+                    h_clean = re.sub(r"^\*\*|\*\*$", "", h_text).strip()
+
+                    if re.search(r"accountability|execution|advice review", h_clean, re.IGNORECASE):
+                        current_section = "review"
+                        badge = "📋 EXECUTION & ACCOUNTABILITY REVIEW"
+                        text_widget.insert(tk.END, "\n" + badge + "\n", "h2_review")
+                        text_widget.insert(tk.END, "─" * wrap_width + "\n", "divider")
+                    elif re.search(r"macro|news impact|market context", h_clean, re.IGNORECASE):
+                        current_section = "news"
+                        badge = "📰 MACRO & PORTFOLIO NEWS IMPACT"
+                        text_widget.insert(tk.END, "\n" + badge + "\n", "h2_news")
+                        text_widget.insert(tk.END, "─" * wrap_width + "\n", "divider")
+                    else:
+                        current_section = "general"
+                        text_widget.insert(tk.END, "\n" + h_clean + "\n", "h2")
+                        text_widget.insert(tk.END, "─" * wrap_width + "\n", "divider")
+
                     idx_line += 1
                     continue
 
                 # Sub-Section Headers (### )
-                if s_line.startswith("### "):
-                    text_widget.insert(tk.END, "\n" + s_line[4:] + "\n", "h3")
+                if s_line.startswith("### ") and not s_line.startswith("#### "):
+                    h3_text = re.sub(r"^###\s+(?:\d+[\.\)]\s+)?", "", s_line).strip()
+                    h3_clean = re.sub(r"^\*\*|\*\*$", "", h3_text).strip()
+                    text_widget.insert(tk.END, "\n" + h3_clean + "\n", "h3")
+                    current_section = "general"
+                    idx_line += 1
+                    continue
+
+                # Minor Section Headers (#### )
+                if s_line.startswith("#### "):
+                    h4_text = re.sub(r"^####\s+", "", s_line).strip()
+                    text_widget.insert(tk.END, "\n" + h4_text + "\n", "h4")
                     idx_line += 1
                     continue
 
                 # Section Divider
                 if s_line in ("---", "***", "___"):
                     text_widget.insert(tk.END, "─" * wrap_width + "\n", "divider")
+                    current_section = None
                     idx_line += 1
                     continue
 
@@ -2345,7 +2672,7 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                             ).strip()
                             if not clean_item:
                                 continue
-                            _insert_spans(
+                            _insert_spans_styled(
                                 text_widget,
                                 clean_item + "\n",
                                 "edu_callout",
@@ -2356,80 +2683,166 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                                 text_widget.insert(tk.END, "\n", "edu_callout")
 
                         text_widget.insert(tk.END, "\n")
+                    current_section = None
                     continue
 
                 # Blockquotes (> )
                 if s_line.startswith(">"):
                     bq_body = s_line[1:].strip()
-                    _insert_spans(text_widget, bq_body + "\n", "blockquote")
+                    _insert_spans_styled(text_widget, bq_body + "\n", "blockquote")
                     idx_line += 1
                     continue
 
-                # Bullet points
-                if s_line.startswith(("* ", "- ", "• ")):
-                    bullet_body = s_line[2:]
-                    text_widget.insert(tk.END, "  • ", "bullet_sym")
-                    _insert_spans(text_widget, bullet_body + "\n", "bullet")
+                # --- Section-specific Card Rendering ---
+                if current_section == "review":
+                    if not s_line:
+                        text_widget.insert(tk.END, "\n", "review_card")
+                        idx_line += 1
+                        continue
+                    if s_line.startswith(("* ", "- ", "• ")) or re.match(r"^\d+[\.)]\s+", s_line):
+                        b_body = re.sub(r"^[-*•\d\.)]+\s+", "", s_line).strip()
+                        text_widget.insert(tk.END, "  ✔ ", ("status_fully_followed", "review_card"))
+                        _insert_spans_styled(
+                            text_widget,
+                            b_body + "\n",
+                            "review_card",
+                            bold_tag="review_card_bold",
+                            key_tag="review_card_key",
+                        )
+                    elif line.startswith(("  ", "\t")):
+                        _insert_spans_styled(
+                            text_widget,
+                            "    " + s_line + "\n",
+                            "review_card",
+                            bold_tag="review_card_bold",
+                            key_tag="review_card_key",
+                        )
+                    else:
+                        _insert_spans_styled(
+                            text_widget,
+                            s_line + "\n",
+                            "review_card",
+                            bold_tag="review_card_bold",
+                            key_tag="review_card_key",
+                        )
+                    idx_line += 1
+                    continue
+
+                if current_section == "news":
+                    if not s_line:
+                        text_widget.insert(tk.END, "\n", "news_card")
+                        idx_line += 1
+                        continue
+                    if s_line.startswith(("* ", "- ", "• ")) or re.match(r"^\d+[\.)]\s+", s_line):
+                        b_body = re.sub(r"^[-*•\d\.)]+\s+", "", s_line).strip()
+                        text_widget.insert(tk.END, "  ⚡ ", ("news_bullet_sym", "news_bullet"))
+                        _insert_spans_styled(
+                            text_widget,
+                            b_body + "\n",
+                            "news_bullet",
+                            bold_tag="news_card_bold",
+                        )
+                    elif line.startswith(("  ", "\t")):
+                        _insert_spans_styled(
+                            text_widget,
+                            "    " + s_line + "\n",
+                            "news_bullet",
+                            bold_tag="news_card_bold",
+                        )
+                    else:
+                        _insert_spans_styled(
+                            text_widget,
+                            s_line + "\n",
+                            "news_card",
+                            bold_tag="news_card_bold",
+                            key_tag="news_card_bold",
+                        )
+                    idx_line += 1
+                    continue
+
+                # --- General Bullet points & Numbered Lists ---
+                if s_line.startswith(("* ", "- ", "+ ", "• ")):
+                    b_body = re.sub(r"^[-*+•]\s+", "", s_line)
+                    lead_spaces = len(line) - len(line.lstrip())
+                    indent_prefix = "    " if lead_spaces >= 2 else "  "
+                    text_widget.insert(tk.END, f"{indent_prefix}• ", "bullet_sym")
+                    _insert_spans_styled(text_widget, b_body + "\n", "bullet")
+                    idx_line += 1
+                    continue
+
+                m_num = re.match(r"^(\d+[\.)])\s+(.*)$", s_line)
+                if m_num:
+                    num_str, num_body = m_num.group(1), m_num.group(2)
+                    text_widget.insert(tk.END, f"  {num_str} ", "num_bullet_sym")
+                    _insert_spans_styled(text_widget, num_body + "\n", "bullet")
                     idx_line += 1
                     continue
 
                 # Standard paragraph line
                 if s_line:
-                    _insert_spans(text_widget, s_line + "\n", "normal")
+                    _insert_spans_styled(text_widget, s_line + "\n", "normal")
                 else:
                     text_widget.insert(tk.END, "\n")
 
                 idx_line += 1
 
             text_widget.config(state="disabled")
+            text_widget.update_idletasks()
             text_widget.yview_moveto(0.0)
             text_widget.xview_moveto(0.0)
             text_widget.see("1.0")
 
-        def _load_report():
+        def _fetch_and_render_report(force_drive=True, show_popup=False):
             from .drive_sync import get_local_pick_of_the_day
 
-            report_tuple = get_local_pick_of_the_day()
-            if report_tuple:
-                content, fname, mtime_str = report_tuple
+            # Step 1: Immediately render existing local report (or friendly loading placeholder)
+            local_tuple = get_local_pick_of_the_day()
+            if local_tuple:
+                content, fname, mtime_str = local_tuple
                 current_state["content"] = content
                 current_state["file_name"] = fname
                 current_state["mtime"] = mtime_str
+                # Auto-sync advice to SQLite and StockMan_Portfolio.xlsx
+                try:
+                    from .advice_tracker import auto_update_advice_from_pick_of_the_day
+                    auto_update_advice_from_pick_of_the_day(content)
+                except Exception as adv_e:
+                    logger.warning(f"Watchlist report auto advice sync notice: {adv_e}")
+
                 header.config(
                     text="🏆 Daily Pick of the Day — Latest Intelligence Report"
                 )
-                report_info_lbl.config(
-                    text=(
-                        f"📄 Local Source: {fname}  •  "
-                        f"Last Modified: {mtime_str}"
-                    ),
-                    fg="#38bdf8",
-                )
+                if force_drive:
+                    report_info_lbl.config(
+                        text=f"⏳ Fresh downloading latest Pick of the Day from Google Drive... (showing cached {fname})",
+                        fg="#38bdf8",
+                    )
+                else:
+                    report_info_lbl.config(
+                        text=f"📄 Local Source: {fname}  •  Advice auto-synced to Excel",
+                        fg="#38bdf8",
+                    )
                 render_markdown(
                     text_area, content, base_size=current_state["base_size"]
                 )
+                pod_win.after(20, lambda: text_area.update_idletasks())
+                pod_win.after(30, lambda: text_area.yview_moveto(0.0))
+                pod_win.after(30, lambda: text_area.xview_moveto(0.0))
+                pod_win.after(30, lambda: text_area.see("1.0"))
             else:
                 placeholder = (
-                    "# 🏆 Daily Pick of the Day — No Local Report Found\n\n"
-                    "No local report starting with `Pick_of_the_day_` "
-                    "was found in `data/`.\n\n"
-                    "### Next Steps:\n"
-                    "1. **Automated LLM Workflow**: Verify that your "
-                    "workflow generated a file starting with "
-                    "`Pick_of_the_day_` in the **Finance** folder.\n"
-                    "2. **Google Drive Credentials**: Place your "
-                    "`credentials.json` (OAuth 2.0 Desktop Client) into the "
-                    "project folder to enable automatic Drive downloads.\n"
-                    "3. **Sync Now**: Click the **🔄 Sync from Drive** button "
-                    "below to download the latest report now.\n"
+                    "# ⏳ Connecting to Google Drive...\n\n"
+                    "Downloading the fresh **Pick of the Day** markdown report "
+                    "generated by Gemini (web) from your Google Drive.\n\n"
+                    "Please wait a moment..."
                 )
                 current_state["content"] = placeholder
                 header.config(
-                    text="⚠️ Daily Pick of the Day — Report Not Found"
+                    text="🏆 Daily Pick of the Day — Syncing with Drive"
                 )
                 report_info_lbl.config(
-                    text="No local report found in data/ folder.",
-                    fg="#f59e0b",
+                    text="⏳ Connecting to Google Drive & downloading latest report...",
+                    fg="#38bdf8",
                 )
                 render_markdown(
                     text_area,
@@ -2437,77 +2850,190 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     base_size=current_state["base_size"],
                 )
 
+            if not force_drive:
+                return
+
+            if current_state.get("is_syncing", False):
+                if show_popup:
+                    messagebox.showinfo(
+                        "Sync in Progress",
+                        "Download from Google Drive is already in progress...",
+                        parent=pod_win,
+                    )
+                return
+
+            current_state["is_syncing"] = True
+
+            # Step 2: Fresh download from Google Drive in background thread
+            def _worker():
+                if not pod_is_open[0] or not win_is_open[0]:
+                    current_state["is_syncing"] = False
+                    return
+
+                err_msg = None
+                download_res = None
+                try:
+                    from .drive_sync import (
+                        GOOGLE_DRIVE_AVAILABLE,
+                        get_credentials_file,
+                        get_drive_service,
+                        download_latest_pick_of_the_day,
+                    )
+
+                    if not GOOGLE_DRIVE_AVAILABLE:
+                        err_msg = "Google Drive libraries not installed"
+                    else:
+                        cred_file = get_credentials_file()
+                        if not cred_file:
+                            err_msg = "Google Drive credentials.json not found"
+                        else:
+                            service = get_drive_service()
+                            # Downloads latest Pick of the Day across user's Drive where Gemini web saves
+                            download_res = download_latest_pick_of_the_day(
+                                service, folder_name=None
+                            )
+                except Exception as ex:
+                    err_msg = str(ex)
+
+                if not pod_is_open[0] or not win_is_open[0]:
+                    current_state["is_syncing"] = False
+                    return
+
+                def _on_finish():
+                    if not pod_is_open[0] or not win_is_open[0]:
+                        return
+                    current_state["is_syncing"] = False
+
+                    if download_res:
+                        fresh_tuple = get_local_pick_of_the_day()
+                        if fresh_tuple:
+                            content, fname, mtime_str = fresh_tuple
+                            current_state["content"] = content
+                            current_state["file_name"] = fname
+                            current_state["mtime"] = mtime_str
+                            # Auto-sync advice to SQLite and StockMan_Portfolio.xlsx
+                            try:
+                                from .advice_tracker import auto_update_advice_from_pick_of_the_day
+                                auto_update_advice_from_pick_of_the_day(content)
+                            except Exception as adv_e:
+                                logger.warning(f"Watchlist fresh report auto advice sync notice: {adv_e}")
+
+                            header.config(
+                                text="🏆 Daily Pick of the Day — Latest Intelligence Report"
+                            )
+                            report_info_lbl.config(
+                                text=(
+                                    f"☁️ Synced from Drive: {download_res[1]}  •  "
+                                    f"Advice auto-synced to Excel"
+                                ),
+                                fg="#38bdf8",
+                            )
+                            render_markdown(
+                                text_area,
+                                content,
+                                base_size=current_state["base_size"],
+                            )
+                            pod_win.after(20, lambda: text_area.update_idletasks())
+                            pod_win.after(30, lambda: text_area.yview_moveto(0.0))
+                            pod_win.after(30, lambda: text_area.xview_moveto(0.0))
+                            pod_win.after(30, lambda: text_area.see("1.0"))
+                            if show_popup:
+                                messagebox.showinfo(
+                                    "Sync Complete",
+                                    f"Downloaded latest report from Drive:\n{download_res[1]}",
+                                    parent=pod_win,
+                                )
+                            return
+
+                    # Fallback: Drive download did not find a report or encountered an error
+                    fallback_tuple = get_local_pick_of_the_day()
+                    if fallback_tuple:
+                        content, fname, mtime_str = fallback_tuple
+                        current_state["content"] = content
+                        current_state["file_name"] = fname
+                        current_state["mtime"] = mtime_str
+                        header.config(
+                            text="🏆 Daily Pick of the Day — Latest Intelligence Report"
+                        )
+                        reason = err_msg if err_msg else "No new report found on Drive"
+                        report_info_lbl.config(
+                            text=(
+                                f"⚠️ Drive Sync: {reason[:45]}. "
+                                f"Showing local cache: {fname} ({mtime_str})"
+                            ),
+                            fg="#f59e0b",
+                        )
+                        render_markdown(
+                            text_area,
+                            content,
+                            base_size=current_state["base_size"],
+                        )
+                        pod_win.after(20, lambda: text_area.update_idletasks())
+                        pod_win.after(30, lambda: text_area.yview_moveto(0.0))
+                        pod_win.after(30, lambda: text_area.xview_moveto(0.0))
+                        pod_win.after(30, lambda: text_area.see("1.0"))
+                        if show_popup:
+                            messagebox.showwarning(
+                                "Drive Sync",
+                                (
+                                    f"Could not download fresh report from Drive:\n{reason}\n\n"
+                                    "Displaying locally cached report instead."
+                                ),
+                                parent=pod_win,
+                            )
+                    else:
+                        placeholder = (
+                            "# 🏆 Daily Pick of the Day — No Report Found\n\n"
+                            "Could not download report from Google Drive, and no local "
+                            "`Pick_of_the_day_*.md` file was found in `data/`.\n\n"
+                            f"**Details:** {err_msg or 'No Pick of the Day file found on Google Drive.'}\n\n"
+                            "### Next Steps:\n"
+                            "1. **Gemini (Web)**: In Gemini web, generate your Pick of the Day report and export/save it to Google Drive.\n"
+                            "2. **Google Drive Credentials**: Place your `credentials.json` into the project root.\n"
+                            "3. **Sync Now**: Click the **🔄 Sync from Drive** button below to retry downloading.\n"
+                        )
+                        current_state["content"] = placeholder
+                        header.config(
+                            text="⚠️ Daily Pick of the Day — Report Not Found"
+                        )
+                        report_info_lbl.config(
+                            text=f"⚠️ No report found ({err_msg or 'Drive search empty'}).",
+                            fg="#f87171",
+                        )
+                        render_markdown(
+                            text_area,
+                            placeholder,
+                            base_size=current_state["base_size"],
+                        )
+                        if show_popup:
+                            messagebox.showerror(
+                                "Report Not Found",
+                                (
+                                    "Failed to find or download Pick of the Day report:\n"
+                                    f"{err_msg or 'No report found on Drive or locally.'}"
+                                ),
+                                parent=pod_win,
+                            )
+
+                if pod_is_open[0] and win_is_open[0]:
+                    try:
+                        pod_win.after(0, _on_finish)
+                    except Exception:
+                        pass
+                else:
+                    current_state["is_syncing"] = False
+
+            threading.Thread(target=_worker, daemon=True).start()
+
+        def _load_report():
+            _fetch_and_render_report(force_drive=False, show_popup=False)
+
         # Modal Footer Action Buttons with Font Zoom & Drive Sync
         btn_bar = tk.Frame(pod_win, bg=UI_THEME["bg_input"])
         btn_bar.pack(fill="x", padx=15, pady=(0, 15))
 
         def _sync_from_drive():
-            report_info_lbl.config(
-                text="⏳ Connecting to Drive and downloading latest report...",
-                fg="#38bdf8",
-            )
-
-            def _worker():
-                try:
-                    from .drive_sync import (
-                        get_drive_service,
-                        download_latest_pick_of_the_day,
-                    )
-
-                    service = get_drive_service()
-                    res = download_latest_pick_of_the_day(service)
-                    if res:
-                        pod_win.after(0, _load_report)
-                        pod_win.after(
-                            0,
-                            lambda: messagebox.showinfo(
-                                "Sync Complete",
-                                f"Downloaded report from Drive:\n{res[1]}",
-                                parent=pod_win,
-                            ),
-                        )
-                    else:
-                        pod_win.after(
-                            0,
-                            lambda: report_info_lbl.config(
-                                text=(
-                                    "⚠️ No file starting with "
-                                    "'Pick_of_the_day_' "
-                                    "found in Drive 'Finance' folder."
-                                ),
-                                fg="#f59e0b",
-                            ),
-                        )
-                        pod_win.after(
-                            0,
-                            lambda: messagebox.showwarning(
-                                "Report Not Found",
-                                (
-                                    "No 'Pick_of_the_day_' report found "
-                                    "in Google Drive 'Finance' folder."
-                                ),
-                                parent=pod_win,
-                            ),
-                        )
-                except Exception as ex:
-                    err_msg = str(ex)
-                    pod_win.after(
-                        0,
-                        lambda: report_info_lbl.config(
-                            text=f"⚠️ Drive Sync Error: {err_msg[:60]}",
-                            fg="#f87171",
-                        ),
-                    )
-                    pod_win.after(
-                        0,
-                        lambda: messagebox.showerror(
-                            "Drive Sync Error",
-                            f"Failed to sync with Google Drive:\n{err_msg}",
-                            parent=pod_win,
-                        ),
-                    )
-
-            threading.Thread(target=_worker, daemon=True).start()
+            _fetch_and_render_report(force_drive=True, show_popup=True)
 
         def copy_to_clipboard():
             text = current_state["content"] or text_area.get("1.0", tk.END)
@@ -2610,6 +3136,29 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         )
         export_btn.pack(side="left", padx=(0, 8))
 
+        # 3b. Log Advice Button (Advice Tracking)
+        def _open_advice_logger_from_pod():
+            try:
+                from .advice_tracker import show_advice_tracker, parse_advice_from_pick_of_the_day
+                content_txt = current_state.get("content", "")
+                parsed = parse_advice_from_pick_of_the_day(content_txt)
+                show_advice_tracker(pod_win, initial_advice=parsed)
+            except Exception as ex:
+                messagebox.showerror("Error", f"Failed to open Advice Tracker: {ex}", parent=pod_win)
+
+        log_adv_btn = tk.Button(
+            btn_bar,
+            text="📋 Log Advice",
+            command=_open_advice_logger_from_pod,
+            font=("Helvetica", 12, "bold"),
+            bg="#f59e0b",  # Amber gold
+            fg="black",
+            cursor="hand2",
+            padx=10,
+            pady=4,
+        )
+        log_adv_btn.pack(side="left", padx=(0, 8))
+
         # 4. Font Zoom Buttons for Accessibility (Senior user friendly)
         zoom_frame = tk.Frame(btn_bar, bg=UI_THEME["bg_input"])
         zoom_frame.pack(side="left", padx=10)
@@ -2654,8 +3203,8 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         )
         close_btn.pack(side="right")
 
-        # Load latest local report on window open
-        _load_report()
+        # Fresh download latest Pick of the Day report from Google Drive and render
+        _fetch_and_render_report(force_drive=True, show_popup=False)
 
     pick_of_the_day_btn = tk.Button(
         bottom_frame,
@@ -2667,6 +3216,21 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
         cursor="hand2",
     )
     pick_of_the_day_btn.pack(side="right", padx=6)
+
+    def _open_advice_tracker():
+        from .advice_tracker import show_advice_tracker
+        show_advice_tracker(win)
+
+    advice_tracker_btn = tk.Button(
+        bottom_frame,
+        text="📋 Advice Tracking",
+        command=_open_advice_tracker,
+        font=("Helvetica", 12, "bold"),
+        bg="#0284c7",  # Sky blue theme
+        fg="white",
+        cursor="hand2",
+    )
+    advice_tracker_btn.pack(side="right", padx=6)
 
     def on_tree_select(_event):
         selected = tree.selection()
@@ -2869,64 +3433,82 @@ def show_watchlist(parent: tk.Tk | tk.Toplevel) -> None:
                     )
 
             # Trigger background price fetch
-            threading.Thread(target=fetch_live_prices, daemon=True).start()
+            fetch_live_prices()
 
         except sqlite3.Error as e:
             logger.error(f"Failed to load watchlist: {e}")
 
     def fetch_live_prices():
         if not yf:
-            win.after(
-                0,
-                lambda: status_label.config(
-                    text="Status: yfinance not installed. Prices unavailable.",
-                    fg="#f87171",
-                ),
-            )
+            try:
+                if status_label.winfo_exists():
+                    status_label.config(
+                        text="Status: yfinance not installed. Prices unavailable.",
+                        fg="#f87171",
+                    )
+            except Exception:
+                pass
             return
 
-        win.after(
-            0,
-            lambda: status_label.config(
-                text="Status: Fetching live market prices...", fg="#f1c40f"
-            ),
-        )
-
-        def fetch_ticker(ticker):
-            try:
-                t = yf.Ticker(ticker)
-                hist = t.history(period="1d")
-                return float(hist["Close"].iloc[-1]) if not hist.empty else 0.0
-            except Exception:
-                return 0.0
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_item = {}
+        try:
+            if status_label.winfo_exists():
+                status_label.config(
+                    text="Status: Fetching live market prices...", fg="#f1c40f"
+                )
+            items_and_tickers = []
             for item in tree.get_children():
                 vals = tree.item(item, "values")
-                ticker = vals[11]  # Shifted to 11 due to Curr Avg
-                if ticker:
-                    future_to_item[executor.submit(fetch_ticker, ticker)] = (
-                        item
-                    )
-                else:
-                    win.after(0, update_row_price, item, 0.0)
+                ticker = vals[11] if len(vals) > 11 else ""
+                items_and_tickers.append((item, ticker))
+        except Exception:
+            return
 
-            for future in concurrent.futures.as_completed(future_to_item):
-                item = future_to_item[future]
+        def _bg_worker():
+            def _fetch_ticker(t):
                 try:
-                    price = future.result()
-                    win.after(0, update_row_price, item, price)
+                    tick = yf.Ticker(t)
+                    hist = tick.history(period="1d")
+                    return float(hist["Close"].iloc[-1]) if not hist.empty else 0.0
+                except Exception:
+                    return 0.0
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                future_map = {}
+                for item, ticker in items_and_tickers:
+                    if ticker:
+                        future_map[executor.submit(_fetch_ticker, ticker)] = item
+                    else:
+                        if win_is_open[0]:
+                            try:
+                                win.after(0, update_row_price, item, 0.0)
+                            except Exception:
+                                pass
+
+                for future in concurrent.futures.as_completed(future_map):
+                    if not win_is_open[0]:
+                        return
+                    item = future_map[future]
+                    try:
+                        price = future.result()
+                        if win_is_open[0]:
+                            win.after(0, update_row_price, item, price)
+                    except Exception:
+                        pass
+
+            if win_is_open[0]:
+                try:
+                    win.after(
+                        0,
+                        lambda: win_is_open[0]
+                        and status_label.winfo_exists()
+                        and status_label.config(
+                            text="Status: Live prices updated.", fg="#4ade80"
+                        ),
+                    )
                 except Exception:
                     pass
 
-        win.after(
-            0,
-            lambda: status_label.winfo_exists()
-            and status_label.config(
-                text="Status: Live prices updated.", fg="#4ade80"
-            ),
-        )
+        threading.Thread(target=_bg_worker, daemon=True).start()
 
     def update_row_price(item, price):
         if not tree.winfo_exists():

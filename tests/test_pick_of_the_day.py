@@ -211,7 +211,7 @@ def test_pick_of_the_day_with_available_cash_injected():
 
     with patch.object(ai_analyzer.genai, "Client", return_value=mock_client):
         test_summary = "1 | MOCK1 | MOCK1.NS | Mock Enterprises | Industrial | 100 | ₹1,000.00 | ₹100,000.00 | 10.00%"
-        result = ai_analyzer.get_pick_of_the_day_advice(
+        _ = ai_analyzer.get_pick_of_the_day_advice(
             test_summary,
             available_cash=150000.0,
             api_key="dummy_api_key"
@@ -300,13 +300,20 @@ The 50 DMA acts as intermediate support while the 200 DMA defines structural tre
 | EnergyCorp | 450 | 30 | BUY |
 """
 
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("Tkinter display not available")
     root.withdraw()
 
     with patch.object(
         drive_sync,
         "get_local_pick_of_the_day",
         return_value=(massive_report, "test_report.md", "2026-10-25 18:00"),
+    ), patch.object(
+        drive_sync,
+        "download_latest_pick_of_the_day",
+        return_value=("data/Pick_of_the_day_latest.md", "test_report.md"),
     ):
         def mock_wait_window(win):
             for child in win.winfo_children():
@@ -324,3 +331,174 @@ The 50 DMA acts as intermediate support while the 200 DMA defines structural tre
                 root.destroy()
             except Exception:
                 pass
+
+
+def test_render_markdown_execution_review_and_macro_news_impact_before_tables():
+    """Verify that Pick of the Day modal accurately captures, formats, and renders Execution & Accountability and Macro News Impact sections appearing before tables."""
+    from StockMan import drive_sync
+
+    report_text = """# 🏆 Daily Pick of the Day — Universe & Portfolio Intelligence Report
+
+## Execution & Accountability Review
+
+**Status:** 1 Advice Fully Followed. **Action Logged:** "Buy 30 HDFCBANK at CMP" — Marked as *Fully Followed* on 2026-10-28. **Impact on Strategy:** Excellent execution deploying ₹52,000 into our highest-conviction idea.
+
+## Macro & Portfolio News Impact
+
+**Macro Market:** The Nifty 50 is consolidating near the 24,500 level. Domestic institutional buying (DII) is providing a strong floor. **Portfolio Heavyweights:**
+
+* **Defense (HAL/BEL):** The Ministry of Defense announced a new procurement pipeline yesterday, keeping sentiment high.
+* **FMCG (ITC):** Post-Q2 earnings, management warned of rural demand stress, keeping the stock range-bound.
+
+## Market Snapshot & Sector Balance
+
+| Sector | Invested Value (INR) | Weight (%) | Status |
+| :---- | :---- | :---- | :---- |
+| Defense & Cap Goods | ₹417,508.88 | 36.3% | OVER-INVESTED |
+| Banking & Financials | ₹148,290.45 | 13.5% | NEUTRAL |
+"""
+
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("Tkinter display not available")
+    root.withdraw()
+
+    captured_data = {}
+
+    with patch.object(
+        drive_sync,
+        "get_local_pick_of_the_day",
+        return_value=(report_text, "Pick_of_the_day_2026-10-28.md", "28-Oct-2026 02:00 PM"),
+    ), patch.object(
+        drive_sync,
+        "download_latest_pick_of_the_day",
+        return_value=("data/Pick_of_the_day_latest.md", "Pick_of_the_day_2026-10-28.md"),
+    ):
+        def mock_wait_window(win):
+            for child in win.winfo_children():
+                for sub in child.winfo_children():
+                    if isinstance(sub, tk.Button) and "Pick of the Day" in sub.cget("text"):
+                        # Launch modal
+                        sub.invoke()
+                        # Locate modal among win children
+                        def _find_text(w):
+                            if isinstance(w, tk.Text):
+                                return w
+                            for ch in w.winfo_children():
+                                res = _find_text(ch)
+                                if res:
+                                    return res
+                            return None
+
+                        for top in win.winfo_children():
+                            if isinstance(top, tk.Toplevel) and "Pick of the Day" in top.title():
+                                txt = _find_text(top)
+                                if txt:
+                                    captured_data["text"] = txt.get("1.0", tk.END)
+                                    captured_data["tags"] = txt.tag_names()
+                                top.destroy()
+                                break
+                        break
+            win.destroy()
+
+        root.wait_window = mock_wait_window
+        try:
+            show_watchlist(root)
+        finally:
+            try:
+                root.destroy()
+            except Exception:
+                pass
+
+    assert "text" in captured_data, "Failed to capture text from modal"
+    rendered_text = captured_data["text"]
+
+    # 1. Assert content presence before tables
+    assert "EXECUTION & ACCOUNTABILITY REVIEW" in rendered_text
+    assert "Buy 30 HDFCBANK at CMP" in rendered_text
+    assert "Fully Followed" in rendered_text
+    assert "MACRO & PORTFOLIO NEWS IMPACT" in rendered_text
+    assert "Macro Market: The Nifty 50 is consolidating" in rendered_text
+    assert "Defense (HAL/BEL)" in rendered_text
+    assert "FMCG (ITC)" in rendered_text
+
+    # 2. Assert table content presence
+    assert "Market Snapshot & Sector Balance" in rendered_text
+    assert "Defense & Cap Goods" in rendered_text
+    assert "Banking & Financials" in rendered_text
+
+    # 3. Assert tags exist on widget
+    tag_names = captured_data["tags"]
+    assert "h2_review" in tag_names
+    assert "h2_news" in tag_names
+    assert "review_card" in tag_names
+    assert "news_card" in tag_names
+    assert "status_fully_followed" in tag_names
+    assert "news_bullet" in tag_names
+    assert "table_header" in tag_names
+
+
+def test_watchlist_pick_of_the_day_button_fresh_downloads_from_drive_and_renders():
+    """Verify that clicking the Pick of the Day button in watchlist triggers fresh download from Drive and renders."""
+    from StockMan import drive_sync
+
+    fresh_report = """# 🏆 Daily Pick of the Day — Universe & Portfolio Intelligence Report 2026-10-30
+
+## Execution & Accountability Review
+**Status:** 1 Advice Fully Followed. Action Logged: Buy 10 INFY.
+
+## Pick of the Day: Winner Deep-Dive
+Winner is HDFC Bank Limited with score 92/100.
+"""
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("Tkinter display not available")
+    root.withdraw()
+
+    captured = {}
+
+    with patch.object(drive_sync, "get_drive_service", return_value=MagicMock()), \
+         patch.object(
+             drive_sync,
+             "download_latest_pick_of_the_day",
+             return_value=("data/Pick_of_the_day_latest.md", "Pick_of_the_day_2026-10-30.md")
+         ) as mock_download, \
+         patch.object(
+             drive_sync,
+             "get_local_pick_of_the_day",
+             return_value=(fresh_report, "Pick_of_the_day_2026-10-30.md", "30-Oct-2026 04:30 PM")
+         ):
+
+        def mock_wait_window(win):
+            for child in win.winfo_children():
+                for sub in child.winfo_children():
+                    if isinstance(sub, tk.Button) and "Pick of the Day" in sub.cget("text"):
+                        # Invoke Pick of the Day button
+                        sub.invoke()
+
+                        for top in win.winfo_children():
+                            if isinstance(top, tk.Toplevel) and "Pick of the Day" in top.title():
+                                for w in top.winfo_children():
+                                    for sub_w in w.winfo_children():
+                                        if isinstance(sub_w, tk.Text):
+                                            captured["text"] = sub_w.get("1.0", tk.END)
+                                top.destroy()
+                                break
+                        break
+            win.destroy()
+
+        root.wait_window = mock_wait_window
+        try:
+            show_watchlist(root)
+        finally:
+            try:
+                root.destroy()
+            except Exception:
+                pass
+
+    # Verify download_latest_pick_of_the_day was called
+    assert mock_download.called, "download_latest_pick_of_the_day should be called when Pick of the Day is clicked"
+    assert "HDFC Bank Limited" in captured.get("text", "")
+
