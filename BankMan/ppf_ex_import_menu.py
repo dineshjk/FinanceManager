@@ -2,8 +2,15 @@
 # BankMan/ppf_ex_import_menu.py
 
 """
-PPF Export / Import sub-menus for the BankMan application.
-Each function opens a 3-button sub-menu (Master | Transactions | Back).
+PPF Batch Import & Export Navigation Menu.
+
+This module builds the sub-menu for transferring PPF master accounts and transaction records.
+
+Key Responsibilities:
+    • Navigation Hub: Provides choices to transfer PPF account profiles and subscription ledgers.
+
+Key Functions:
+    • `show_ppf_ex_import_menu(parent)`: Spawns the PPF import/export menu.
 """
 
 from Shared.menu_factory import create_menu_window

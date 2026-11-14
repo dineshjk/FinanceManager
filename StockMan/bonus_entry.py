@@ -2,8 +2,25 @@
 # StockMan/bonus_entry.py
 
 """
-This module handles the management of Bonus Share corporate actions
-within the stock portfolio.
+Corporate Action Handler for Bonus Share Issues.
+
+This module provides the graphical user interface and underlying business logic for
+recording corporate bonus share issues. It adjusts holding quantities and updates
+the cost basis across historical purchase lots to maintain mathematical portfolio
+integrity without artificial profit distortions.
+
+Key Responsibilities:
+    • Bonus Ratio Calculation: Accepts standard bonus issue ratios (e.g. 1:1, 2:1, 1:2),
+      calculating the exact number of additional shares credited to each eligible holding.
+    • Cost Basis Adjustment: Apportions historical total investment cost across the expanded
+      share count, recalculating per-share average prices.
+    • Database Integrity: Inserts records into the corporate actions ledger, maintains an
+      audit trail, and coordinates with `StockMan.corp_manager` and `StockMan.rollback_manager`.
+    • Bank Ledger Linking: Ensures that non-cash corporate actions do not generate spurious
+      debits/credits in linked BankMan accounts.
+
+Key Functions:
+    • `show_bonus_entry(parent)`: Spawns the bonus issue entry modal dialog.
 """
 
 from typing import Union

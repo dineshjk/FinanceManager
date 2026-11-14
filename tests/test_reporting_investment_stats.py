@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_reporting_investment_stats.py
+"""
+Unit Tests for Portfolio Performance Statistics & Valuation.
+
+This test suite verifies portfolio statistical calculations, testing total invested capital,
+current market valuation, unrealized gain/loss, and sector concentration weights.
+
+Key Scenarios Tested:
+    • Aggregated portfolio cost basis and CMP valuation.
+    • Sector and market capitalization diversification percentages.
+"""
+
 import pytest
 
 from StockMan.helpers import calculate_investment_summary_stats

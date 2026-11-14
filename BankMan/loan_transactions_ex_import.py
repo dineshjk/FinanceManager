@@ -1,40 +1,18 @@
 # -*- coding: utf-8 -*-
 # BankMan/loan_transactions_ex_import.py
 
-"""loan_transactions_ex_import.py
+"""
+Loan Transaction CSV/Excel Importer & Exporter.
 
-Export and import the ``loan_transactions`` table (Loan transactions).
+This module handles batch exporting and importing of loan repayment histories.
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'LNT'``::
+Key Responsibilities:
+    • Amortization History Transfer: Ingests and serializes historical EMI records and prepayments.
 
-    ('LNT', loan_account_number, loan_trans_dt, loan_description,
-            prevailing_interest_rate, loan_credit, principal,
-            interest, charges, loan_payment, principal_due)
-
-``loan_account_number`` (UNIQUE on ``loan_master``) identifies the parent
-loan portably across databases.  ``account_id`` is derived from the
-loan_master record and is never stored in the file.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* The parent loan is resolved by ``loan_account_number``; the row is skipped
-  when the loan is not found.  ``account_id`` is taken from the loan_master
-  record.
-* Duplicate detection uses
-  ``(loan_master_id, loan_trans_dt, principal, interest, loan_payment)``; a
-  matching row is skipped.
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_loan_transactions.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_loan_transactions(filepath)`: Exports loan repayment histories.
+    • `import_loan_transactions(filepath)`: Ingests repayment ledgers.
+    • `show_loan_transactions_ex_import(parent)`: Displays the import/export GUI.
 """
 
 import ast

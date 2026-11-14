@@ -2,14 +2,19 @@
 # BankMan/fd_master_add.py
 
 """
-Module for adding new Fixed Deposit master records (fd_master table).
+Fixed Deposit Master Contract Registration Form.
 
-Structural pattern from cc_master_add.py / ppf_master_add.py:
-  - Coloured band frames, each with a label_row / entry_row
-  - apply_entry_theme / bind_tooltip / setup_footer_tooltip from Shared.gui_utils
-  - F1 = Help, F2 = Session viewer, Escape = close without saving
-  - Yellow-on-black entry theme via centrally defined apply_entry_theme()
-  - Distinct dark navy/indigo window theme (FD_MASTER_ADD_UI_THEME)
+This module provides the interface for recording new Fixed Deposit contracts in `fd_master`.
+
+Key Responsibilities:
+    • Contract Parameters: Captures FD account number, issuing bank, linked savings account,
+      principal deposit amount, annual interest rate (%), deposit date, tenure (months/days),
+      compounding frequency, and calculated maturity date and maturity amount.
+    • Bank Passbook Linking: Automatically generates the initial debit in `bank_transactions`
+      representing the principal investment transfer.
+
+Key Functions:
+    • `show_fd_master_add_window(parent)`: Displays the FD contract creation dialog.
 """
 
 from typing import Union

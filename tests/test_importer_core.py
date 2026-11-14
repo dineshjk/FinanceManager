@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_importer_core.py
+"""
+Unit Tests for Core Migration & Importer Architecture.
+
+This test suite verifies low-level database migration routines, testing relational schema
+transformation, column remapping, and data type sanitization.
+
+Key Scenarios Tested:
+    • Transformation of legacy flat records into relational master-detail structures.
+    • Batch commitment and rollback upon simulated constraint errors.
+"""
+
 import sqlite3
 
 # Add project root to the Python path

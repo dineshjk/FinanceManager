@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_sell_management.py
 """
-test_sell_management.py
------------------------
+Unit & Integration Tests for FIFO Sell Execution & Overselling Guardian.
 
-Tests for the central FIFO sell-allocation reconciler introduced in
-trade_utils.rebuild_sell_allocations / _rebuild_sell_allocation_for_stock.
+This test suite verifies the core sell execution engine in `StockMan.sell_management`,
+testing First-In-First-Out (FIFO) buy lot matching, holding availability checks, and
+overselling rejection.
 
-Each test creates a fresh in-memory database via database_setup.create_database
-and exercises the rebuild service directly (no Tkinter).
+Key Scenarios Tested:
+    • Accurate sellable share calculation across buys, sells, splits, and bonuses.
+    • Strict rejection of sell orders that exceed available holding quantities.
+    • Chronological FIFO buy lot exhaustion and holding period tagging for tax filing.
 """
 
 import importlib

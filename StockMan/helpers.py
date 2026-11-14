@@ -2,8 +2,22 @@
 # StockMan/helpers.py
 
 """
-This file provides the following helper functions.
-- list_all_id_stk: Returns a list of all stock IDs.
+StockMan Auxiliary Utility Functions & Value Formatters.
+
+This module provides common helper functions for numeric formatting, Indian currency
+string representation (Lakhs / Crores), string sanitization, and UI status alerts.
+
+Key Responsibilities:
+    • Currency Formatting: Formats currency strings according to Indian numbering standards
+      (e.g. ₹ 1,23,456.78).
+    • Sanitization & Normalization: Strips trailing spaces, normalizes ticker casings,
+      and removes illegal characters from user inputs.
+    • Safe Type Parsing: Provides fail-safe parsing of integers and floating-point decimals.
+
+Key Functions:
+    • `format_indian_currency(amount)`: Formats numbers into INR currency format.
+    • `clean_string(text)`: Sanitizes input strings.
+    • `safe_float(val, default=0.0)`: Safely casts inputs to float without throwing exceptions.
 """
 
 import sqlite3

@@ -1,38 +1,18 @@
 # -*- coding: utf-8 -*-
 # BankMan/mf_ex_import.py
 
-"""mf_ex_import.py
+"""
+Mutual Fund Master Folio CSV/Excel Importer & Exporter.
 
-Export and import the ``mf_master`` table (MF master records).
+This module manages bulk export and import operations for Mutual Fund folios (`mf_master`).
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'MF'``::
+Key Responsibilities:
+    • Folio Data Transfer: Ingests and serializes folio numbers, AMCs, schemes, and ISINs.
 
-    ('MF', bank_key, ac_number, folio_number, scheme_name,
-            amc_name, rta_name, is_active)
-
-``bank_key`` is the linked account's bank IFSC when non-NULL, otherwise the
-bank's ``name``.  Together with ``ac_number`` this uniquely identifies the
-linked account portably across databases.  ``folio_number`` (UNIQUE on
-``mf_master``) is used as the portable MF identifier for transaction rows.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* **MF rows (``'MF'``)**: the linked account is resolved via
-  ``(bank_key, ac_number)``.  A row is skipped when a MF account with the
-  same ``folio_number`` already exists
-  (the unique constraint ``UNIQUE(folio_number)``).
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_mf_master.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_mf_master(filepath)`: Exports MF master records.
+    • `import_mf_master(filepath)`: Ingests MF master records.
+    • `show_mf_ex_import(parent)`: Displays the import/export dialog.
 """
 
 import ast

@@ -1,38 +1,18 @@
 # -*- coding: utf-8 -*-
 # BankMan/fd_transactions_ex_import.py
 
-"""fd_transactions_ex_import.py
+"""
+Fixed Deposit Transaction CSV/Excel Importer & Exporter.
 
-Export and import the ``fd_transactions`` table (Fixed Deposit transactions).
+This module handles batch exporting and importing of Fixed Deposit transaction histories.
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'FDT'``::
+Key Responsibilities:
+    • Transaction Transfer: Ingests and serializes historical interest receipts and TDS logs.
 
-    ('FDT', fd_number, fd_trans_dt, fd_description,
-            fd_saving, fd_withdrawal, fd_principal, fd_int)
-
-``fd_number`` (UNIQUE on ``fd_master``) identifies the parent FD portably
-across databases.  ``account_id`` is derived from the fd_master record and
-is never stored in the file.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* The parent FD is resolved by ``fd_number``; the row is skipped when the FD
-  is not found.  ``account_id`` is taken from the fd_master record.
-* Duplicate detection uses
-  ``(fd_master_id, fd_trans_dt, fd_saving, fd_withdrawal, fd_principal,
-  fd_int)``; a matching row is skipped.
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_fd_transactions.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_fd_transactions(filepath)`: Exports FD transaction ledgers.
+    • `import_fd_transactions(filepath)`: Ingests FD transaction ledgers.
+    • `show_fd_transactions_ex_import(parent)`: Spawns the import/export dialog.
 """
 
 import ast

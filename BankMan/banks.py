@@ -1,6 +1,26 @@
 # -*- coding: utf-8 -*-
 # BankMan/banks.py
 
+"""
+BankMan Subsystem Central Entry Point & Main Window.
+
+This script launches the primary navigation window for the Banking & Cash Flow (BankMan)
+subsystem, coordinating master records, passbooks, sub-ledgers, and reports.
+
+Key Responsibilities:
+    • Subsystem Dashboard: Hosts primary navigation buttons:
+        - Master Records Management (`manage_master_menu.py`)
+        - Transaction Data Entry (`data_entry_menu.py`)
+        - Review & Manage Transactions (`manage_transactions_menu.py`)
+        - Import Data (`import_menu.py`)
+        - Export Data (`export_menu.py`)
+    • Shortcut Bindings: Ctrl+F1 for Global Help, F1 for BankMan Help, Escape to return to root.
+
+Key Functions:
+    • `show_bank_main_menu(parent)`: Constructs and opens the BankMan main menu window.
+    • `main()`: Standalone entry point for launching BankMan independently.
+"""
+
 import tkinter as tk
 import sys
 import os

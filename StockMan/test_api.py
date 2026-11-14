@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # StockMan/test_api.py
+"""
+External API Diagnostic & Connectivity Testing Utility.
+
+This diagnostic CLI tool validates external API credentials, testing communication
+with Google Gemini generative models, Yahoo Finance, and Google Drive endpoints.
+
+Key Responsibilities:
+    • API Key Verification: Verifies that valid API keys are present in `api_key.txt`.
+    • Health Probe: Sends test prompts to the Gemini model cascade to confirm low-latency responses.
+"""
+
 import google.generativeai as genai
 from StockMan.ai_analyzer import get_api_key
 

@@ -2,12 +2,17 @@
 # BankMan/rewards_points_add.py
 
 """
-Module for adding Credit Card Rewards Points (rewards_points table).
+Credit Card Reward Points Tracker & Redemption Form.
 
-Structural pattern:
-  - F1 = Help, F2 = Session viewer, Escape = close without saving
-  - Yellow-on-black entry theme via centrally defined apply_entry_theme()
-  - Distinct deep-indigo / gold window theme (REWARDS_ADD_UI_THEME)
+This module provides the user interface for tracking accumulated reward points, points
+earned on purchases, points expiry dates, and statement cash-back redemptions.
+
+Key Responsibilities:
+    • Reward Accounting: Records points earned, conversion ratios, and monetary value of redemptions.
+    • Cash-Back Linking: Automatically logs cash-back credits against credit card balances.
+
+Key Functions:
+    • `show_rewards_points_add_window(parent)`: Spawns the reward points logging dialog.
 """
 
 from typing import Union

@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 # tests/test_trade_add_window_manager.py
+"""
+Integration Tests for Trade Entry Window Modality & Focus Stack.
+
+This test suite verifies window lifecycle management in `StockMan.trade_add`, testing
+parent window disablement, modal grab capture, and focus restoration upon dialog close.
+
+Key Scenarios Tested:
+    • Parent window event suppression while trade entry modal is active.
+    • Safe Escape key dismissal without closing parent windows.
+    • Reliable focus restoration to the parent window upon exit.
+"""
+
 from datetime import date
 
 import pytest

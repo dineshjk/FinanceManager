@@ -2,7 +2,17 @@
 # tests/test_drive_sync.py
 
 """
-Unit tests for StockMan Google Drive integration and startup sequence.
+Unit & Mock Tests for Google Drive Background Synchronization.
+
+This test suite verifies cloud synchronization workflows in `StockMan.drive_sync` and
+`Shared.google_drive_sync`, testing authentication token management, upload/download routines,
+daily morning startup prompts, and background worker thread stability.
+
+Key Scenarios Tested:
+    • Google Drive API mock uploads and downloads.
+    • Startup morning first-run workflow prompt logic (8:00 AM reset).
+    • Background thread execution: verifying non-blocking UI behavior during slow transfers.
+    • Portfolio Excel workbook synchronization upon trade modifications.
 """
 
 import os

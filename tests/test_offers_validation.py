@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_offers_validation.py
+"""
+Unit Tests for Primary Market Offers & OFS Input Validation.
+
+This test suite verifies validation logic for primary market offerings (IPOs, Rights, OFS)
+in `StockMan.offers` and `StockMan.primary_offer_remove`.
+
+Key Scenarios Tested:
+    • Lot size, bid cut-off price, and application number validation.
+    • Prevention of deletion for bids that have already been converted into active holding trades.
+"""
+
 import importlib
 import sys
 from pathlib import Path

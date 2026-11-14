@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/import_debug_live.py
 #!/usr/bin/env python3
-"""Import with per-transaction debug output into the live DB.
+"""
+Live Migration Debugger with Granular Transaction Tracing.
 
-This script adjusts sys.path so it can be run directly from the scripts
-folder. It prints tracebacks for any failing transaction so we can
-see constraint/trigger errors coming from the live DB.
+This diagnostic tool executes real-time migration runs with detailed tracing on each
+individual row to debug edge cases in live database environments.
+
+Key Responsibilities:
+    • Step-by-Step Tracing: Outputs verbose console logs for every processed record.
+    • Exception Interception: Catches SQLite constraint violations with precise line and row context.
 """
 
 from pathlib import Path

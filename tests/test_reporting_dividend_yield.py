@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_reporting_dividend_yield.py
+"""
+Unit Tests for Portfolio Dividend Yield & Income Reporting.
+
+This test suite verifies dividend return calculations in `StockMan.reporting_utils`,
+testing annualized yield percentages, holding period adjustments, and fiscal year aggregation.
+
+Key Scenarios Tested:
+    • Dividend yield relative to invested purchase cost vs current market price.
+    • Annualized percentage yield based on holding duration in days.
+"""
+
 from datetime import datetime
 import sqlite3
 

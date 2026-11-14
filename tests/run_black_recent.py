@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/run_black_recent.py
 #!/usr/bin/env python3
-"""Run Black on recently modified Python files in the StockMan package.
+"""
+Code Formatting Helper for Recently Modified Python Files.
 
-Usage:
-  python run_black_recent.py [--minutes MIN] [--line-length N] [--apply]
+This development script identifies Python files modified within recent Git commits
+and runs the Black code formatter to ensure style compliance across the project.
 
-By default the script prints the files it would touch and runs Black in
-check+diff mode. Pass --apply to reformat files in-place.
+Key Responsibilities:
+    • Git Change Detection: Inspects `git status` or `git diff` for changed `.py` files.
+    • Automated Formatting: Invokes `black` on changed files to maintain PEP 8 standards.
 """
 from __future__ import annotations
 

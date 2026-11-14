@@ -1,21 +1,14 @@
 # -*- coding: utf-8 -*-
 # tests/trade_file.py
-"""Import helper: read legacy DB rows and import them into the current DB.
+"""
+Test Fixture & Import Helper for Parsing Legacy Trade Files.
 
-This module provides three small pieces used by the importer command:
+This module provides helper utilities and test fixtures for reading legacy trade databases
+and simulating statement ingestion during test runs.
 
-- _fetch_source_transactions(src_path): read-only SELECTs against a legacy
-    SQLite file and returns a list of transaction dictionaries. Each dict
-    contains an ``exchange_orders`` list of dicts.
-- import_transaction(conn, tx): execute the exact SQL sequence used by the
-    interactive add flow (contracts -> transactions -> exchange_orders).
-    It captures ``id_trd`` via ``cursor.lastrowid`` and commits after the
-    full sequence.
-- trade_entry_from_file(parent, src_db_path): a minimal modal UI that walks
-    the rows and prompts the user to Add or Skip each transaction.
-
-All write operations set PRAGMA foreign_keys = ON before executing and
-commit only after the entire sequence succeeds.
+Key Responsibilities:
+    • Test Data Loading: Reads historical contract note dumps and generates structured trade dicts.
+    • Fixture Provisioning: Supplies standardized test cases for importer validation suites.
 """
 
 from __future__ import annotations

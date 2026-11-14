@@ -1,3 +1,20 @@
+"""
+Bank Statement Excel Importer & Parser.
+
+This module parses external Excel spreadsheets containing bank account statements and
+batch-imports them into `bank_transactions`.
+
+Key Responsibilities:
+    • Column Mapping: Maps spreadsheet columns (Date, Description, Debit, Credit, Balance,
+      Ref/Cheque No) into normalized BankMan transaction fields.
+    • Deduplication: Detects duplicate transactions using date, amount, and reference number matches.
+    • Category Matching: Auto-categorizes transactions into budget heads based on payee keywords.
+
+Key Functions:
+    • `import_bank_excel(filepath, account_id)`: Ingests bank statements and commits valid records.
+    • `show_bank_import_excel_window(parent)`: Spawns the statement import GUI.
+"""
+
 import sqlite3
 import pandas as pd
 from tkinter import filedialog

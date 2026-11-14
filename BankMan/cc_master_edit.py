@@ -2,8 +2,15 @@
 # BankMan/cc_master_edit.py
 
 """
-Edit form for the ``card_master`` master table.
-Presents a list of cards in a Treeview and lets the user edit or delete them.
+Credit Card Master Contract Editor.
+
+This module provides the dialog for editing existing credit card parameters in `card_master`.
+
+Key Responsibilities:
+    • Card Editing: Updates credit limits, billing dates, and card status (Active, Closed, Blocked).
+
+Key Functions:
+    • `show_cc_master_edit_window(parent, card_id)`: Displays the credit card editor.
 """
 
 from typing import Union

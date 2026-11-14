@@ -1,3 +1,14 @@
+"""
+Unit Tests for Zerodha Contract Note Fee Bifurcation.
+
+This test suite verifies statutory fee calculation and trade bifurcation in `StockMan.trade_add_zerodha`,
+testing brokerages, STT, exchange charges, stamp duty, SEBI fees, and GST.
+
+Key Scenarios Tested:
+    • Multi-trade fee allocation proportional to traded value.
+    • Exact mathematical parity against official Zerodha contract note summaries.
+"""
+
 from pathlib import Path
 import sys
 project_root = Path(__file__).resolve().parent.parent

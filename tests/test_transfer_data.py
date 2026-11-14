@@ -2,12 +2,14 @@
 # tests/test_transfer_data.py
 
 """
-Comprehensive unit and integration tests for StockMan transfer_data feature:
-- FIFO calculation excluding Zerodha purchases
-- Inclusion of corporate actions (bonuses, splits, demergers, IPO/rights)
-- Scrip summary rows (weighted average buy price)
-- Output Excel export and openpyxl formatting
-- UI menu integration
+Unit & Integration Tests for Inter-Broker Share Transfer Reconciliation.
+
+This test suite verifies transfer calculations in `StockMan.transfer_data`, testing
+cost basis resolution and discrepancy export for shares transferred between brokers (e.g. ICICI to Zerodha).
+
+Key Scenarios Tested:
+    • Weighted-average cost basis preservation across transferred holding lots.
+    • Discrepancy report formatting for broker tax portal uploads.
 """
 
 import os

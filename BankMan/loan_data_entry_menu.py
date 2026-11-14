@@ -2,7 +2,20 @@
 # BankMan/loan_data_entry_menu.py
 
 """
-Loan Data Entry menu for the BankMan application.
+Loan & EMI Data Entry Navigation Sub-Menu.
+
+This module provides the navigation menu for recording loan disbursements, monthly EMI
+repayments, and loan foreclosures.
+
+Key Responsibilities:
+    • Menu Options:
+        - [A] Add Loan Repayment: Log monthly EMI installment.
+        - [F] Loan Foreclosure / Prepayment: Record lump-sum principal reduction.
+        - [I] Import Loan Data: Spreadsheet batch import.
+        - [X] Close Menu: Returns to main banking menu.
+
+Key Functions:
+    • `show_loan_data_entry_menu(parent)`: Opens the loan data entry menu.
 """
 
 from Shared.menu_factory import create_menu_window

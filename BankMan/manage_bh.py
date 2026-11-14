@@ -2,25 +2,17 @@
 # BankMan/manage_bh.py
 
 """
-UI module for viewing and managing Budget Head records.
+Budget Head Tree Manager & Expense Category Organizer.
 
-Mirrors the structure and features of StockMan/trade_manager.py and
-BankMan/manage_bank.py:
-  * Sortable treeview (click any heading to toggle ascending/descending).
-  * Colour-coded rows: INCOME rows in green, EXPENSE rows in red.
-  * Edit Selected -- placeholder (inline editing not yet implemented).
-  * Delete Selected -- removes the budget_head row.  Because the schema
-    uses ON DELETE SET NULL for both the self-referential parent_bh_id FK
-    and the bank_transactions.bh_id FK, deletion is always permitted;
-    the database automatically nulls out affected references.  The user
-    is warned of the downstream impact before confirming.
-  * Close / Escape -- safe modal teardown via safe_close_modal.
+This module provides a hierarchical Treeview interface for managing income and expense
+categories in `budget_head`.
 
-One public function is exposed:
+Key Responsibilities:
+    • Category Tree View: Displays parent-child budget categories in an expandable tree structure.
+    • Budget Limits & Monitoring: Shows monthly budget targets and linked expenditure totals.
 
-  show_bh_manager(parent, calling_button=None)
-      Displays all budget_head rows.  Child rows are shown with their
-      parent category name; top-level rows show '(Top Level)'.
+Key Functions:
+    • `show_manage_bh(parent)`: Launches the budget head management window.
 """
 
 import tkinter as tk

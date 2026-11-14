@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # StockMan/finance_dashboard.py
+"""
+StockMan Subsystem Dashboard Adapter.
+
+This module provides a sub-dashboard launchpad wrapper designed to integrate StockMan
+views into modular multi-window dashboards.
+
+Key Responsibilities:
+    • Menu Wrapping: Adapts StockMan menu items into standard Tkinter frame components.
+    • Subsystem Launching: Bridges root dashboard interactions into the StockMan subsystem.
+"""
+
 import tkinter as tk
 from Shared.menu_factory import create_menu_window
 

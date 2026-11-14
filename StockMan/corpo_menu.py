@@ -3,14 +3,23 @@
 
 
 """
-Corporate Actions management menu window for
-the Stock Portfolio Management System.
+Corporate Actions Navigation Hub.
 
-Provides access to:
-- Add Corporate Action
-- Update Corporate Action
-- Remove Corporate Action
-- Previous Menu
+This module provides the central navigation menu for recording and managing all types
+of corporate equity events affecting portfolio share counts and cost bases.
+
+Key Responsibilities:
+    • Navigation Hub: Provides hotkey-enabled buttons for:
+        - [D] Dividends: Cash dividend accounting and bank ledger linking.
+        - [S] Stock Splits: Share multiplication and price adjustment.
+        - [B] Bonus Issues: Free share allocation and cost basis dilution.
+        - [M] Mergers / Amalgamations: Stock swap and entity replacement.
+        - [E] Demergers: Spun-off entity creation and cost basis apportionment.
+        - [R] Review / Rollback Corporate Actions: Historical audit treeview.
+        - [X] Close Menu: Return to main StockMan menu.
+
+Key Functions:
+    • `show_corpo_menu(parent)`: Constructs and opens the Corporate Actions navigation menu.
 """
 
 import tkinter as tk

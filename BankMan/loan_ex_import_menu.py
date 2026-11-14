@@ -2,8 +2,15 @@
 # BankMan/loan_ex_import_menu.py
 
 """
-Loan Export / Import sub-menus for the BankMan application.
-Each function opens a 3-button sub-menu (Master | Transactions | Back).
+Loan Batch Import & Export Navigation Menu.
+
+This module builds the sub-menu for transferring loan contracts and repayment ledgers.
+
+Key Responsibilities:
+    • Navigation Hub: Provides choices to transfer loan contracts and EMI payment histories.
+
+Key Functions:
+    • `show_loan_ex_import_menu(parent)`: Spawns the loan import/export menu.
 """
 
 from Shared.menu_factory import create_menu_window

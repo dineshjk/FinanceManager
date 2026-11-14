@@ -2,26 +2,18 @@
 # BankMan/bank_edit.py
 
 """
-Module for editing existing bank records in the ``banks`` table.
+Bank Master Record Editor.
 
-Layout
-------
-The window is split into two sections:
+This module provides the user interface for editing financial institution details in the
+`banks` table.
 
-1. **Bank list** — a sortable Treeview showing all banks (Name, Branch,
-   IFSC, MICR).  Click a row to load it into the edit form.
+Key Responsibilities:
+    • Record Modification: Updates bank name, branch, IFSC code, MICR code, and customer care
+      contact details.
+    • Code Validation: Enforces 11-character alphanumeric Indian Financial System Code (IFSC) formats.
 
-2. **Edit form** — four Entry widgets (Bank Name, Branch, IFSC, MICR)
-   mirroring the layout of ``banks_add.py``.  Fields are disabled until a
-   bank is selected.  Pressing *Save Changes* (or Enter in the last field)
-   runs the UPDATE query.
-
-Theme
------
-Uses ``BANK_EDIT_UI_THEME`` — a rose / magenta palette that is visually
-distinct from ``BANK_ADD_UI_THEME`` (blue) while sharing the same structural
-key names so all the ``apply_entry_theme`` / ``bind_tooltip`` helpers work
-without modification.
+Key Functions:
+    • `show_bank_edit_window(parent, bank_id)`: Displays the bank profile editor.
 """
 
 from typing import Union

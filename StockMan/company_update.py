@@ -1,11 +1,21 @@
 # -*- coding: utf-8 -*-
 # StockMan/company_update.py
 
-"""Update company modal window.
+"""
+Company Master Profile Editor.
 
-This module shows the Update Company dialog and ensures it registers with
-the central window stack (push_window / pop_window). It provides a unified
-close handler to avoid double-pop/destroy races.
+This module provides a modal dialog for updating existing company metadata in the
+`stocks` table.
+
+Key Responsibilities:
+    • Record Modification: Allows editing company name, sector classification, market
+      cap category, and Yahoo Finance ticker symbols without altering primary key integrity.
+    • Real-Time Search: Features dynamic search dropdowns to quickly locate target companies.
+    • Integrity Preservation: Prohibits ticker changes that would break historical trade
+      referential links unless handled through official corporate merger/demerger flows.
+
+Key Functions:
+    • `show_company_update_window(parent)`: Displays the company profile editor dialog.
 """
 
 import re

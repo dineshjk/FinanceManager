@@ -2,7 +2,20 @@
 # BankMan/bank_data_entry_menu.py
 
 """
-Data entry menu for the BankMan application.
+Bank Passbook & Transaction Data Entry Menu.
+
+This module constructs the navigation sub-menu for bank transaction recording, statement
+import, and passbook maintenance.
+
+Key Responsibilities:
+    • Navigation Hub:
+        - [A] Add Bank Transaction: Manual double-entry passbook recorder.
+        - [I] Import from Excel: Statement spreadsheet ingestion.
+        - [M] Manage Transactions: Interactive passbook review and edit table.
+        - [X] Close Menu: Returns to main banking menu.
+
+Key Functions:
+    • `show_bank_data_entry_menu(parent)`: Constructs and opens the bank transaction entry menu.
 """
 
 from Shared.menu_factory import create_menu_window

@@ -1,5 +1,34 @@
 # -*- coding: utf-8 -*-
 # StockMan/ai_analyzer.py
+"""
+Google Gemini LLM Market Analysis & Advisory Engine.
+
+This module interfaces with Google Gemini generative models to produce automated
+equity analysis, fundamental and technical assessments, portfolio buy/sell recommendations,
+and the daily "Pick of the Day". It implements an automated multi-tier model cascade
+to ensure high availability despite API quotas or transient network errors.
+
+Key Responsibilities:
+    • Multi-Tier Model Cascade: Implements `call_gemini_with_model_cascade`, sequentially
+      falling back through model tiers (e.g. Gemini 3.1 Pro -> Gemini 3.0 Flash -> Flash-Lite)
+      if rate limits or capacity constraints are encountered.
+    • Specialized Advisory Functions:
+        - `get_pick_of_the_day_advice`: Generates a high-conviction daily stock pick with entry,
+          target, stop-loss, and multi-factor fundamental/technical rationale.
+        - `get_portfolio_buy_advice`: Evaluates potential additions to the portfolio.
+        - `get_portfolio_sell_advice`: Analyzes existing holdings for profit booking or risk exit.
+        - `get_ipo_advice`: Assesses new public issues based on valuation and subscription data.
+    • Response Cleaning & Parsing: Uses `clean_pick_of_the_day_response` to strip markdown
+      artifacts, sanitize JSON/YAML blocks, and format clear text for UI rendering.
+    • API Key Management: Safely retrieves Gemini credentials from local `api_key.txt` or
+      environment variables via `get_api_key`.
+
+Key Functions:
+    • `call_gemini_with_model_cascade(prompt)`: Resilient multi-tier LLM invocation engine.
+    • `get_pick_of_the_day_advice(market_context)`: Generates structured daily recommendation.
+    • `clean_pick_of_the_day_response(raw_text)`: Formats and sanitizes AI text outputs.
+"""
+
 import os
 import time
 import json
@@ -881,7 +910,16 @@ def get_pick_of_the_day_advice(
         "recycling advice.\n\n"
         "## 7. Sources & Data Freshness Audit\n"
         "Data freshness disclosure, primary sources consulted, and standard "
-        "investment disclaimer."
+        "investment disclaimer.\n\n"
+        "## 8. Machine-Actionable Advice Log\n"
+        "MANDATORY REQUIREMENT: Wrap your concrete actionable trade advice table strictly between "
+        "[BEGIN_MACHINE_ADVICE] and [END_MACHINE_ADVICE] delimiter tags:\n"
+        "[BEGIN_MACHINE_ADVICE]\n"
+        "| Date | Ticker | Action | Quantity | Target_Price | Status |\n"
+        "| :---: | :---: | :---: | :---: | :---: | :---: |\n"
+        "| YYYY-MM-DD | TICKER | BUY/SELL | QTY | CMP / Target Price | Pending |\n"
+        "[END_MACHINE_ADVICE]\n"
+        "- Status must be 'Pending' by default for new advice, or 'To be followed after [Condition]' if contingent."
     )
 
     cash_display = (

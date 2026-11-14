@@ -1,14 +1,25 @@
 # -*- coding: utf-8 -*-
 # Shared/gui_progressive.py
 
-"""Utilities for progressive/autocomplete UI elements and test modals.
+"""
+Progressive Filtering, Typeahead Comboboxes, and Modal Test Helpers.
 
-This module provides a small progressive-selection helper for
-`ttk.Combobox` widgets (autocomplete-like behavior) and a lightweight
-`test_modal_window` used by the project to sanity-check dialog behavior.
+This module provides non-blocking progressive search / autocomplete utilities for
+`ttk.Combobox` widgets, as well as lightweight diagnostic modal testing helpers.
 
-The functions are GUI-focused and intentionally minimal; callers own
-form-specific behavior (validation/clearing/etc.).
+Key Responsibilities:
+    • Typeahead Combobox Filtering: Implements live, responsive substring matching
+      on Tkinter comboboxes as the user types, making selection across hundreds of stock
+      tickers, bank accounts, or budget categories instant and keyboard-friendly.
+    • Safe Selection Handling: Retains full underlying dataset lists while displaying
+      filtered matching subsets in the dropdown listbox.
+    • Sanity Modal Testing: Exposes `test_modal_window` to verify dialog behavior, modal
+      stack handling, and focus retention during diagnostic test runs.
+
+Key Functions:
+    • `setup_progressive_combobox(combobox, full_list)`: Binds dynamic key-release filtering
+      to a `ttk.Combobox` against the provided reference list of strings.
+    • `test_modal_window(parent)`: Spawns a lightweight diagnostic modal dialog.
 """
 import tkinter as tk
 

@@ -2,8 +2,24 @@
 # BankMan/data_entry_menu.py
 
 """
-Top-level Data Entry menu for the BankMan application.
-Provides navigation to module-specific data-entry sub-menus.
+Top-Level Data Entry Hub for BankMan Subsystems.
+
+This module constructs the master data entry navigation menu, providing access to
+transaction recorders for all banking and sub-ledger instruments.
+
+Key Responsibilities:
+    • Navigation Hub:
+        - [B] Bank Transactions: Central passbook entry.
+        - [C] Credit Card Transactions: Card spends and payments.
+        - [F] Fixed Deposit Transactions: FD deposits, interest, and closures.
+        - [L] Loan Transactions: EMI payments and loan disbursements.
+        - [P] PPF Transactions: PPF deposits and interest credits.
+        - [I] Insurance Transactions: Premium payments and receipts.
+        - [M] Mutual Fund Transactions: Folio investments and redemptions.
+        - [X] Close Menu: Returns to main BankMan menu.
+
+Key Functions:
+    • `show_data_entry_menu(parent)`: Constructs and opens the master data entry menu.
 """
 
 from Shared.menu_factory import create_menu_window

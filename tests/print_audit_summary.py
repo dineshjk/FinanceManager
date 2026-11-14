@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/print_audit_summary.py
+"""
+Console Summary Printer for Database Migration Audits.
+
+This utility script formats and prints a high-level summary of post-migration audit
+results to standard output, displaying total records processed, matched, and skipped.
+
+Key Responsibilities:
+    • Summary Metrics: Formats row counts, financial balances, and discrepancy counts.
+    • Clean Terminal Display: Provides human-readable tabular terminal outputs.
+"""
+
 from pathlib import Path
 import json
 

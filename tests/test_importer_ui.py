@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/test_importer_ui.py
 #!/usr/bin/env python3
-"""Programmatic test runner for the importer UI.
+"""
+Integration Tests for Migration Importer Graphical Interface.
 
-This opens a hidden Tk root, calls trade_entry_from_file() with auto_close=True
-so the modal loads and then closes automatically. It prints status to stdout
-so we can see if any exceptions occurred.
+This test suite verifies GUI event handlers, progress dialogs, and thread safety of the
+interactive migration tool in `scripts.run_importer_ui`.
+
+Key Scenarios Tested:
+    • File selector dialog integration and file path validation.
+    • Real-time progress bar updates and status messaging during imports.
 """
 from pathlib import Path
 import sys

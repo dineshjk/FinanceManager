@@ -2,11 +2,19 @@
 # StockMan/primary_offer_remove.py
 
 """
-primary_offer_remove.py
------------------------
+Primary Market Application Removal & Cleanup Utility.
 
-Modal window and helpers for removing existing Primary Offers
-(IPOs, FPOs, SME IPOs, and Rights Issues) in the StockMan application.
+This module provides a secure administrative interface to cancel, reject, or delete
+unallotted primary market bids (IPO, OFS, Rights) without corrupting active trade ledgers.
+
+Key Responsibilities:
+    • Bid Cleanup: Safely removes rejected or cancelled IPO/OFS bids that have no associated
+      allotment trades.
+    • Validation: Prohibits deletion of bids that have already been converted into active
+      holding trades, directing users to `StockMan.rollback_manager` instead.
+
+Key Functions:
+    • `show_primary_offer_remove(parent)`: Displays the primary offer deletion dialog.
 """
 
 from typing import Union

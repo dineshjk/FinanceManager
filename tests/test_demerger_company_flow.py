@@ -1,6 +1,18 @@
 # -*- coding: utf-8 -*-
 # tests/test_demerger_company_flow.py
 
+"""
+Integration Tests for Corporate Demergers & Spun-Off Entity Creation.
+
+This test suite verifies the end-to-end corporate demerger workflow in `StockMan.demerger_entry`,
+testing acquisition cost ratio apportionment and automatic creation of spun-off entities.
+
+Key Scenarios Tested:
+    • Cost basis apportionment between parent and child companies based on official ratios.
+    • Automatic company master registration for new spun-off entities.
+    • Holding lot distribution and capital preservation across multiple buy lots.
+"""
+
 import tkinter as tk
 from unittest.mock import patch
 import pytest

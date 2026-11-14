@@ -2,8 +2,32 @@
 # Shared/window_manager.py
 
 """
-Centralized window stack manager for modal dialogs in Tkinter.
-Disables previous window when a new modal opens, re-enables when closed.
+Centralized LIFO Window Stack Manager & Modal Coordinator.
+
+This module coordinates the global window hierarchy and manages modal nesting across
+the application. It tracks open windows in a Last-In-First-Out (LIFO) stack to ensure
+that multi-level dialog workflows (e.g. Dashboard -> StockMan -> Trade Add -> Company Search)
+never lock the UI or drop focus.
+
+Key Responsibilities:
+    • LIFO Window Hierarchy: Maintains an internal stack of active windows, pushing new
+      modals as they are spawned and popping them upon closure.
+    • Parent State Suppression: Provides `suppress_parent_escape` to temporarily deactivate
+      the parent window's Escape key handler while a child dialog is displayed, preventing
+      accidental parent closure.
+    • Escape Key Restoration: Restores original parent Escape key bindings via
+      `restore_parent_escape` as soon as the child dialog is dismissed.
+    • Safe Focus Unwinding: Implements `activate_previous_window` and `safe_close_modal`
+      to sequentially return window focus and mouse grab to the immediate parent.
+
+Key Functions:
+    • `push_window(window)`: Pushes a newly opened window onto the navigation stack.
+    • `pop_window()`: Removes and returns the topmost window from the stack.
+    • `current_window()`: Peeks at the currently active top window without popping.
+    • `suppress_parent_escape(parent)`: Disables parent Escape handling while child is active.
+    • `restore_parent_escape(parent)`: Re-enables parent Escape handling after child closes.
+    • `activate_previous_window()`: Brings the immediate parent window back into active focus.
+    • `safe_close_modal(window, parent)`: Coordinates the graceful teardown of a modal dialog.
 """
 
 import tkinter as tk

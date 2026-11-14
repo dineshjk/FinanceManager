@@ -1,6 +1,17 @@
 # -*- coding: utf-8 -*-
 # tests/test_ai_cascade.py
-"""Tests for AI model cascade, multi-key pooling, auto-rotation, and disk cache fallback."""
+"""
+Unit & Resiliency Tests for Gemini AI Multi-Tier Model Cascade.
+
+This test suite verifies the model cascade engine in `StockMan.ai_analyzer`. It tests
+resilient fallback across Gemini model tiers (Pro -> Flash -> Flash-Lite) upon encountering
+rate limits, API timeouts, or capacity errors.
+
+Key Scenarios Tested:
+    • Tier fallback progression upon HTTP 429 and 503 API errors.
+    • Multi-key API rotation and credential recovery.
+    • Markdown output cleaning and structured advice parsing.
+"""
 
 import os
 import tempfile

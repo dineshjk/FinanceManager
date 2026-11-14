@@ -2,7 +2,22 @@
 # StockMan/corp_manager.py
 
 """
-UI module for viewing historical corporate actions and triggering safe database rollbacks.
+Corporate Action History Review & Housekeeping Manager.
+
+This module provides a graphical treeview interface for viewing all historical corporate
+actions (dividends, splits, bonuses, mergers, and demergers) recorded in the system,
+with integration into the safe rollback engine.
+
+Key Responsibilities:
+    • Unified Corporate History: Aggregates records across disparate corporate action
+      tables into a single, chronologically sorted, multi-column Treeview.
+    • Contextual Inspection: Displays details including execution date, company ticker,
+      action type, split/bonus ratios, dividend amounts, and cost basis adjustments.
+    • Safe Rollback Integration: Connects directly with `StockMan.rollback_manager` to allow
+      safe, cascading reversal and deletion of mistakenly entered corporate actions.
+
+Key Functions:
+    • `show_corp_manager(parent)`: Launches the Corporate Actions Manager review window.
 """
 
 import tkinter as tk

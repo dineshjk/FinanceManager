@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/run_import_absolute.py
 #!/usr/bin/env python3
-"""Import legacy DB by absolute path into current DB.
+"""
+Absolute-Path Migration Script for External Datasets.
 
-This script is intended to run inside the workspace where the legacy DB
-path is known. It calls the import helper with an absolute path so the
-resolution step is bypassed.
+This migration utility allows specifying absolute filesystem paths to import external
+legacy databases and statements located outside the repository working tree.
+
+Key Responsibilities:
+    • Absolute Path Resolution: Ingests databases from external drives or network shares.
+    • Safe Mapping: Imports foreign datasets into the local development environment.
 """
 
 import os

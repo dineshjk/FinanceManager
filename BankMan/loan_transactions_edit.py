@@ -2,7 +2,15 @@
 # BankMan/loan_transactions_edit.py
 
 """
-Module for editing Loan Transaction records (loan_transactions table).
+Loan Transaction Editor & Reversal Dialog.
+
+This module provides the interface for editing or deleting loan repayment records.
+
+Key Responsibilities:
+    • Transaction Modification: Updates principal/interest portions and adjusts linked bank entries.
+
+Key Functions:
+    • `show_loan_transactions_edit_window(parent, trans_id)`: Displays the loan transaction editor.
 """
 
 from typing import Union

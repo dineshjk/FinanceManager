@@ -1,7 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_mf_master_add.py
 
-"""Unit and integration tests for Add MF Master UI and database helpers."""
+"""
+Unit & Integration Tests for Mutual Fund Master Folio Management.
+
+This test suite verifies the creation, validation, and editing of Mutual Fund folios
+in `BankMan.mf_master_add` and `BankMan.mf_master_edit`.
+
+Key Scenarios Tested:
+    • Folio number uniqueness and AMC assignment.
+    • Scheme category selection and linked bank account verification.
+"""
 
 import sqlite3
 import tkinter as tk

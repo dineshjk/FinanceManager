@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
-"""Unit tests for bank transaction pairing logic and modal."""
+"""
+Unit Tests for Inter-Account Bank Transaction Pairing & Transfers.
+
+This test suite verifies double-entry inter-account transfer mechanisms in BankMan,
+testing that debit and credit halves of a transfer remain strictly synchronized.
+
+Key Scenarios Tested:
+    • Atomic debit and credit creation across paired bank accounts.
+    • Synchronized deletion: deleting one transfer leg automatically unwinds the matching leg.
+    • Balance integrity across both transferring and receiving institutions.
+"""
 
 import sqlite3
 import pytest

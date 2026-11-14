@@ -3,7 +3,35 @@
 
 
 """
-Shared GUI utilities for Stock Portfolio Management System.
+Comprehensive GUI Utility Toolkit for Tkinter & ttk Applications.
+
+This module serves as the primary repository of graphical user interface helpers,
+visual interaction enhancers, keyboard navigation bindings, and custom widget behaviors
+utilized across both StockMan and BankMan.
+
+Key Capabilities:
+    • Button Animations & Hover: `apply_button_animations` and `apply_button_hover` provide
+      smooth visual color transitions when hovering or clicking buttons.
+    • Focus Navigation: `on_enter_focus_next` binds the Return/Enter key to advance focus
+      to the next logical form entry widget, accelerating rapid keyboard data entry.
+    • Form Error Feedback: `flash_error` highlights invalid entry fields with an alert
+      background color before smoothly resetting back to normal theme colors.
+    • Dynamic Date Spinners: `bind_date_spin` equips date entry fields with keyboard-driven
+      date arithmetic (`+` / `-` keys increment or decrement dates by one day).
+    • Universal Treeview Sorting: `universal_tree_sort` enables multi-column alphanumeric
+      and numeric sorting on click of any `ttk.Treeview` column header.
+    • Tooltip Balloons & Footer Hints: `bind_tooltip` and `setup_footer_tooltip` provide
+      context-sensitive help hints when hovering over interactive widgets.
+
+Key Functions:
+    • `apply_button_animations(button, normal_bg, hover_bg)`: Adds hover/press animation.
+    • `bind_entry_hover(widget, normal_bg, hover_bg)`: Binds hover highlights on text entries.
+    • `flash_error(entry_widget, original_bg)`: Flashes an input field red upon validation failure.
+    • `on_enter_focus_next(event, next_widget)`: Advances focus to `next_widget` on Enter key.
+    • `bind_date_spin(date_entry)`: Enables +/- date spinning on ISO `YYYY-MM-DD` entries.
+    • `universal_tree_sort(tree, col, reverse)`: Sorts Treeview columns naturally.
+    • `bind_tooltip(widget, text)`: Attaches a floating tooltip popup to any Tkinter widget.
+    • `setup_footer_tooltip(footer_label, ...)`: Links widget hover events to a footer status bar.
 """
 
 import tkinter as tk

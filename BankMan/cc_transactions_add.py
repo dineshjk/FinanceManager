@@ -2,14 +2,19 @@
 # BankMan/cc_transactions_add.py
 
 """
-Module for adding Credit Card transaction records (cc_transactions table).
+Credit Card Transaction Entry Form.
 
-Structural pattern from bank_transactions_add.py / ppf_transactions_add.py:
-  - Coloured band frames, each with a label_row / entry_row
-  - apply_entry_theme / bind_tooltip / setup_footer_tooltip from Shared.gui_utils
-  - F1 = Help, F2 = Session viewer, Escape = close without saving
-  - Yellow-on-black entry theme via centrally defined apply_entry_theme()
-  - Distinct dark-teal window theme (CC_TRANS_ADD_UI_THEME)
+This module provides the user interface for recording purchases, charges, and bill payments
+in the `cc_transactions` table.
+
+Key Responsibilities:
+    • Transaction Logging: Captures transaction date, card selection, merchant description,
+      budget category, amount, and transaction type (Spend, Payment, Refund, Fee).
+    • Polymorphic Passbook Link: When recording a card bill payment, optionally creates
+      the matching debit in `bank_transactions` linked via `module_type='CC'`.
+
+Key Functions:
+    • `show_cc_transactions_add_window(parent)`: Launches the card transaction form.
 """
 
 from typing import Union

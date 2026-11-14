@@ -1,21 +1,20 @@
 # -*- coding: utf-8 -*-
 # BankMan/budget_head_add.py
 
-"""Module for adding budget head (income/expense category) entries.
+"""
+Hierarchical Budget Category Registration Form.
 
-The legacy ``AccountTypes`` table has been removed from the BankMan schema.
-Account types are now a fixed enumeration stored as a CHECK constraint on
-the ``accounts.type`` column (``'SAVINGS'``, ``'CURRENT'``, ``'OVERDRAFT'``).
+This module provides the interface for creating income and expense budget categories
+in the `budget_head` table.
 
-This module is repurposed to manage the ``budget_head`` table, which provides
-a hierarchical chart of income/expense categories for labelling transactions.
+Key Responsibilities:
+    • Category Hierarchy: Supports two-tier categorization (Parent Category -> Sub-Category),
+      utilizing self-referential foreign keys (`parent_head_id`).
+    • Flow Types: Enforces classification into Income vs Expense categories.
+    • Budget Limits: Allows setting monthly planned expenditure limits for variance tracking.
 
-A top-level budget head has ``parent_bh_id = NULL``.
-A sub-category points to an existing ``budget_head.bh_id`` as its parent,
-forming an adjacency-list hierarchy of arbitrary depth.
-
-The public entry-point ``add_account_type_main`` is retained under its
-original name so that ``bank_data_entry_menu`` requires no import changes.
+Key Functions:
+    • `show_budget_head_add_window(parent)`: Spawns the budget head creation dialog.
 """
 
 from typing import Union

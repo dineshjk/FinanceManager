@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_link_repair.py
+"""
+Unit Tests for Relational Foreign-Key Link Repair Routines.
+
+This test suite verifies the automatic repair and link reconstruction engine in
+`scripts.repair_transactions_from_eos`.
+
+Key Scenarios Tested:
+    • Detection of orphaned polymorphic keys in `bank_transactions`.
+    • Accurate deterministic reconnection of transaction rows to matching specialist records.
+"""
+
 import importlib
 import sqlite3
 import sys

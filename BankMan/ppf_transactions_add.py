@@ -2,19 +2,20 @@
 # BankMan/ppf_transactions_add.py
 
 """
-GUI entry form for adding PPF (Public Provident Fund) transactions.
+PPF Subscription Deposit & Interest Credit Form.
 
-Follows the same structural pattern as bank_transactions_add.py:
-  - Three coloured band frames: PPF Account / Transaction Details / Amounts
-  - apply_entry_theme / bind_tooltip / setup_footer_tooltip from Shared.gui_utils
-  - F1 = Help, F2 = Session viewer, Escape = close without saving
-  - Yellow-on-black entry theme via centrally defined apply_entry_theme()
-  - Distinct deep-amethyst / violet window theme (PPF_TRANS_ADD_UI_THEME)
+This module provides the form for recording PPF subscription deposits and government interest
+credits in `ppf_transactions`.
 
-This form writes directly to ppf_transactions for events that have no
-corresponding bank-statement line (e.g. annual interest credits, balance
-corrections).  Events triggered by a bank withdrawal/deposit are recorded
-via bank_transactions_add with module_type='PPF'.
+Key Responsibilities:
+    • Transaction Logging: Captures deposit date, amount, financial year tag, and transaction
+      type (Deposit, Annual Interest).
+    • Polymorphic Passbook Link: When recording a subscription deposit, automatically debits
+      the user's bank passbook in `bank_transactions` (`module_type='PPF'`).
+    • Annual Limit Validation: Warns users if cumulative financial year deposits exceed ₹1,50,000.
+
+Key Functions:
+    • `show_ppf_transactions_add_window(parent)`: Launches the PPF transaction entry form.
 """
 
 from typing import Union

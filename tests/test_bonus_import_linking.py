@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_bonus_import_linking.py
+"""
+Integration Tests for Corporate Bonus Share Import & Cost Apportionment.
+
+This test suite verifies that imported corporate bonus actions correctly expand holding
+quantities and adjust average cost bases without altering total invested capital.
+
+Key Scenarios Tested:
+    • Bonus ratio application (e.g. 1:1, 2:1) across historical buy lots.
+    • Non-cash ledger verification: ensures zero spurious cash movements in BankMan.
+"""
+
 import importlib
 import sqlite3
 from pathlib import Path

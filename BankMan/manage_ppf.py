@@ -2,29 +2,17 @@
 # BankMan/manage_ppf.py
 
 """
-UI module for viewing and managing PPF master records and transactions.
+Public Provident Fund (PPF) Dashboard & Contribution Monitor.
 
-Mirrors the structure and features of StockMan/trade_manager.py and
-BankMan/manage_bank.py:
-  * Sortable treeview (click any heading to toggle ascending/descending).
-  * Colour-coded rows.
-  * Edit Selected -- placeholder (inline editing not yet implemented).
-  * Delete Selected -- removes the row and cascades required changes.
-  * Close / Escape -- safe modal teardown via safe_close_modal.
+This module provides a dashboard for tracking PPF accounts, annual deposit limits (₹1,50,000
+Section 80C ceiling), interest accruals, and 15-year maturity timelines.
 
-Two public functions are exposed:
+Key Responsibilities:
+    • PPF Account Overview: Displays accounts, financial year contributions, and current balance.
+    • Tax Limit Alerts: Tracks contributions relative to the annual Section 80C threshold.
 
-  show_ppf_manager(parent, calling_button=None)
-      Displays all ppf_master rows.  Deleting a PPF account is blocked
-      when ppf_transactions reference it (ON DELETE RESTRICT in the schema).
-
-  show_ppf_transactions_manager(parent, calling_button=None)
-      Displays all ppf_transactions rows.  Deleting a row also:
-        1. Finds and removes the linked bank_transactions row
-           (module_type='PPF', module_ref_id=ppf_trans_id).
-        2. Nulls out pair_id on any transfer counterpart.
-        3. Recalculates balance_after for every subsequent row in the
-           same bank account so the running total stays correct.
+Key Functions:
+    • `show_manage_ppf(parent)`: Spawns the PPF management dashboard.
 """
 
 import tkinter as tk

@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 # tests/test_triggers.py
-"""Smoke test for the allotment trigger.
+"""
+Smoke Tests for Primary Market Allotment & Settlement Triggers.
 
-Creates a temporary DB, calls create_database(), inserts sample rows and
-updates an allotment to trigger the INSERTs. Verifies contracts,
-transactions and tx_id were created.
+This test suite verifies database triggers handling primary market share allotments,
+ensuring that allotted IPO/Rights shares transition smoothly into active trade holdings.
+
+Key Scenarios Tested:
+    • Allotment trigger execution and trade table insertion.
+    • Linked bank passbook disbursement verification.
 """
 
 import tempfile

@@ -2,8 +2,21 @@
 # StockMan/__init__.py
 
 """
-StockMan Package Initialization.
-Exposes key components, utilities, and GUI factories for the portfolio manager.
+StockMan - Equity Portfolio & Market Intelligence Subsystem.
+
+This package provides a comprehensive, privacy-first equity investment management
+system. It handles stock registrations, multi-broker trade executions (ICICI Direct,
+Zerodha), strict First-In-First-Out (FIFO) capital gains accounting, corporate action
+cost basis transfers (splits, bonuses, mergers, demergers), AI-powered market analysis
+via Google Gemini, technical momentum scanners, and automated multi-sheet portfolio
+exports with background Google Drive cloud synchronization.
+
+Core Subsystem Modules:
+    • Master Data: `company_add`, `company_update`, `company_bulk_entry`, `company_menu`.
+    • Trade Processing: `trade_add`, `trade_add_zerodha`, `trade_update`, `sell_management`.
+    • Corporate Actions: `dividend`, `split_entry`, `bonus_entry`, `merger_entry`, `demerger_entry`.
+    • Intelligence & AI: `ai_analyzer`, `advice_tracker`, `scanner`, `watchlist_menu`.
+    • Persistence & Engine: `stock_database_setup`, `corp_manager`, `rollback_manager`, `reporting`.
 """
 
 # --- Globals & Database ---

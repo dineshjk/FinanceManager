@@ -1,8 +1,25 @@
 # -*- coding: utf-8 -*-
 # Shared/network_utils.py
 """
-Network optimization utilities for fast DNS resolution and IPv4 prioritization.
-Prevents Windows TCP timeout stalls on IPv6 when ISPs lack IPv6 routing.
+Network Optimization Utilities & IPv4 Stack Prioritizer.
+
+This module optimizes Python's network resolution layer on Windows systems. On certain
+networks or ISPs, IPv6 DNS queries are returned even when end-to-end IPv6 routing is
+non-functional, causing 2-30 second TCP timeout stalls when contacting external APIs.
+This module eliminates those stalls by prioritizing IPv4 addresses.
+
+Key Responsibilities:
+    • IPv4 Socket Resolution: Intercepts `socket.getaddrinfo` calls to prioritize
+      `socket.AF_INET` (IPv4) records over `socket.AF_INET6`.
+    • API Speed Optimization: Ensures instantaneous network handshakes for external web
+      services utilized by the application, including:
+        - Yahoo Finance (`yfinance`) market quote lookups.
+        - Google Gemini AI API endpoints (`StockMan.ai_analyzer`).
+        - Google Drive API file synchronization (`Shared.google_drive_sync`).
+
+Key Functions:
+    • `optimize_network_resolution()`: Patches `socket.getaddrinfo` with an IPv4-first
+      resolution wrapper if not already applied.
 """
 
 import socket

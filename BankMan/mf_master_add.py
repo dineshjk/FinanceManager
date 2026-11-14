@@ -2,7 +2,16 @@
 # BankMan/mf_master_add.py
 
 """
-Module for adding new Mutual Fund master records (mf_master table).
+Mutual Fund Master Folio & Scheme Registration Form.
+
+This module provides the interface for registering new Mutual Fund folios in `mf_master`.
+
+Key Responsibilities:
+    • Master Parameters: Captures folio number, Asset Management Company (AMC), scheme name,
+      scheme category (Equity, Debt, Hybrid), investment type (SIP, Lump-sum), and linked bank.
+
+Key Functions:
+    • `show_mf_master_add_window(parent)`: Displays the mutual fund registration dialog.
 """
 
 from typing import Union

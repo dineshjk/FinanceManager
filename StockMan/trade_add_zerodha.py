@@ -2,16 +2,22 @@
 # StockMan/trade_add_zerodha.py
 
 """
-trade_add_zerodha.py
---------------------
-Dedicated Data Entry window and controller for Zerodha Contract Notes.
+Specialized Trade Entry Interface for Zerodha Contract Notes.
 
-Handles:
-- Consolidated Zerodha contract note format (CNT-...)
-- Multiple ISIN trade rows with WAP and turnover
-- Consolidated contract-level levies footer (STT, Stamp duty, ETC, GST, SEBI, etc.)
-- Automatic proportionate levies bifurcation engine
-- Atomic persistence into contracts, transactions, exchange_orders, and computed_bank
+This module provides a trade entry form specifically optimized for Zerodha contract notes,
+handling discount broker fee structures, trade bifurcation, and statutory levy breakdowns.
+
+Key Responsibilities:
+    • Zerodha Fee Breakdown: Automatically calculates Zerodha flat brokerage (₹20 or 0.03%),
+      STT (0.1% on delivery), NSE/BSE exchange turnover fees, GST (18%), stamp duty (0.015%),
+      and SEBI turnover charges.
+    • Automated Multi-Trade Bifurcation: Breaks down complex execution summaries into individual
+      stock-level trade records.
+    • Advice Matching & Cloud Sync: Automatically updates open AI advice records and synchronizes
+      the updated portfolio to Google Drive.
+
+Key Functions:
+    • `show_trade_add_zerodha_window(parent)`: Displays the Zerodha trade entry modal window.
 """
 
 from typing import Union, Callable, Optional

@@ -1,6 +1,21 @@
 # -*- coding: utf-8 -*-
 # BankMan/manage_ins.py
 
+"""
+Insurance Policy Portfolio Dashboard & Renewal Tracker.
+
+This module provides a centralized dashboard for tracking active life, health, and vehicle
+insurance policies, premium payment schedules, and renewal due dates.
+
+Key Responsibilities:
+    • Policy Portfolio Grid: Displays policies, insurers, sum assured, and next premium due date.
+    • Renewal Due Alerts: Highlights policies requiring premium renewal payments.
+
+Key Functions:
+    • `show_ins_main_menu(parent)`: Subsystem launcher for InsMan from the dashboard.
+    • `show_manage_ins(parent)`: Spawns the interactive insurance management dashboard.
+"""
+
 import tkinter as tk
 from tkinter import ttk
 

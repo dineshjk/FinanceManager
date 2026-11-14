@@ -1,37 +1,19 @@
 # -*- coding: utf-8 -*-
 # BankMan/fd_ex_import.py
 
-"""fd_ex_import.py
+"""
+Fixed Deposit Master Contract CSV/Excel Importer & Exporter.
 
-Export and import the ``fd_master`` table (Fixed Deposit master records).
+This module manages bulk export and import operations for Fixed Deposit contracts (`fd_master`).
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'FD'``::
+Key Responsibilities:
+    • FD Contract Transfer: Exports and imports FD account numbers, principal amounts,
+      interest rates, tenures, and maturity dates.
 
-    ('FD', bank_key, ac_number, fd_number, principal_amount,
-            interest_rate, open_dt, maturity_dt, is_active)
-
-``bank_key`` is the linked account's bank IFSC when non-NULL, otherwise the
-bank's ``name``.  Together with ``ac_number`` this uniquely identifies the
-linked account portably across databases.  ``fd_number`` (UNIQUE on
-``fd_master``) is used as the portable FD identifier for transaction rows.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* **FD rows (``'FD'``)**: the linked account is resolved via
-  ``(bank_key, ac_number)``.  A row is skipped when an FD with the same
-  ``fd_number`` already exists (the unique constraint ``UNIQUE(fd_number)``).
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_fd_master.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_fd_master(filepath)`: Exports FD master records.
+    • `import_fd_master(filepath)`: Ingests FD master records.
+    • `show_fd_ex_import(parent)`: Launches the FD master import/export GUI.
 """
 
 import ast

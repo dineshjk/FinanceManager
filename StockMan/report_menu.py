@@ -3,9 +3,22 @@
 
 
 
-"""Trade management menu for StockMan.
+"""
+Central Financial Reports & Portfolio Analytics Menu.
 
-Minimal, well-formatted implementation — single copy only.
+This module constructs the central reports navigation menu for accessing comprehensive
+capital gains statements, holding summaries, sector allocations, and tax schedules.
+
+Key Responsibilities:
+    • Report Categories:
+        - [C] Capital Gains Statement: Detailed STCG (Section 111A) and LTCG (Section 112A).
+        - [H] Holding Summary: Active holdings, average cost, CMP, and unrealized P&L.
+        - [S] Sector & Industry Allocation: Portfolio diversification weights.
+        - [D] Dividend Statement: Annual dividends received and fiscal year yields.
+        - [X] Close Menu: Returns to main StockMan menu.
+
+Key Functions:
+    • `show_report_menu(parent)`: Launches the reports navigation menu.
 """
 
 from typing import Any

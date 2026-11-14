@@ -1,38 +1,19 @@
 # -*- coding: utf-8 -*-
 # BankMan/ppf_ex_import.py
 
-"""ppf_ex_import.py
+"""
+PPF Master Account CSV/Excel Importer & Exporter.
 
-Export and import the ``ppf_master`` table (PPF master records).
+This module manages bulk export and import operations for PPF account masters (`ppf_master`).
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'PPF'``::
+Key Responsibilities:
+    • Master Account Transfer: Ingests and serializes PPF account numbers, banks/post offices,
+      opening dates, and maturity schedules.
 
-    ('PPF', bank_key, ac_number, ppf_account_number, holder_name,
-            open_dt, maturity_dt, is_active)
-
-``bank_key`` is the linked account's bank IFSC when non-NULL, otherwise the
-bank's ``name``.  Together with ``ac_number`` this uniquely identifies the
-linked account portably across databases.  ``ppf_account_number`` (UNIQUE on
-``ppf_master``) is used as the portable PPF identifier for transaction rows.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* **PPF rows (``'PPF'``)**: the linked account is resolved via
-  ``(bank_key, ac_number)``.  A row is skipped when a PPF account with the
-  same ``ppf_account_number`` already exists
-  (the unique constraint ``UNIQUE(ppf_account_number)``).
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_ppf_master.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_ppf_master(filepath)`: Exports PPF master accounts.
+    • `import_ppf_master(filepath)`: Ingests PPF master accounts.
+    • `show_ppf_ex_import(parent)`: Displays the import/export GUI.
 """
 
 import ast

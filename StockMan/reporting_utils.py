@@ -1,5 +1,27 @@
 # -*- coding: utf-8 -*-
 # StockMan/reporting_utils.py
+"""
+Analytical Reporting Utilities, Period Resolvers, & Aggregation Helpers.
+
+This module contains a comprehensive suite of calculation helpers, date filter resolvers,
+live market snapshot builders, and ledger query formatters supporting `StockMan.reporting`.
+
+Key Responsibilities:
+    • Period & Fiscal Year Resolvers: `resolve_reporting_period` and `resolve_optional_date_filters`
+      parse custom date intervals and financial years into exact SQL `BETWEEN` clauses.
+    • Ledger Extraction Helpers: Queries `trades`, `dividends`, `stock_splits`, and `bonus_issues`
+      to construct unified transaction streams.
+    • Market Snapshot Integration: Aggregates live prices and historical volume trends
+      into structured dictionaries for portfolio valuation.
+    • Dividend Yield Mathematics: Computes holding duration, cash flow returns, and annualized
+      yield percentages.
+
+Key Functions:
+    • `resolve_reporting_period(...)`: Translates date range options into SQL clauses.
+    • `build_live_market_snapshot(tickers)`: Queries cached CMPs or fetches live quotes.
+    • `fetch_master_ledger_rows(...)`: Extracts normalized trade histories for reporting.
+"""
+
 from datetime import date, datetime, time
 import math
 

@@ -2,7 +2,19 @@
 # BankMan/ppf_data_entry_menu.py
 
 """
-PPF Data Entry menu for the BankMan application.
+Public Provident Fund (PPF) Data Entry Navigation Sub-Menu.
+
+This module provides the navigation sub-menu for recording PPF subscription deposits
+and annual interest credits.
+
+Key Responsibilities:
+    • Menu Options:
+        - [A] Add PPF Deposit: Record subscription deposit from bank.
+        - [I] Add Interest Credit: Record annual interest credited by post office / bank.
+        - [X] Close Menu: Returns to main banking menu.
+
+Key Functions:
+    • `show_ppf_data_entry_menu(parent)`: Opens the PPF data entry menu.
 """
 
 from Shared.menu_factory import create_menu_window

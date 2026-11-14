@@ -2,14 +2,16 @@
 # BankMan/ppf_master_add.py
 
 """
-Module for adding new PPF (Public Provident Fund) master accounts.
+Public Provident Fund (PPF) Account Registration Form.
 
-Follows the same structural pattern as bank_transactions_add.py:
-  - Coloured band frames, each with a label_row / entry_row
-  - apply_entry_theme / bind_tooltip / setup_footer_tooltip from Shared.gui_utils
-  - F1 = Help, F2 = Session viewer, Escape = close without saving
-  - Yellow-on-black entry theme via centrally defined apply_entry_theme()
-  - Distinct midnight/gold window theme (PPF_MASTER_ADD_UI_THEME)
+This module provides the interface for registering PPF accounts in the `ppf_master` table.
+
+Key Responsibilities:
+    • Account Parameters: Captures PPF account number, subscriber name, issuing institution
+      (Bank / Post Office), opening date, 15-year maturity date, and linked savings account.
+
+Key Functions:
+    • `show_ppf_master_add_window(parent)`: Displays the PPF account registration dialog.
 """
 
 from dateutil.relativedelta import relativedelta

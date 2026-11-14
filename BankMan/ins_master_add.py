@@ -2,7 +2,19 @@
 # BankMan/ins_master_add.py
 
 """
-Module for adding new Insurance master records (ins_master table).
+Insurance Policy Master Registration Form.
+
+This module provides the user interface for registering insurance policies in the
+`ins_master` table.
+
+Key Responsibilities:
+    • Policy Parameters: Captures policy number, insurance company, policy name, category
+      (Term Life, Health, Motor, Home), sum assured, premium amount, payment frequency
+      (Annual, Semi-Annual, Quarterly, Monthly), policy start date, maturity date, and nominee.
+    • Schedule Validation: Enforces positive coverage and premium amounts and valid dates.
+
+Key Functions:
+    • `show_ins_master_add_window(parent)`: Displays the insurance registration modal dialog.
 """
 
 from typing import Union

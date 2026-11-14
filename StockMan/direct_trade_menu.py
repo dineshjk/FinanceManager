@@ -2,7 +2,23 @@
 # StockMan/direct_trade_menu.py
 
 
-"""Direct trading modal for IPOs, Rights and Allotments."""
+"""
+Navigation Menu for Primary Market Investments.
+
+This module provides the navigation menu for primary market offerings, including Initial
+Public Offerings (IPOs), Rights Issues, Offers for Sale (OFS), and secondary allotments.
+
+Key Responsibilities:
+    • Menu Options:
+        - [I] Initial Public Offerings (IPO): Apply and record IPO bids and allotments.
+        - [R] Rights Issues: Subscribe to rights entitlements and call money.
+        - [O] Primary Offers & OFS: Record offer-for-sale purchases.
+        - [D] Delete Primary Offer: Prune unallotted bids or rejected applications.
+        - [X] Close Menu: Return to main menu.
+
+Key Functions:
+    • `show_direct_trade_menu(parent)`: Constructs and opens the direct trade menu.
+"""
 
 import tkinter as tk
 from typing import Any

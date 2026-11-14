@@ -2,9 +2,30 @@
 # StockMan/rollback_manager.py
 
 """
-Centralized housekeeping engine for the StockMan application.
-Safely manages cascading deletions and rollbacks for trades and corporate actions
-to maintain strict database and accounting integrity.
+Centralized Transaction Rollback & Database Integrity Engine.
+
+This module provides safe, cascading reversal and deletion of trades, corporate actions,
+and allotments, ensuring that rolling back an operation never leaves orphan records or
+corrupted FIFO chains.
+
+Key Responsibilities:
+    • Cascading Rollback Architecture: Handles safe deletion of:
+        - Trades (`delete_trade`): Checks if sold shares have downstream dependencies,
+          reverses sell allocations, restores buy lot balances, and removes linked bank entries.
+        - Bonus Issues (`delete_bonus`): Reverses share count adjustments and restores original costs.
+        - Stock Splits (`delete_split`): Restores pre-split share quantities and unit prices.
+        - Mergers & Demergers (`delete_merger`, `delete_demerger`): Re-establishes original entity
+          holdings and unwinds spun-off company registrations.
+    • Dependency Auditing: Scans subsequent transactions to alert users if rolling back an
+      early trade would cause negative holding balances in later trades.
+
+Key Functions:
+    • `execute_safe_rollback(action_type, ref_id)`: Central rollback dispatcher.
+    • `delete_trade(trade_id)`: Reverses a trade and its downstream associations.
+    • `delete_bonus(bonus_id)`: Reverses a bonus issue.
+    • `delete_split(split_id)`: Reverses a stock split.
+    • `delete_merger(merger_id)`: Reverses a corporate merger.
+    • `delete_demerger(demerger_id)`: Reverses a corporate demerger.
 """
 
 import sqlite3

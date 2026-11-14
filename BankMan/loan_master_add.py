@@ -2,10 +2,19 @@
 # BankMan/loan_master_add.py
 
 """
-Module for adding Loan Master records (loan_master table).
+Loan Master Contract Registration Form.
 
-Pattern: coloured band frames, label_row / entry_row, F1/F2/Escape, central
-entry theme (yellow-on-black), dark olive/moss-green chrome.
+This module provides the interface for registering loan contracts in the `loan_master` table.
+
+Key Responsibilities:
+    • Contract Parameters: Captures loan account number, lending institution, loan type
+      (Home Loan, Auto Loan, Personal Loan, Education Loan), sanction date, principal amount,
+      annual interest rate (%), tenure (months), calculated EMI amount, and linked bank account.
+    • Disbursement Logging: Optionally creates the initial principal disbursement credit in
+      `bank_transactions` when loan proceeds are disbursed to the user's account.
+
+Key Functions:
+    • `show_loan_master_add_window(parent)`: Displays the loan registration dialog.
 """
 
 from typing import Union

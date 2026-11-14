@@ -2,9 +2,21 @@
 # StockMan/run_importer_test.py
 
 
-"""Test runner: create a small dummy source DB, simulate choosing it via
-the file dialog, open the importer modal, and auto-close after a short
-delay so logs are produced for verification."""
+"""
+Contract Note Importer Test Runner & Sandbox Harness.
+
+This module creates ephemeral SQLite test databases populated with synthetic trade data
+to verify broker contract note parsers and trade import routines in an isolated sandbox.
+
+Key Responsibilities:
+    • Dummy Database Provisioning: Initializes a temporary SQLite database with mock company
+      masters, test trade rows, and mock bank accounts.
+    • Import Routine Verification: Simulates importing broker contract notes and verifies
+      that prices, quantities, taxes, and FIFO links match expected parity criteria.
+
+Key Functions:
+    • `run_importer_tests()`: Executes the test pipeline and reports validation results.
+"""
 
 import os
 import sqlite3

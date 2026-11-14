@@ -1,43 +1,19 @@
 # -*- coding: utf-8 -*-
 # BankMan/budget_head_ex_import.py
 
-"""budget_head_ex_import.py
+"""
+Budget Head Structure CSV/Excel Importer & Exporter.
 
-Reads budget-head (income/expense category) data from the BankMan database
-and exports it to a text file, or imports from that same file back into the
-database.
+This module provides batch export and import utilities for budget categories.
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``) with
-three fields in this order::
+Key Responsibilities:
+    • Category Serialization: Exports the complete budget hierarchy to Excel or CSV.
+    • Bulk Category Setup: Allows users to import pre-configured chart of accounts.
 
-    (bh_description, bh_type, parent_description)
-
-``parent_description`` is the ``bh_description`` of the parent budget head,
-or ``None`` for top-level categories.  Using the description instead of the
-raw ``parent_bh_id`` integer makes the file portable across databases (IDs
-are auto-assigned and differ between installations).
-
-Rows are exported ordered by ``bh_id`` so that parent rows always appear
-before their children, which allows a single-pass import.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are ignored.
-* For each row the parent is resolved by looking up ``parent_description``
-  in the current database (or in rows already inserted during this run).
-* A row is skipped (not inserted) if a budget head with the same
-  ``(bh_description, bh_type, parent_bh_id)`` already exists — this matches
-  the unique index ``uix_budget_head`` in the schema.
-* DB and file errors are reported via the GUI and logged; processing
-  continues for remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_budget_heads.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_budget_heads(filepath)`: Serializes budget hierarchy to disk.
+    • `import_budget_heads(filepath)`: Ingests category structures from external files.
+    • `show_budget_head_ex_import(parent)`: Launches the import/export interface.
 """
 
 import ast

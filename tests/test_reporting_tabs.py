@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_reporting_tabs.py
+"""
+Integration Tests for Financial Reports Multi-Tab GUI Viewer.
+
+This test suite verifies the interactive report viewer interface in `StockMan.reporting`,
+testing tab switching, column sorting, and Excel export triggers.
+
+Key Scenarios Tested:
+    • Treeview rendering across Capital Gains, Holdings, Sector Allocation, and Dividend tabs.
+    • Multi-column sorting and keyboard navigation.
+"""
+
 import tkinter as tk
 from tkinter import ttk
 from unittest.mock import patch

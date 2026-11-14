@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 # tests/test_reporting_utils.py
+"""
+Comprehensive Unit Tests for Financial Reporting Helpers.
+
+This test suite provides exhaustive test coverage for calculation helpers in `StockMan.reporting_utils`,
+testing fiscal year label generation, date interval resolvers, and SQL query builders.
+
+Key Scenarios Tested:
+    • Date interval resolution for custom ranges and financial years.
+    • Safe floating-point arithmetic and currency formatting.
+    • Unified ledger query extraction across trades and corporate events.
+"""
+
 from datetime import date
 import sqlite3
 from datetime import datetime

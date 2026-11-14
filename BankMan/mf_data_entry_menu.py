@@ -2,7 +2,19 @@
 # BankMan/mf_data_entry_menu.py
 
 """
-Mutual Fund Data Entry menu for the BankMan application.
+Mutual Fund Data Entry Navigation Sub-Menu.
+
+This module provides the navigation sub-menu for recording mutual fund purchases, SIP
+installments, dividend reinvestments, and redemption proceeds.
+
+Key Responsibilities:
+    • Menu Options:
+        - [A] Add MF Transaction: Record investment or redemption.
+        - [I] Import MF Statement: CAS statement ingestion.
+        - [X] Close Menu: Returns to main banking menu.
+
+Key Functions:
+    • `show_mf_data_entry_menu(parent)`: Opens the mutual fund data entry menu.
 """
 
 from Shared.menu_factory import create_menu_window

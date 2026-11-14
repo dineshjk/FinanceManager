@@ -2,8 +2,16 @@
 # BankMan/budget_head_edit.py
 
 """
-Edit form for the ``budget_head`` table.
-Presents a list of budget heads in a Treeview and lets the user edit or delete them.
+Budget Category Editor & Hierarchy Manager.
+
+This module provides the interface for modifying existing budget head categories.
+
+Key Responsibilities:
+    • Category Modification: Updates category names, parent-child relationships, and monthly targets.
+    • Safety Validation: Prevents deletion or circular nesting of categories with linked transactions.
+
+Key Functions:
+    • `show_budget_head_edit_window(parent, head_id)`: Displays the category editor.
 """
 
 from typing import Union

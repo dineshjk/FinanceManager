@@ -1,7 +1,23 @@
 # -*- coding: utf-8 -*-
 # Shared/validation_utils.py
 """
-This module provides validation utility functions for the FinanceManager application.
+Financial Input Validation Utilities & Numeric Verifiers.
+
+This module provides reusable validation helper functions for input forms, dialogs,
+and import pipelines across the Universal Finance Manager application.
+
+Key Responsibilities:
+    • Positive Numeric Validation: Verifies that numerical strings represent valid, positive
+      numbers (integers or floating-point decimals), rejecting negatives, alphabetic chars,
+      and invalid symbols.
+    • Currency & Amount Verification: Enforces precision rules and bounds checks for trade
+      prices, transaction amounts, interest rates, and share quantities.
+    • Safe Type Coercion: Offers utilities to parse user input safely without throwing
+      unhandled runtime exceptions.
+
+Key Functions:
+    • `validate_positive_numeric(value, field_name='Field')`: Validates that `value` is a
+      positive number greater than zero; returns a tuple `(is_valid, error_message, float_val)`.
 """
 
 import tkinter as tk

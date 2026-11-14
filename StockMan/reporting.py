@@ -3,7 +3,26 @@
 
 
 """
-Show various financial reports.
+Comprehensive Financial Reporting & Capital Gains Calculation Engine.
+
+This module is the core computational engine for generating financial statements,
+tax compliance schedules, unrealized portfolio valuations, and XIRR return metrics.
+
+Key Responsibilities:
+    • First-In-First-Out (FIFO) Capital Gains: Evaluates all sell transactions against
+      chronologically matched buy lots to compute exact Short-Term (STCG) and Long-Term
+      (LTCG) capital gains under Indian Income Tax rules.
+    • Grandfathering (Section 112A): Applies January 31, 2018 grandfathering price logic
+      to determine adjusted acquisition costs for long-term equity assets held before that date.
+    • Live Portfolio Valuation: Pulls latest CMPs and calculates unrealized profits, percentage
+      returns, portfolio beta, and sector allocation percentages.
+    • Interactive GUI Views: Displays report outputs in sortable, filterable Treeview widgets
+      with export buttons to Excel.
+
+Key Classes & Functions:
+    • `ReportViewer`: Interactive Tkinter window for viewing and exporting generated reports.
+    • `generate_capital_gains_report(fy_year)`: Computes STCG and LTCG for a given fiscal year.
+    • `generate_portfolio_summary()`: Compiles current open holdings and market valuations.
 """
 
 from typing import Union

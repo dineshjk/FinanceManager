@@ -1,73 +1,27 @@
 # -*- coding: utf-8 -*-
 # BankMan/bank_database_setup.py
 
-"""Database schema and initialization for BankMan.
+"""
+BankMan Master Database Schema Definition, Constraints, & Triggers.
 
-This module defines the complete SQLite schema — tables, indexes, and
-constraints — used by the BankMan application, and exposes the
-``create_bankman_database`` helper which initializes the database file at
-``BANK_DB_PATH``.  Tests may override ``BANK_DB_PATH`` before calling
-``create_bankman_database`` to use ephemeral or in-memory databases.
+This module defines the complete SQLite schema — tables, indexes, check constraints,
+and polymorphic triggers — used by the BankMan application. It exposes
+`create_bankman_database` to initialize `bank.db`.
 
-────────────────────────────────────────────────────────────────────────────
-Schema Overview (creation order respects foreign-key dependencies)
-────────────────────────────────────────────────────────────────────────────
+Schema Architecture:
+    • Group 1 - Independent Masters: `banks`, `budget_head` (hierarchical category self-join).
+    • Group 2 - Account & Product Masters: `accounts`, `fd_master`, `card_master`, `loan_master`,
+      `ppf_master`, `ins_master`, `mf_master`.
+    • Group 3 - Ledgers & Polymorphic Association:
+        - `bank_transactions`: Central double-entry cash flow ledger using polymorphic
+          keys (`module_type` + `module_ref_id`) to link specialist sub-ledger rows
+          (FD, CC, LOAN, PPF, STOCK_COMP, STOCK_ACTU, MF).
+        - Specialist transaction tables: `fd_transactions`, `cc_transactions`,
+          `loan_transactions`, `ppf_transactions`, `ins_transactions`, `mf_transactions`.
+    • Date Convention: Strict CHECK constraints enforce 10-character `YYYY-MM-DD` formats.
 
-GROUP 1 — Independent master tables (no outgoing foreign keys)
-  • banks         – Financial institutions (name, branch, IFSC, MICR).
-  • budget_head   – Hierarchical income/expense categories; a row can point
-                    to a parent row in the same table (self-join).
-
-GROUP 2 — Account and product master tables (all depend on ``accounts``)
-  • accounts      – Individual bank accounts; links to ``banks``.
-  • fd_master     – Fixed-deposit products; links to ``accounts``.
-  • card_master   – Credit/debit card products; links to ``accounts``.
-  • loan_master   – Loan products; links to ``accounts``.
-  • ppf_master    – Public Provident Fund accounts; links to ``accounts``.
-
-GROUP 3 — Transaction and ledger tables
-  • bank_transactions  – Primary ledger for every account movement.
-                         Uses a *polymorphic association* pair
-                         (``module_type`` + ``module_ref_id``) to reference
-                         rows in any of the specialist transaction tables
-                         without hard-coding individual foreign keys.
-  • fd_transactions    – FD deposit / withdrawal / interest ledger.
-  • cc_transactions    – Credit-card spend and payment ledger.
-  • loan_transactions  – Loan repayment (principal + interest) ledger.
-  • ppf_transactions   – PPF deposit, withdrawal, and balance ledger.
-
-────────────────────────────────────────────────────────────────────────────
-Date convention
-────────────────────────────────────────────────────────────────────────────
-All date columns are stored as TEXT in the format ``YYYY-MM-DD`` and are
-validated with a CHECK constraint that verifies:
-  • Exact length of 10 characters.
-  • Hyphen separators at positions 5 and 8.
-  • Digits in every other position (using SQLite's GLOB operator).
-
-Nullable date columns additionally allow NULL and wrap the pattern check
-inside ``col IS NULL OR ( … )``.
-
-────────────────────────────────────────────────────────────────────────────
-Polymorphic association  (bank_transactions)
-────────────────────────────────────────────────────────────────────────────
-``module_type`` is an enumerated TEXT column that identifies *which*
-specialist table a row relates to.  ``module_ref_id`` stores the primary key
-of the matching row in that table.  When no specialist linkage applies, set
-``module_type = 'NONE'`` and leave ``module_ref_id`` NULL.
-
-  module_type value  →  specialist table / system
-  ─────────────────────────────────────────────────
-  'FD'          →  fd_transactions.fd_trans_id
-  'CC'          →  cc_transactions.cc_trans_id
-  'LOAN'        →  loan_transactions.loan_trans_id
-  'PPF'         →  ppf_transactions.ppf_trans_id
-  'STOCK_COMP'  →  StockMan.computed_bank.id_comp_bt
-  'STOCK_ACTU'  →  StockMan.actual_bank.id_actu_bt
-  'MF'          →  (future mutual-fund transaction table)
-  'NONE'        →  no external linkage
-
-────────────────────────────────────────────────────────────────────────────
+Key Functions:
+    • `create_bankman_database(db_path)`: Initializes tables, indexes, and triggers.
 """
 
 import os

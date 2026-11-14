@@ -1,39 +1,18 @@
 # -*- coding: utf-8 -*-
 # BankMan/ins_transactions_ex_import.py
 
-"""ins_transactions_ex_import.py
+"""
+Insurance Transaction CSV/Excel Importer & Exporter.
 
-Export and import the ``ins_transactions`` table (INS transactions).
+This module manages bulk export and import operations for insurance premium logs.
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'INST'``::
+Key Responsibilities:
+    • Premium History Transfer: Exports and imports historical premium payments and receipts.
 
-    ('INST', policy_number, ins_trans_dt, ins_description,
-             premium_paid, payout_received)
-
-``policy_number`` (UNIQUE on ``ins_master``) identifies the parent INS
-account portably across databases.  ``account_id`` is derived from the
-ins_master record and is never stored in the file.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* The parent INS account is resolved by ``policy_number``; the row is
-  skipped when the account is not found.  ``account_id`` is taken from the
-  ins_master record.
-* Duplicate detection uses
-  ``(ins_master_id, ins_trans_dt, premium_paid, payout_received)``
-  ; a matching row is skipped.
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_ins_transactions.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_ins_transactions(filepath)`: Exports premium records.
+    • `import_ins_transactions(filepath)`: Ingests premium records.
+    • `show_ins_transactions_ex_import(parent)`: Displays the import/export GUI.
 """
 
 import ast

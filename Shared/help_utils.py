@@ -1,6 +1,30 @@
 # -*- coding: utf-8 -*-
 # Shared/help_utils.py
 
+"""
+Standardized Multi-Tab Help Window Framework.
+
+This module defines `show_standard_help`, the central factory for generating uniform,
+accessible, multi-tabbed help modal windows across the entire application. Every module-
+specific help dialog (F1) and the master Global Help Center (Ctrl+F1) utilize this builder.
+
+Key Features & UI Structure:
+    • Tab 1 - General Guide: Displays formatted, scrollable instructions, system workflows,
+      and data entry guidelines in a read-only, word-wrapped text view.
+    • Tab 2 - Interactive FAQ: Features paginated question browsing with previous (`<`)
+      and next (`>`) navigation buttons, keyboard arrow shortcuts (`<Left>`, `<Right>`),
+      a direct jump combobox dropdown, and high-contrast typography (bold red questions).
+    • Custom Extension Tabs: Accepts an optional `extra_tabs_callback(notebook)` hook to
+      inject specialized views (such as a searchable Module Directory or data schemas).
+    • Robust Window Lifecycle: Ensures dialog centering, window modality (`grab_set`),
+      topmost positioning, and safe Escape key handling that unwinds modal stacks and
+      restores focus without bubbling events to parent windows.
+
+Key Functions:
+    • `show_standard_help(parent, title, guide_lines, faq_data, extra_tabs_callback=None)`:
+      Constructs, configures, and displays the standardized help dialog.
+"""
+
 import tkinter as tk
 from tkinter import ttk
 from Shared.gui_utils import apply_button_animations

@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/import_dryrun_live.py
 #!/usr/bin/env python3
-"""Perform a dry-run import into the live DB by running the import inside
-a transaction and rolling it back at the end.
+"""
+Dry-Run Pre-Flight Check on Production Database Schemas.
 
-This exercises the exact SQL path (triggers, constraints, PRAGMAs) but
-leaves the live DB unchanged.
+This test script simulates a live import against production schema constraints in dry-run
+mode, ensuring that production database rules will not reject the incoming dataset.
+
+Key Responsibilities:
+    • Pre-Flight Verification: Tests migration against actual live schema triggers and indexes.
+    • Rollback by Default: Guarantees that all test transactions are safely rolled back.
 """
 
 from pathlib import Path

@@ -2,14 +2,17 @@
 # BankMan/manage_bank.py
 
 """
-UI module for viewing bank transactions and triggering safe database deletions.
+Bank Accounts & Financial Institutions Management Dashboard.
 
-Mirrors the structure and features of StockMan/trade_manager.py:
-  • Sortable treeview of all bank_transactions rows.
-  • Color-coded rows by entry type (INCOME / EXPENSE / TRANSFER).
-  • Edit Selected  — placeholder (inline editing not yet implemented).
-  • Delete Selected — removes the main row and its sub-ledger row (if any).
-  • Close / Escape  — safe modal teardown.
+This module provides an interactive table view of all registered banks and bank accounts,
+displaying account numbers, branches, account types, and live running balances.
+
+Key Responsibilities:
+    • Account Overview Grid: Displays real-time aggregated account balances across all institutions.
+    • Management Triggers: Provides buttons to edit account profiles, view passbooks, or add accounts.
+
+Key Functions:
+    • `show_manage_bank(parent)`: Spawns the bank and account management dashboard.
 """
 
 import tkinter as tk

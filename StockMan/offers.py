@@ -2,12 +2,19 @@
 # StockMan/offers.py
 
 
-"""Helpers to create/update primary offers and allotments.
+"""
+Primary Market Offer for Sale (OFS) & Buyback Management.
 
-These functions validate incoming date fields using the project's
-`date_utils` validators and raise `ValidationError` for caller-friendly
-handling. They are wrappers around DB operations to centralize
-validation and error mapping.
+This module manages participation in corporate Offers for Sale (OFS), rights allotments,
+and tender-offer corporate share buybacks.
+
+Key Responsibilities:
+    • Tender Offer Tracking: Records buyback bids, accepted quantities, tender prices,
+      and capital gains generated from shares accepted in corporate buybacks.
+    • OFS Purchase Tracking: Records purchases made through secondary exchange OFS windows.
+
+Key Functions:
+    • `show_offers_management(parent)`: Launches primary offers and buyback manager.
 """
 
 from typing import Optional

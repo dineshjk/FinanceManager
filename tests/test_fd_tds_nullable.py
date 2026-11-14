@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Tests for nullable FD master fields (interest_rate, maturity_dt) and FD TDS payout breakdown."""
+"""
+Unit Tests for Nullable Fields & TDS Handling in Fixed Deposit Tables.
+
+This test suite verifies schema constraints and business logic for Fixed Deposits, testing
+that Tax Deducted at Source (TDS) and optional certificate fields accept NULL values cleanly.
+
+Key Scenarios Tested:
+    • Nullable TDS amount fields in `fd_master` and `fd_transactions`.
+    • Graceful handling of zero TDS vs NULL TDS in accounting calculations.
+"""
 
 import sqlite3
 import pytest

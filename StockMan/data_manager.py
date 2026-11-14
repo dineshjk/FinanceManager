@@ -1,5 +1,25 @@
 # -*- coding: utf-8 -*-
 # StockMan/data_manager.py
+"""
+Core Database Persistence & Transaction Execution Layer for StockMan.
+
+This module encapsulates low-level SQLite database access, connection management,
+transaction isolation, and query execution for the StockMan subsystem.
+
+Key Responsibilities:
+    • Connection Management: Manages SQLite database connection lifecycles, enabling
+      WAL (Write-Ahead Logging) mode and foreign-key constraint enforcement (`PRAGMA foreign_keys = ON`).
+    • Safe Transaction Execution: Provides helper wrappers to execute queries inside
+      atomic transactions with automatic rollback on unhandled exceptions.
+    • Backup Triggering: Coordinates with maintenance utilities to generate timestamped
+      SQLite backup copies prior to major schema migrations or bulk operations.
+
+Key Functions:
+    • `get_connection()`: Returns a thread-safe connection to `stocks.db`.
+    • `execute_query(sql, params)`: Executes a SQL statement with error handling.
+    • `execute_in_transaction(func)`: Decorator or wrapper ensuring atomic commit/rollback.
+"""
+
 import os
 import yfinance as yf
 from datetime import date

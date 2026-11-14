@@ -2,10 +2,23 @@
 # StockMan/date_utils.py
 
 """
-Date utility functions for the Stock Portfolio Management System.
+Financial Date Calculations, Business Day Math, & Fiscal Year Utilities.
 
-This module provides functions for working with dates in the context of
-financial markets, including working day calculations and date validation.
+This module provides standardized date parsing, formatting, validation, and business
+day arithmetic tailored to Indian financial markets and fiscal year cycles.
+
+Key Responsibilities:
+    • ISO Date Standards: Validates and formats dates in standard `YYYY-MM-DD` strings.
+    • Fiscal Year Calculations: Resolves Indian financial years (e.g. April 1 to March 31,
+      FY 2024-25) for capital gains reporting and annual dividend statements.
+    • Market Days & Arithmetic: Computes settlement dates (T+1 rolling settlement) and
+      calculates holding duration in calendar days for short-term vs long-term tax classification.
+
+Key Functions:
+    • `format_date_iso(date_obj)`: Converts dates to `YYYY-MM-DD` string format.
+    • `parse_date(date_str)`: Safely parses string into `datetime.date`.
+    • `get_financial_year(date_obj)`: Returns fiscal year string (e.g. 'FY 2024-2025').
+    • `calculate_holding_days(buy_date, sell_date)`: Returns elapsed calendar days.
 """
 
 from datetime import datetime, timedelta, date

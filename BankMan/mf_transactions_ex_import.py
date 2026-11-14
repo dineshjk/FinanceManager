@@ -1,39 +1,18 @@
 # -*- coding: utf-8 -*-
 # BankMan/mf_transactions_ex_import.py
 
-"""mf_transactions_ex_import.py
+"""
+Mutual Fund Transaction CSV/Excel Importer & Exporter.
 
-Export and import the ``mf_transactions`` table (MF transactions).
+This module manages bulk export and import operations for mutual fund transaction ledgers.
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'MFT'``::
+Key Responsibilities:
+    • Transaction Transfer: Ingests and serializes historical purchase, SIP, and redemption logs.
 
-    ('MFT', folio_number, mf_trans_dt, mf_description,
-             mf_purchase, mf_redemption, units, nav)
-
-``folio_number`` (UNIQUE on ``mf_master``) identifies the parent MF
-account portably across databases.  ``account_id`` is derived from the
-mf_master record and is never stored in the file.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* The parent MF account is resolved by ``folio_number``; the row is
-  skipped when the account is not found.  ``account_id`` is taken from the
-  mf_master record.
-* Duplicate detection uses
-  ``(mf_master_id, mf_trans_dt, mf_purchase, mf_redemption, units, nav)``
-  ; a matching row is skipped.
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_mf_transactions.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_mf_transactions(filepath)`: Exports MF transaction ledgers.
+    • `import_mf_transactions(filepath)`: Ingests MF transaction ledgers.
+    • `show_mf_transactions_ex_import(parent)`: Spawns the import/export dialog.
 """
 
 import ast

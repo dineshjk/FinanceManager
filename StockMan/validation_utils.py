@@ -2,10 +2,21 @@
 # StockMan/validation_utils.py
 
 
-"""Centralized validation exception mapping and UI helpers.
+"""
+StockMan Input Validation & Database Constraint Mappings.
 
-This module standardizes how validation exceptions are converted into
-user-friendly messages and displayed via the project's dialog utilities.
+This module provides specialized validation routines and SQLite constraint mapping
+tailored to equity transactions and company master data.
+
+Key Responsibilities:
+    • Trade Validation: Enforces positive prices, non-zero quantities, and valid broker tags.
+    • Ticker Formatting: Validates ticker formats and prevents malformed symbols.
+    • Error Translation: Translates SQLite `IntegrityError` exceptions into user-friendly
+      error messages explaining foreign-key or uniqueness violations.
+
+Key Classes & Functions:
+    • `ValidationError`: Custom exception class for data validation failures.
+    • `validate_trade_inputs(...)`: Validates all fields of a trade entry form.
 """
 
 from collections.abc import Iterable, Mapping

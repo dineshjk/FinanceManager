@@ -2,15 +2,20 @@
 # StockMan/trade_update.py
 
 """
-trade_update.py
-----------------
+Trade Record Editor & Downstream FIFO Recalculator.
 
-Modal window and helpers for updating existing trades in the StockMan application.
+This module provides the interface for modifying previously saved trade records,
+adjusting trade dates, quantities, prices, or charge allocations.
 
-This module provides the interactive modal to select and update
-trading contracts and associated transactions. The primary entry point is
-the `update_trade(parent, calling_button)` function.
+Key Responsibilities:
+    • Trade Record Editing: Loads existing trade details into an editable form.
+    • FIFO Recalculation: When trade quantities or dates are edited, verifies that changes
+      do not invalidate downstream sell allocations; triggers re-sequencing of FIFO lots.
+    • Audit Trail & Sync: Updates matching bank entries in BankMan and refreshes the portfolio
+      Excel workbook.
 
+Key Functions:
+    • `show_trade_update_window(parent, trade_id)`: Displays the trade editor dialog.
 """
 
 from typing import Union

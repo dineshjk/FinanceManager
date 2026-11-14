@@ -2,8 +2,25 @@
 # BankMan/manage_master_menu.py
 
 """
-Manage Master menu for the BankMan application.
-Provides navigation to module-specific master-management sub-menus.
+Master Configuration Menu for BankMan Products.
+
+This module constructs the master configuration sub-menu, offering navigation to register
+and edit institutional profiles, accounts, budget hierarchies, and financial products.
+
+Key Responsibilities:
+    • Navigation Hub:
+        - [B] Manage Banks & Accounts
+        - [C] Manage Categories (Budget Heads)
+        - [D] Manage Fixed Deposit Contracts
+        - [R] Manage Credit Cards
+        - [L] Manage Loan Contracts
+        - [P] Manage PPF Accounts
+        - [I] Manage Insurance Policies
+        - [M] Manage Mutual Fund Folios
+        - [X] Close Menu
+
+Key Functions:
+    • `show_manage_master_menu(parent)`: Constructs and opens the master configuration menu.
 """
 
 from Shared.menu_factory import create_menu_window

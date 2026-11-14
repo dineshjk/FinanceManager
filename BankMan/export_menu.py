@@ -2,8 +2,17 @@
 # BankMan/export_menu.py
 
 """
-Export Data menu for the BankMan application.
-Provides navigation to module-specific export sub-menus.
+Central Data Export Hub for BankMan.
+
+This module constructs the central export menu for serializing bank accounts, master
+contracts, and transaction ledgers into spreadsheets.
+
+Key Responsibilities:
+    • Export Categories: Provides export routines for Banks, Accounts, Budget Heads,
+      Passbooks, FDs, Credit Cards, Loans, PPF, Insurance, and Mutual Funds.
+
+Key Functions:
+    • `show_export_menu(parent)`: Launches the central export menu window.
 """
 
 from Shared.menu_factory import create_menu_window

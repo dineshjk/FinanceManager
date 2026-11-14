@@ -1,41 +1,19 @@
 # -*- coding: utf-8 -*-
 # BankMan/cc_transactions_ex_import.py
 
-"""cc_transactions_ex_import.py
+"""
+Credit Card Transaction CSV/Excel Importer & Exporter.
 
-Export and import the ``cc_transactions`` table (Credit Card transactions).
+This module handles batch exporting and importing of credit card transaction histories.
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'CCT'``::
+Key Responsibilities:
+    • Statement Parsing: Parses credit card CSV statements and maps to `cc_transactions`.
+    • Transaction Export: Exports historical card expenditures for budget analysis.
 
-    ('CCT', card_number, cc_trans_dt, party, expense, cc_credit,
-            bh_description_or_None)
-
-``card_number`` (UNIQUE on ``card_master``) identifies the card portably
-across databases.  ``bh_description`` replaces the raw ``bh_id`` integer so
-the file works across installations where auto-assigned IDs differ.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* The card is resolved by ``card_number``; the row is skipped when the card
-  is not found.  ``account_id`` is derived from the card master record and
-  never stored in the file.
-* ``bh_description`` is resolved to ``bh_id``; a ``None`` description maps to
-  a ``NULL`` ``bh_id``.  An unrecognised description is logged and treated as
-  ``NULL`` (rather than skipping the row).
-* Duplicate detection uses ``(card_master_id, cc_trans_dt, party, expense,
-  cc_credit)``; a matching row is skipped.
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_cc_transactions.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_cc_transactions(filepath)`: Exports card transaction histories.
+    • `import_cc_transactions(filepath)`: Ingests card transactions from spreadsheets.
+    • `show_cc_transactions_ex_import(parent)`: Displays the import/export dialog.
 """
 
 import ast

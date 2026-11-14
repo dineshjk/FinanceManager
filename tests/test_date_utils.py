@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 # tests/test_date_utils.py
+"""
+Unit Tests for Financial Date Calculations & Fiscal Year Mapping.
+
+This test suite verifies date utility functions in `StockMan.date_utils`, testing Indian
+financial year boundaries, business day arithmetic, and ISO date formatting.
+
+Key Scenarios Tested:
+    • Fiscal year resolution across April 1 boundary conditions.
+    • Calendar day holding duration arithmetic for capital gains tax classification.
+    • Invalid date format rejection and error handling.
+"""
+
 import importlib
 import sys
 from pathlib import Path

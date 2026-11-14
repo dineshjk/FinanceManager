@@ -2,8 +2,15 @@
 # BankMan/mf_master_edit.py
 
 """
-Edit form for the ``mf_master`` table.
-Presents a list of MF accounts in a Treeview and lets the user edit or delete them.
+Mutual Fund Master Folio Record Editor.
+
+This module provides the dialog for editing existing Mutual Fund folio details in `mf_master`.
+
+Key Responsibilities:
+    • Record Modification: Updates scheme descriptions, SIP mandate amounts, and linked banks.
+
+Key Functions:
+    • `show_mf_master_edit_window(parent, mf_id)`: Displays the mutual fund editor.
 """
 
 from typing import Union

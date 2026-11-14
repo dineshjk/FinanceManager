@@ -2,7 +2,24 @@
 # StockMan/maint_menu.py
 
 
-"""Maintenance menu for StockMan."""
+"""
+StockMan Maintenance & System Administration Menu.
+
+This module builds the Maintenance sub-menu, offering tools for database optimization,
+live market price synchronization, data integrity auditing, and manual cloud sync.
+
+Key Responsibilities:
+    • Menu Actions:
+        - [C] Update Current Market Prices (CMP): Downloads latest quotes via yfinance.
+        - [V] Vacuum / Rebuild Database: Optimizes SQLite storage and rebuilds B-tree indices.
+        - [I] Integrity Check: Runs SQLite `PRAGMA integrity_check` to detect corruption.
+        - [B] SQLite Backup: Creates timestamped local database copies in `Backup/`.
+        - [S] Google Drive Sync: Manually triggers cloud upload/download.
+        - [X] Close Menu: Returns to main StockMan window.
+
+Key Functions:
+    • `show_maintenance_menu(parent)`: Constructs and opens the Maintenance menu.
+"""
 
 from typing import Any
 import tkinter as tk

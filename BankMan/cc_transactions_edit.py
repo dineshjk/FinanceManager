@@ -2,7 +2,16 @@
 # BankMan/cc_transactions_edit.py
 
 """
-Module for editing Credit Card Transaction records (cc_transactions table).
+Credit Card Transaction Editor & Reversal Dialog.
+
+This module provides the interface for editing or deleting credit card transactions.
+
+Key Responsibilities:
+    • Transaction Modification: Edits amounts, categories, dates, and descriptions.
+    • Reverse Link Synchronization: Updates or deletes corresponding linked bank passbook payments.
+
+Key Functions:
+    • `show_cc_transactions_edit_window(parent, trans_id)`: Displays the card transaction editor.
 """
 
 from typing import Union

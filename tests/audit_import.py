@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/audit_import.py
 #!/usr/bin/env python3
-"""Audit the import by comparing the backup DB with the current live DB.
+"""
+Audit Script for Verifying Legacy-to-Live Database Import Integrity.
 
-Produces a JSON report listing, for each legacy transaction, whether the
-contract existed before, whether the transaction existed before, and which
-exchange_orders were added.
+This verification script compares imported records in the target live database against
+the legacy source database. It audits row counts, buy/sell lot balances, dividend tallies,
+and bank account reconciliation to verify migration parity.
+
+Key Responsibilities:
+    • Cross-Database Comparison: Queries legacy SQLite database and active `stocks.db`/`bank.db`.
+    • Discrepancy Reporting: Outputs detailed differences in quantities, prices, or dates.
 """
 
 from pathlib import Path

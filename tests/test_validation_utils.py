@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_validation_utils.py
+"""
+Unit Tests for Financial Form Input Validation Utilities.
+
+This test suite verifies validation routines in `Shared.validation_utils` and
+`StockMan.validation_utils`, testing currency amounts, share quantities, and error mappings.
+
+Key Scenarios Tested:
+    • Positive numeric validation rejecting zero, negative numbers, and non-numeric strings.
+    • User-friendly error message generation for form feedback dialogs.
+"""
+
 import importlib
 import sys
 from pathlib import Path

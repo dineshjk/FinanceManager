@@ -2,29 +2,17 @@
 # BankMan/manage_cc.py
 
 """
-UI module for viewing and managing Credit Card master records and transactions.
+Credit Card Portfolio Dashboard & Outstanding Balance Monitor.
 
-Mirrors the structure and features of StockMan/trade_manager.py and
-BankMan/manage_bank.py:
-  • Sortable treeview (click any heading to toggle ascending/descending).
-  • Colour-coded rows.
-  • Edit Selected — placeholder (inline editing not yet implemented).
-  • Delete Selected — removes the row and cascades required changes.
-  • Close / Escape — safe modal teardown via safe_close_modal.
+This module provides a dashboard for tracking credit card limits, current billing cycle
+spends, available credit, payment due dates, and reward point balances.
 
-Two public functions are exposed:
+Key Responsibilities:
+    • Card Ledger Overview: Displays active credit cards, utilized limits, and upcoming dues.
+    • Quick Payment Actions: Allows initiating card payments directly from the dashboard.
 
-  show_cc_manager(parent, calling_button=None)
-      Displays all card_master rows.  Deleting a card is blocked when
-      cc_transactions reference it (ON DELETE RESTRICT in the schema).
-
-  show_cc_transactions_manager(parent, calling_button=None)
-      Displays all cc_transactions rows.  Deleting a row also:
-        1. Finds and removes the linked bank_transactions row
-           (module_type='CC', module_ref_id=cc_trans_id).
-        2. Nulls out pair_id on any transfer counterpart.
-        3. Recalculates balance_after for every subsequent row in the
-           same bank account so the running total stays correct.
+Key Functions:
+    • `show_manage_cc(parent)`: Launches the credit card management dashboard.
 """
 
 import tkinter as tk

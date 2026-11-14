@@ -2,18 +2,24 @@
 # StockMan/trade_add.py
 
 """
-trade_add.py
-----------------
+Primary Trade Entry Form for ICICI Direct & Standard Brokers.
 
-Modal window and helpers for adding trades to the StockMan application.
+This module provides the comprehensive manual trade entry interface for recording equity
+buy and sell executions through ICICI Direct and other traditional brokers.
 
-This module implements the interactive modal used to create and update
-trading contracts and associated transactions in the application's
-SQLite database. The primary entry point is the `add_trade(parent,
-calling_button)` function which builds a Toplevel dialog that guides the
-user through contract-level and trade-level fields, performs validation,
-and persists data to the `contracts`, `transactions` and related
-exchange tables.
+Key Responsibilities:
+    • Form Fields: Captures trade date, broker name, trade type (BUY / SELL), company ticker,
+      quantity, execution price, brokerage, Securities Transaction Tax (STT), stamp duty,
+      exchange transaction charges, SEBI fees, and GST.
+    • Net Settlement Computation: Automatically computes gross trade value, total statutory
+      charges, and net settlement debit/credit amount in real time.
+    • Automated Advice Matching: Upon saving a trade, immediately queries `advice_log` for
+      matching open recommendations, marking them as 'Fully Followed' or 'Partially Followed'.
+    • Automated Excel Sync: Calls `advice_tracker.update_portfolio_excel()` upon trade save,
+      refreshing 'StockMan_Portfolio.xlsx' and initiating asynchronous Google Drive backup.
+
+Key Functions:
+    • `show_trade_add_window(parent)`: Displays the primary trade entry modal dialog.
 """
 
 # Core imports

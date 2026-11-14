@@ -2,7 +2,16 @@
 # BankMan/banks_add.py
 
 """
-Module for adding new banks to the database.
+Financial Institution & Bank Master Registration Form.
+
+This module provides the form for adding new banking institutions to the `banks` master table.
+
+Key Responsibilities:
+    • Master Fields: Captures Bank Name, Short Code, IFSC prefix, MICR, and headquarters address.
+    • Uniqueness Check: Prevents duplicate bank registrations.
+
+Key Functions:
+    • `show_banks_add_window(parent)`: Displays the bank creation modal window.
 """
 
 from typing import Union

@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 # scripts/test_importer_ui.py
-"""Programmatic UI test for the importer modal.
+"""
+Graphical Migration Importer Launcher & Workflow Runner.
 
-Run this from the project root. It opens a hidden root Tk window and calls
-`trade_entry_from_file` twice; the second call should focus the existing
-modal and not create a second one.
+This script launches the Tkinter graphical user interface for the interactive data migration
+and statement importer tool.
 
-This is intended to be run on the same machine where the GUI is visible.
+Key Responsibilities:
+    • GUI Launcher: Spawns the interactive importer window, providing file choosers, progress bars,
+      and dry-run validation logs for non-technical users.
+    • Subsystem Coordination: Integrates with `Shared.window_manager` to safely run migrations
+      within the Universal Finance Manager application window hierarchy.
 """
 import sys
 import os

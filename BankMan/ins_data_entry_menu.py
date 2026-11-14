@@ -2,7 +2,16 @@
 # BankMan/ins_data_entry_menu.py
 
 """
-Insurance Data Entry menu for the BankMan application.
+Insurance Policy Data Entry Navigation Sub-Menu.
+
+This module provides the navigation menu for recording insurance premium payments,
+claim receipts, and policy renewals.
+
+Key Responsibilities:
+    • Navigation Hub: Provides choices for logging premium disbursements and claim settlements.
+
+Key Functions:
+    • `show_ins_data_entry_menu(parent)`: Opens the insurance data entry menu.
 """
 
 from Shared.menu_factory import create_menu_window

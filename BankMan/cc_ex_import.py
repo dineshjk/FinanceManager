@@ -1,37 +1,18 @@
 # -*- coding: utf-8 -*-
 # BankMan/cc_ex_import.py
 
-"""cc_ex_import.py
+"""
+Credit Card Master Data CSV/Excel Importer & Exporter.
 
-Export and import the ``card_master`` table (Credit Card master records).
+This module handles exporting and importing credit card master contracts (`card_master`).
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'CC'``::
+Key Responsibilities:
+    • Card Master Transfer: Backs up and restores credit card definitions and limits.
 
-    ('CC', bank_key, ac_number, card_name, card_number,
-           credit_limit, billing_cycle_day, is_active)
-
-``bank_key`` is the linked account's bank IFSC when non-NULL, otherwise the
-bank's ``name``.  Together with ``ac_number`` this uniquely identifies the
-linked account portably across databases (where ``account_id`` integers may
-differ).
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* **CC rows (``'CC'``)**: the linked account is resolved via
-  ``(bank_key, ac_number)``.  A row is skipped when a card with the same
-  ``card_number`` already exists (the unique constraint ``UNIQUE(card_number)``).
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_credit_cards.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_cc_master(filepath)`: Exports card master data.
+    • `import_cc_master(filepath)`: Imports card master data.
+    • `show_cc_ex_import(parent)`: Spawns the import/export dialog.
 """
 
 import ast

@@ -2,7 +2,20 @@
 # BankMan/fd_data_entry_menu.py
 
 """
-Fixed Deposit Data Entry menu for the BankMan application.
+Fixed Deposit Data Entry Navigation Sub-Menu.
+
+This module constructs the sub-menu for Fixed Deposit contract renewals, interest payouts,
+and closure transactions.
+
+Key Responsibilities:
+    • Menu Options:
+        - [A] Add FD Transaction: Record interest credits, TDS, or partial withdrawals.
+        - [C] Mature / Close FD: Record full closure and principal return to bank.
+        - [I] Import FD Data: Spreadsheet batch import.
+        - [X] Close Menu: Returns to main banking menu.
+
+Key Functions:
+    • `show_fd_data_entry_menu(parent)`: Constructs and opens the FD transaction menu.
 """
 
 from Shared.menu_factory import create_menu_window

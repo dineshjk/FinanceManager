@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Tests for Serial number auto-advancing when changing bank account in bank_transactions_add."""
+"""
+Unit Tests for Bank Transaction Serial Number Auto-Advancement.
+
+This test suite verifies that transaction serial numbers and cheque reference sequences
+auto-increment correctly and adjust gracefully when transactions are inserted or re-ordered.
+
+Key Scenarios Tested:
+    • Sequential serial number generation per financial year.
+    • Conflict resolution when inserting transactions with duplicate serial numbers.
+"""
 
 import tkinter as tk
 from tkinter import ttk

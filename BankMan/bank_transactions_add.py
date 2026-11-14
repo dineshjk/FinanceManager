@@ -2,7 +2,21 @@
 # BankMan/bank_transactions_add.py
 
 """
-Module for adding new bank transactions to the database.
+Primary Bank Passbook Double-Entry Transaction Form.
+
+This module provides the primary user interface for recording income, expense, and
+inter-account transfer movements in the central `bank_transactions` table.
+
+Key Responsibilities:
+    • Transaction Modes: Supports three primary transaction classes:
+        - Income: Credits bank account, assigns income budget head.
+        - Expense: Debits bank account, assigns expense budget head.
+        - Transfer: Atomically debits source account and credits destination account.
+    • Progressive Typeahead: Uses progressive comboboxes for swift account and category selection.
+    • Instant Balance Update: Commits transactions and updates live running balances immediately.
+
+Key Functions:
+    • `show_bank_transactions_add_window(parent)`: Spawns the passbook transaction entry window.
 """
 
 from datetime import date as _date, timedelta as _timedelta, datetime

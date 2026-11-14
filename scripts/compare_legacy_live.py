@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
 # scripts/compare_legacy_live.py
+"""
+Database Parity Auditor & Migration Verification Script.
+
+This administrative utility script compares records between a legacy SQLite database
+and the modern active database schema. It verifies that trade counts, holding balances,
+bank passbook movements, and corporate actions match 100% across both datasets.
+
+Key Responsibilities:
+    • Cross-Database Querying: Connects simultaneously to legacy and live SQLite databases.
+    • Parity Auditing: Computes checksums, row counts, and cumulative financial totals
+      to detect missing transactions or discrepancies introduced during migrations.
+    • Discrepancy Reporting: Outputs detailed summaries of any divergent rows.
+"""
+
 from pathlib import Path
 import sys
 

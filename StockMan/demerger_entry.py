@@ -2,10 +2,24 @@
 # StockMan/demerger_entry.py
 
 """
-This module handles Corporate Demergers.
-It allows for dynamic allocation of the parent company's invested
-capital to one or more newly spun-off child companies based on the
-official Cost of Acquisition (CoA) percentages.
+Corporate Demerger Form & Cost-Basis Apportionment Engine.
+
+This module implements the user interface and mathematical apportionment engine for
+recording corporate demergers (e.g. Reliance / Jio Financial Services demerger).
+
+Key Responsibilities:
+    • Acquisition Cost Ratio Apportionment: Implements official cost-basis apportionment
+      percentages between the parent company and spun-off child entity.
+    • Automatic Spun-Off Entity Creation: Automatically checks if the resulting entity
+      exists in the company master, prompting registration if missing, and credits
+      allotted shares based on the demerger allotment ratio.
+    • Cost Basis Adjustment: Proportionately reduces the cost basis of original parent shares
+      and allocates the carved-out cost basis to the new shares with original purchase dates.
+    • Multi-Lot Allocation: Automatically applies demerger adjustments across all historical
+      open purchase lots held as of the demerger record date.
+
+Key Functions:
+    • `show_demerger_entry(parent)`: Launches the demerger entry modal dialog.
 """
 
 from typing import Union

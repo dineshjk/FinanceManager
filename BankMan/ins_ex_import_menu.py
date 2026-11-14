@@ -2,8 +2,15 @@
 # BankMan/ins_ex_import_menu.py
 
 """
-Insurance Export / Import sub-menus for the BankMan application.
-Each function opens a 3-button sub-menu (Master | Transactions | Back).
+Insurance Batch Import & Export Navigation Menu.
+
+This module builds the sub-menu for transferring insurance master policies and premium logs.
+
+Key Responsibilities:
+    • Navigation Hub: Provides choices to transfer policy profiles and payment histories.
+
+Key Functions:
+    • `show_ins_ex_import_menu(parent)`: Spawns the insurance import/export menu.
 """
 
 from Shared.menu_factory import create_menu_window

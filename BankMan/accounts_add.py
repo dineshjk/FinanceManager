@@ -2,7 +2,20 @@
 # BankMan/accounts_add.py
 
 """
-Module for adding new accounts to the database.
+Bank Account Master Registration Form.
+
+This module provides the graphical entry form for creating new bank accounts in the
+`accounts` table, linking them to financial institutions defined in the `banks` table.
+
+Key Responsibilities:
+    • Form Fields: Captures account number, bank selection (combobox), account type
+      (Savings, Current, Overdraft, Cash Credit), branch, opening balance, and opening date.
+    • Validation: Enforces uniqueness of account numbers per bank, ensures valid positive
+      or zero opening balances, and validates ISO date formats (`YYYY-MM-DD`).
+    • Ledger Linkage: Automatically initializes the opening ledger balance in the bank passbook.
+
+Key Functions:
+    • `show_accounts_add_window(parent)`: Spawns the account creation modal window.
 """
 
 # pylint: disable=too-many-locals,too-many-statements,too-many-arguments,too-many-positional-arguments

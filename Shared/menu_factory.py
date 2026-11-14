@@ -2,10 +2,25 @@
 # Shared/menu_factory.py
 
 """
-Universal menu window factory for Tkinter/ttk GUIs.
+Universal Menu Window Factory for Tkinter & ttk Menus.
 
-Creates both modal (Toplevel) and main (Tk) windows with consistent
-navigation, hotkeys, and styling.
+This module provides a declarative menu creation engine that standardizes the construction,
+layout, visual styling, and hotkey bindings for all navigation screens in the application.
+It can instantiate both root application windows (`tk.Tk`) and modal sub-menus (`tk.Toplevel`).
+
+Key Features:
+    • Declarative Configuration: Menus are defined via clean configuration dictionaries
+      specifying titles, geometries, button lists, hotkeys, padding, and background themes.
+    • Hotkey Binding & Visual Formatting: Automatically parses hotkeys (e.g. `hotkey='S'`),
+      underlines the corresponding accelerator character in the button text, and binds both
+      uppercase and lowercase keypress events to trigger the associated callback.
+    • Modal & Window Stack Integration: Handles modal lifecycle via `Shared.modal_utils`
+      and `Shared.window_manager`, disabling parent menus and cleanly restoring them on exit.
+    • Background Artwork Support: Supports optional banner wallpaper and centering spacers
+      for hero images (e.g., custom dashboard pictures in `Pics/`).
+
+Key Functions:
+    • `create_menu_window(config)`: Builds and returns the configured Tkinter menu window.
 """
 
 import tkinter as tk

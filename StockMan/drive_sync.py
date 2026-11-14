@@ -2,20 +2,27 @@
 # StockMan/drive_sync.py
 
 """
-Google Drive integration and startup workflow for StockMan.
+Google Drive Cloud Synchronization Engine & Startup Workflow.
 
-This module implements the 5-step application startup sequence:
-  Step A (Read): Extract 'Current Appetite' and 'Cash Available for Investment'
-                 from StockMan_Portfolio.xlsx.
-  Step B (Prompt): Prompt user to confirm/edit these values via a dialog.
-  Step C (Write Excel): Write updated values back to StockMan_Portfolio.xlsx,
-                 generate Row 3 headers, and populate Row 4+ with live stock
-                 records from SQLite mystocks.db.
-  Step D (Drive Upload): Upload/overwrite StockMan_Portfolio.xlsx to Google Drive
-                 in the 'Finance' folder.
-  Step E (Drive Download): Search Google Drive 'Finance' folder for the latest
-                 'Pick_of_the_day_' file/doc, export/download it, and save it
-                 locally into data/ as a markdown/text file.
+This module manages automated, asynchronous cloud synchronization between the local
+Universal Finance Manager environment and Google Drive. It handles OAuth2 token
+management, file uploads/downloads, morning startup prompts, and portfolio workbook sync.
+
+Key Responsibilities:
+    • Google Drive API Integration: Manages Google Drive v3 REST API interactions, token
+      refresh, credential caching, and folder discovery/creation.
+    • Startup Workflow: Evaluates daily first-run triggers (resets at 8:00 AM daily),
+      prompting the user to fetch latest market prices and sync portfolio data.
+    • Background Asynchronous Sync: Executes network uploads and downloads on background
+      daemon threads to ensure that large file transfers never block or freeze the Tkinter UI.
+    • Portfolio Workbook Sync: Uploads 'StockMan_Portfolio.xlsx' (with 'Portfolio' and
+      'Advice_Log' sheets) whenever trades are saved, updated, or deleted.
+
+Key Functions:
+    • `sync_to_drive(...)`: Uploads files to the designated Google Drive folder.
+    • `sync_from_drive(...)`: Downloads remote backups from Google Drive.
+    • `check_and_prompt_morning_sync(root)`: Evaluates daily first-run prompt.
+    • `is_drive_available()`: Verifies cloud credentials and network connectivity.
 """
 
 import os
@@ -815,6 +822,8 @@ def build_portfolio_dataframe(
     return df[columns]
 
 
+_IS_SYNCING_ADVICE = False
+
 # -----------------------------------------------------------------------------
 # Step C: Write Updated Data Back to StockMan_Portfolio.xlsx
 # -----------------------------------------------------------------------------
@@ -824,6 +833,7 @@ def update_portfolio_excel(
     cash_available: Optional[float] = None,
     db_path: Optional[str] = None,
     df: Optional["pd.DataFrame"] = None,
+    sync_advice: bool = True,
 ) -> str:
     """
     Step C:
@@ -971,6 +981,23 @@ def update_portfolio_excel(
     # -----------------------------------------------------------------
     # Dedicated Sheet: Advice_Log
     # -----------------------------------------------------------------
+    # Auto-sync any un-synced Pick of the Day reports on disk into SQLite before populating Advice_Log
+    global _IS_SYNCING_ADVICE
+    is_default_target = (db_path == STOCK_DB_PATH or excel_path == PORTFOLIO_EXCEL_PATH)
+    if sync_advice and is_default_target and not _IS_SYNCING_ADVICE:
+        _IS_SYNCING_ADVICE = True
+        try:
+            from StockMan.advice_tracker import sync_all_pending_pick_of_the_day_advices
+            sync_all_pending_pick_of_the_day_advices(
+                db_path=db_path,
+                excel_path=excel_path,
+                trigger_drive_upload=False,
+            )
+        except Exception as _sync_err:
+            logger.debug(f"Advice sync before excel export notice: {_sync_err}")
+        finally:
+            _IS_SYNCING_ADVICE = False
+
     advice_rows = []
     if os.path.exists(db_path):
         conn = None
@@ -987,6 +1014,7 @@ def update_portfolio_excel(
                     SELECT advice_date, advice_text, status,
                            COALESCE(execution_date, ''), COALESCE(notes, '')
                     FROM advice_log
+                    WHERE advice_text NOT LIKE '%Daily Pick of the Day Recommendation%'
                     ORDER BY advice_date DESC, id_advice DESC
                 """
                 )

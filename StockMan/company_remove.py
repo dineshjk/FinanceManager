@@ -2,11 +2,22 @@
 # StockMan/company_remove.py
 
 """
-company_remove.py
------------------
+Secure Company Deletion & Dependency Verification Engine.
 
-Modal window and helpers for removing a company from the stocks table.
+This module provides the user interface and safety verification logic for removing
+companies from the master database.
 
+Key Responsibilities:
+    • Referential Integrity Check: Enforces strict foreign-key protection by querying
+      `trades`, `demergers`, `bonus_issues`, and `dividends` before allowing company deletion.
+    • Accidental Deletion Prevention: Prohibits deletion of any company that has ever had
+      trade executions or corporate actions, preserving permanent tax and audit histories.
+    • Safe Pruning: Permits deletion only for orphan company records created by mistake
+      that have zero dependent transactions.
+
+Key Functions:
+    • `show_company_remove_window(parent)`: Displays the company removal dialog with
+      live dependency auditing.
 """
 
 from typing import Union

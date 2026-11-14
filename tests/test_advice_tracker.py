@@ -2,7 +2,20 @@
 # tests/test_advice_tracker.py
 
 """
-Unit tests for StockMan AI Advice Tracking & Excel Export logic.
+Unit & Integration Tests for StockMan AI Advice Tracking & Excel Sync.
+
+This test suite thoroughly verifies the Advice Tracker system (`StockMan.advice_tracker`),
+testing database CRUD operations, Pick of the Day AI report parsing, execution status
+tracking ('Fully Followed', 'Partially Followed', 'Not Followed'), automatic trade
+matching, multi-sheet Excel generation, and Google Drive background synchronization.
+
+Key Scenarios Tested:
+    • Database schema creation, foreign keys, and indexes for `advice_log`.
+    • CRUD operations for advice entries and status updates.
+    • Automated trade matching with buy/sell orders and execution date recording.
+    • Pick of the Day regex parsing and structured field extraction.
+    • Dual-sheet Excel workbook export ('Portfolio' and 'Advice_Log').
+    • Google Drive upload triggers and error handling.
 """
 
 import os
@@ -350,7 +363,7 @@ def test_find_matching_advice_for_trade(temp_db):
         )
         assert match_partial is not None
         assert match_partial["id_advice"] == adv_id
-        assert match_partial["new_status"] == "Partially Followed"
+        assert match_partial["new_status"] == "Partially followed on 2026-10-28"
         assert match_partial["execution_date"] == "2026-10-28"
 
         # Case 2: Full match (buying 30 or more shares)
@@ -365,7 +378,7 @@ def test_find_matching_advice_for_trade(temp_db):
             },
         )
         assert match_full is not None
-        assert match_full["new_status"] == "Fully Followed"
+        assert match_full["new_status"] == "Fully followed on 2026-10-28"
 
         # Case 3: Direction mismatch (selling instead of buying)
         match_sell = advice_tracker.find_matching_advice_for_trade(
@@ -430,12 +443,12 @@ def test_auto_sync_trade_with_advice(temp_db):
     )
     assert res is not None
     assert res["matched"] is True
-    assert res["new_status"] == "Fully Followed"
+    assert res["new_status"] == "Fully followed on 2026-10-28"
     assert res["execution_date"] == "2026-10-28"
 
     # Check database status
     record = advice_tracker.get_advice_by_id(adv_id, db_path=temp_db)
-    assert record["status"] == "Fully Followed"
+    assert record["status"] == "Fully followed on 2026-10-28"
     assert record["execution_date"] == "2026-10-28"
     assert "Auto-matched with BUY 10" in record["notes"]
 
@@ -546,16 +559,16 @@ def test_auto_sync_trades_batch_with_advice(temp_db):
     )
     assert len(results) == 2
     assert results[0]["matched"] is True
-    assert results[0]["new_status"] == "Fully Followed"
+    assert results[0]["new_status"] == "Fully followed on 2026-10-28"
     assert results[1]["matched"] is True
-    assert results[1]["new_status"] == "Partially Followed"
+    assert results[1]["new_status"] == "Partially followed on 2026-10-28"
 
     rec_infy = advice_tracker.get_advice_by_id(adv_infy, db_path=temp_db)
-    assert rec_infy["status"] == "Fully Followed"
+    assert rec_infy["status"] == "Fully followed on 2026-10-28"
     assert rec_infy["execution_date"] == "2026-10-28"
 
     rec_itc = advice_tracker.get_advice_by_id(adv_itc, db_path=temp_db)
-    assert rec_itc["status"] == "Partially Followed"
+    assert rec_itc["status"] == "Partially followed on 2026-10-28"
     assert rec_itc["execution_date"] == "2026-10-28"
 
 
@@ -729,7 +742,438 @@ def test_hcltech_rebalancing_trade_automatch(temp_db):
         assert matched is not None
         assert matched["id_advice"] == adv_id
         assert matched["target_qty"] == 34.0
-        assert matched["new_status"] == "Fully Followed"
+        assert matched["new_status"] == "Fully followed on 2026-11-04"
     finally:
         conn.close()
+
+
+def test_extract_machine_advice_table_delimiters():
+    """
+    Verify that extract_machine_advice_table extracts ONLY the table
+    between [BEGIN_MACHINE_ADVICE] and [END_MACHINE_ADVICE] and ignores
+    conversational text, sector balance tables, and full portfolio tables.
+    """
+    report = """# 🏆 Daily Pick of the Day — Universe & Portfolio Intelligence Report
+
+Here is some conversational text praising the market and explaining macroeconomic conditions.
+
+## Market Snapshot & Sector Balance
+
+| Sector | Invested Value (INR) | Weight (%) | Status | Rebalancing Advice |
+| :---- | :---- | :---- | :---- | :---- |
+| IT & Tech | ₹105,195.69 | 9.5% | UNDER-INVESTED | Priority sector for cash. |
+| Defense | ₹210,000.00 | 18.9% | OVERWEIGHT | Trim exposure on spikes. |
+
+More conversational text before the actionable advice table.
+
+[BEGIN_MACHINE_ADVICE]
+| Date | Ticker | Action | Quantity | Target_Price | Status |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| 2026-11-09 | HDFCBANK | BUY | 30 | CMP (~1,720.00) | Pending |
+[END_MACHINE_ADVICE]
+
+## Full Portfolio Overview
+
+| Ticker | Shares | CMP | Value |
+| :---- | :---- | :---- | :---- |
+| TCS | 50 | 3500 | 175000 |
+
+Closing notes and disclaimer text.
+"""
+    table_text = advice_tracker.extract_machine_advice_table(report)
+    assert table_text is not None
+    assert "HDFCBANK" in table_text
+    assert "IT & Tech" not in table_text
+    assert "Full Portfolio Overview" not in table_text
+    assert "TCS" not in table_text
+
+    rows = advice_tracker.parse_machine_advice_rows(table_text)
+    assert len(rows) == 1
+    assert rows[0]["ticker"] == "HDFCBANK"
+    assert rows[0]["action"] == "BUY"
+    assert rows[0]["quantity"] == 30.0
+    assert "1,720.00" in rows[0]["target_price"]
+    assert rows[0]["status"] == "Pending"
+
+    parsed = advice_tracker.parse_advice_from_pick_of_the_day(report)
+    assert parsed["advice_date"] == "2026-11-09"
+    assert parsed["ticker"] == "HDFCBANK"
+    assert "BUY 30 shares of HDFCBANK" in parsed["advice_text"]
+    assert "IT & Tech" not in parsed["advice_text"]
+
+
+def test_machine_advice_multiple_rows():
+    """Verify parsing multiple actionable items between delimiters."""
+    report = """[BEGIN_MACHINE_ADVICE]
+| Date | Ticker | Action | Quantity | Target_Price | Status | Notes |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| 2026-11-09 | HDFCBANK | BUY | 20 | CMP (~1,700) | Pending | Funnel fresh cash |
+| 2026-11-09 | IOC | SELL | 50 | CMP (~135) | Pending | Exit non-core holding |
+[END_MACHINE_ADVICE]"""
+    parsed = advice_tracker.parse_advice_from_pick_of_the_day(report)
+    assert len(parsed.get("all_advices", [])) == 2
+    assert parsed["all_advices"][0]["ticker"] == "HDFCBANK"
+    assert parsed["all_advices"][0]["action"] == "BUY"
+    assert parsed["all_advices"][1]["ticker"] == "IOC"
+    assert parsed["all_advices"][1]["action"] == "SELL"
+
+
+def test_status_vocabulary_validation():
+    """
+    Verify validation logic for new expanded status vocabulary:
+      - Pending
+      - Fully followed on YYYY-MM-DD
+      - Partially followed on YYYY-MM-DD
+      - Not followed
+      - To be followed after [Condition]
+    """
+    valid_statuses = [
+        "Pending",
+        "Fully followed on 2026-11-09",
+        "Partially followed on 2026-11-09",
+        "Not followed",
+        "To be followed after [Nifty reaches 24,500]",
+        "To be followed after Q3 earnings report",
+        # Legacy backwards compatibility
+        "Fully Followed",
+        "Partially Followed",
+        "Not Followed",
+    ]
+    for st in valid_statuses:
+        assert advice_tracker.is_valid_advice_status(st) is True, f"Expected {st} to be valid"
+
+    invalid_statuses = [
+        "",
+        None,
+        "Done",
+        "Ignored",
+        "Cancelled",
+        "In Progress",
+        "Completed",
+        "Fully followed",  # Missing date
+        "Partially followed",  # Missing date
+        "Fully followed on tomorrow",  # Invalid date
+    ]
+    for st in invalid_statuses:
+        assert advice_tracker.is_valid_advice_status(st) is False, f"Expected {st} to be invalid"
+
+    # Test condition extractor
+    assert advice_tracker.extract_condition_from_status("To be followed after [Dip to ₹1,400]") == "Dip to ₹1,400"
+    assert advice_tracker.extract_condition_from_status("To be followed after earnings release") == "earnings release"
+    assert advice_tracker.extract_condition_from_status("Pending") is None
+    assert advice_tracker.extract_condition_from_status("Fully followed on 2026-11-09") is None
+
+
+def test_add_and_update_with_new_vocabulary(temp_db):
+    """Verify adding advice with Pending and cycling through new status vocabulary."""
+    # 1. Add advice with default status (Pending)
+    adv_id = advice_tracker.add_advice(
+        advice_date="2026-11-09",
+        advice_text="BUY 20 shares of HDFCBANK",
+        status="Pending",
+        db_path=temp_db,
+    )
+    rec = advice_tracker.get_advice_by_id(adv_id, db_path=temp_db)
+    assert rec["status"] == "Pending"
+
+    # 2. Update to Conditional status
+    advice_tracker.update_advice_status(
+        adv_id,
+        status="To be followed after [Price drops below 1,680]",
+        db_path=temp_db,
+    )
+    rec = advice_tracker.get_advice_by_id(adv_id, db_path=temp_db)
+    assert rec["status"] == "To be followed after [Price drops below 1,680]"
+
+    # 3. Update to Partially followed
+    advice_tracker.update_advice_status(
+        adv_id,
+        status="Partially followed on 2026-11-10",
+        execution_date="2026-11-10",
+        db_path=temp_db,
+    )
+    rec = advice_tracker.get_advice_by_id(adv_id, db_path=temp_db)
+    assert rec["status"] == "Partially followed on 2026-11-10"
+    assert rec["execution_date"] == "2026-11-10"
+
+    # 4. Update to Fully followed
+    advice_tracker.update_advice_status(
+        adv_id,
+        status="Fully followed on 2026-11-11",
+        execution_date="2026-11-11",
+        db_path=temp_db,
+    )
+    rec = advice_tracker.get_advice_by_id(adv_id, db_path=temp_db)
+    assert rec["status"] == "Fully followed on 2026-11-11"
+    assert rec["execution_date"] == "2026-11-11"
+
+    # 5. Update to Not followed
+    advice_tracker.update_advice_status(
+        adv_id,
+        status="Not followed",
+        execution_date=None,
+        db_path=temp_db,
+    )
+    rec = advice_tracker.get_advice_by_id(adv_id, db_path=temp_db)
+    assert rec["status"] == "Not followed"
+
+    # 6. Attempt invalid status raises ValueError
+    with pytest.raises(ValueError):
+        advice_tracker.update_advice_status(adv_id, status="Invalid Status", db_path=temp_db)
+
+
+def test_automatch_handles_pending_and_conditional(temp_db):
+    """
+    Verify auto-matching correctly finds candidates that are in 'Pending' or
+    'To be followed after...' status and updates them to 'Fully followed on YYYY-MM-DD'.
+    """
+    conn = sqlite3.connect(temp_db)
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS stocks (
+                id_stk INTEGER PRIMARY KEY,
+                stk_code TEXT,
+                short_name TEXT,
+                company_name TEXT,
+                ticker TEXT,
+                curr_avg_price REAL,
+                buy_qty INTEGER,
+                sell_qty INTEGER
+            )
+        """)
+        conn.execute("""
+            INSERT INTO stocks (id_stk, stk_code, short_name, company_name, ticker)
+            VALUES (401, 'KOTAKBANK', 'Kotak Bank', 'Kotak Mahindra Bank Ltd', 'KOTAKBANK.NS')
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+    adv_id = advice_tracker.add_advice(
+        advice_date="2026-11-08",
+        advice_text="BUY 10 shares of KOTAKBANK at CMP",
+        status="To be followed after [Support level holds]",
+        db_path=temp_db,
+    )
+
+    trade_info = {
+        "id_stk": 401,
+        "company_name": "Kotak Mahindra Bank Ltd",
+        "trade_type_trd": "BUY",
+        "qty_trd": 10,
+        "trd_dt": "2026-11-09",
+    }
+
+    res = advice_tracker.auto_sync_trade_with_advice(trade_info, db_path=temp_db, trigger_drive_upload=False)
+    assert res["matched"] is True
+    assert res["new_status"] == "Fully followed on 2026-11-09"
+
+    rec = advice_tracker.get_advice_by_id(adv_id, db_path=temp_db)
+    assert rec["status"] == "Fully followed on 2026-11-09"
+    assert rec["execution_date"] == "2026-11-09"
+
+
+def test_execute_advice_ledger_update_buy_and_sell(temp_db):
+    """
+    Verify that execute_advice_ledger_update:
+      - Deducts cash when executing a BUY advice.
+      - Adds cash when executing a SELL advice.
+      - Properly updates StockMan_Portfolio.xlsx.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+        xlsx_path = tmp.name
+
+    try:
+        # Create Excel workbook with 100,000 cash
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Portfolio"
+        ws.cell(1, 1, "Current Appetite")
+        ws.cell(1, 2, 2000000.0)
+        ws.cell(2, 1, "Cash Available for Investment")
+        ws.cell(2, 2, 100000.0)
+        wb.save(xlsx_path)
+        wb.close()
+
+        # 1. Test BUY advice: 20 shares at CMP 1,500 (Total 30,000)
+        adv_buy = advice_tracker.add_advice(
+            "2026-11-09",
+            "BUY 20 shares of HDFCBANK at CMP (~₹1,500)",
+            status="Pending",
+            db_path=temp_db,
+        )
+        res_buy = advice_tracker.execute_advice_ledger_update(
+            advice_id=adv_buy,
+            actual_qty=20,
+            execution_date="2026-11-09",
+            db_path=temp_db,
+            excel_path=xlsx_path,
+        )
+        assert res_buy["success"] is True
+        assert res_buy["action"] == "BUY"
+        # Cash should be 100,000 - 30,000 = 70,000
+        assert res_buy["new_cash"] == 70000.0
+
+        app, cash = drive_sync.read_investment_parameters(xlsx_path)
+        assert cash == 70000.0
+
+        # 2. Test SELL advice: 10 shares at CMP 2,000 (Total 20,000)
+        adv_sell = advice_tracker.add_advice(
+            "2026-11-09",
+            "SELL 10 shares of RELIANCE at CMP (~₹2,000)",
+            status="Pending",
+            db_path=temp_db,
+        )
+        res_sell = advice_tracker.execute_advice_ledger_update(
+            advice_id=adv_sell,
+            actual_qty=10,
+            execution_date="2026-11-09",
+            db_path=temp_db,
+            excel_path=xlsx_path,
+        )
+        assert res_sell["success"] is True
+        assert res_sell["action"] == "SELL"
+        # Cash should be 70,000 + 20,000 = 90,000
+        assert res_sell["new_cash"] == 90000.0
+
+        app, cash = drive_sync.read_investment_parameters(xlsx_path)
+        assert cash == 90000.0
+
+    finally:
+        if os.path.exists(xlsx_path):
+            os.remove(xlsx_path)
+
+
+def test_cleanup_placeholder_advices(temp_db):
+    """
+    Verify cleanup_placeholder_advices removes rows with 'Daily Pick of the Day Recommendation'
+    and preserves actual recommendations.
+    """
+    # Direct insert placeholders to bypass ensure_advice_log_table cleaning
+    conn = sqlite3.connect(temp_db)
+    conn.execute(
+        "INSERT INTO advice_log (advice_date, advice_text, status) VALUES (?, ?, ?)",
+        ("2026-11-09", "Daily Pick of the Day Recommendation (2026-11-09)", "Pending"),
+    )
+    conn.execute(
+        "INSERT INTO advice_log (advice_date, advice_text, status) VALUES (?, ?, ?)",
+        ("2026-11-08", "Daily Pick of the Day Recommendation (2026-11-08)", "Pending"),
+    )
+    conn.execute(
+        "INSERT INTO advice_log (advice_date, advice_text, status) VALUES (?, ?, ?)",
+        ("2026-11-09", "BUY 30 HDFCBANK", "Pending"),
+    )
+    conn.commit()
+
+    count_before = conn.execute("SELECT COUNT(*) FROM advice_log").fetchone()[0]
+    conn.close()
+    assert count_before == 3
+
+    deleted_count = advice_tracker.cleanup_placeholder_advices(db_path=temp_db)
+    assert deleted_count == 2
+
+    conn = sqlite3.connect(temp_db)
+    count_after = conn.execute("SELECT COUNT(*) FROM advice_log").fetchone()[0]
+    conn.close()
+    assert count_after == 1
+
+    all_after = advice_tracker.get_all_advices(db_path=temp_db)
+    assert len(all_after) == 1
+    assert all_after[0]["advice_text"] == "BUY 30 HDFCBANK"
+
+
+def test_markdown_escaped_delimiters_and_table_closing():
+    """
+    Verify delimiter parsing succeeds even when LLM markdown output has
+    backslash escapes (e.g. \\[BEGIN\\_MACHINE\\_ADVICE\\]) and closing tag
+    inside table pipe syntax (| \\[END\\_MACHINE\\_ADVICE\\] | | |).
+    """
+    sample_text = """
+## Some Conversational Heading
+
+Here is analysis text discussing market conditions.
+
+\\[BEGIN\\_MACHINE\\_ADVICE\\]
+
+| Date | Ticker | Action | Quantity | Target\\_Price | Status |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| 2026-11-09 | BHEL | SELL | 50 | CMP (\\~422.95) | Pending |
+| \\[END\\_MACHINE\\_ADVICE\\] |  |  |  |  |  |
+
+## Follow up analysis
+"""
+    extracted_table = advice_tracker.extract_machine_advice_table(sample_text)
+    assert extracted_table is not None
+    assert "BHEL" in extracted_table
+    assert "SELL" in extracted_table
+
+    parsed = advice_tracker.parse_advice_from_pick_of_the_day(sample_text)
+    assert parsed["advice_date"] == "2026-11-09"
+    assert parsed["ticker"] == "BHEL"
+    assert parsed["action"] == "SELL"
+    assert parsed["quantity"] == 50.0
+    assert "SELL 50 shares of BHEL" in parsed["advice_text"]
+    assert parsed["status"] == "Pending"
+
+
+def test_auto_sync_pick_of_the_day_file_writes_to_excel_without_manual_update(temp_db):
+    """
+    Verify that update_portfolio_excel automatically syncs any un-synced markdown
+    report from disk into SQLite and writes it to StockMan_Portfolio.xlsx
+    without requiring any manual user interaction.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    md_path = os.path.join(tmp_dir, "Pick_of_the_day_2026-11-09.md")
+    xlsx_tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    xlsx_path = xlsx_tmp.name
+    xlsx_tmp.close()
+
+    try:
+        # Write markdown report with escaped delimiters
+        with open(md_path, "w", encoding="utf-8") as f_md:
+            f_md.write("""# 🏆 Daily Pick of the Day — 2026-11-09
+
+\\[BEGIN\\_MACHINE\\_ADVICE\\]
+
+| Date | Ticker | Action | Quantity | Target\\_Price | Status |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| 2026-11-09 | BHEL | SELL | 50 | CMP (\\~422.95) | Pending |
+| \\[END\\_MACHINE\\_ADVICE\\] |  |  |  |  |  |
+""")
+
+        # Call sync_all_pending_pick_of_the_day_advices pointing to tmp_dir
+        res = advice_tracker.sync_all_pending_pick_of_the_day_advices(
+            search_dirs=[tmp_dir],
+            db_path=temp_db,
+            excel_path=xlsx_path,
+            trigger_drive_upload=False,
+        )
+        assert len(res) == 1
+        assert res[0]["advice_date"] == "2026-11-09"
+        assert "SELL 50 shares of BHEL" in res[0]["advice_text"]
+
+        # Verify directly in SQLite
+        db_rows = advice_tracker.get_all_advices(db_path=temp_db)
+        assert len(db_rows) == 1
+        assert "SELL 50 shares of BHEL" in db_rows[0]["advice_text"]
+        assert db_rows[0]["status"] == "Pending"
+
+        # Verify directly in Excel file sheet 'Advice_Log'
+        wb = openpyxl.load_workbook(xlsx_path, data_only=True)
+        assert "Advice_Log" in wb.sheetnames
+        ws_adv = wb["Advice_Log"]
+        assert ws_adv.cell(row=2, column=1).value == "2026-11-09"
+        assert "SELL 50 shares of BHEL" in ws_adv.cell(row=2, column=2).value
+        assert ws_adv.cell(row=2, column=3).value == "Pending"
+        wb.close()
+    finally:
+        if os.path.exists(md_path):
+            os.remove(md_path)
+        if os.path.isdir(tmp_dir):
+            try:
+                os.rmdir(tmp_dir)
+            except Exception:
+                pass
+        if os.path.exists(xlsx_path):
+            os.remove(xlsx_path)
 

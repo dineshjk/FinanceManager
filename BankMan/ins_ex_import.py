@@ -1,38 +1,19 @@
 # -*- coding: utf-8 -*-
 # BankMan/ins_ex_import.py
 
-"""ins_ex_import.py
+"""
+Insurance Policy Master CSV/Excel Importer & Exporter.
 
-Export and import the ``ins_master`` table (INS master records).
+This module manages bulk export and import operations for insurance policy contracts (`ins_master`).
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'INS'``::
+Key Responsibilities:
+    • Policy Data Transfer: Ingests and serializes policy numbers, insurers, sum assured,
+      premium schedules, and coverage types.
 
-    ('INS', bank_key, ac_number, policy_number, company_name,
-            start_dt, maturity_dt, is_active)
-
-``bank_key`` is the linked account's bank IFSC when non-NULL, otherwise the
-bank's ``name``.  Together with ``ac_number`` this uniquely identifies the
-linked account portably across databases.  ``policy_number`` (UNIQUE on
-``ins_master``) is used as the portable INS identifier for transaction rows.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* **INS rows (``'INS'``)**: the linked account is resolved via
-  ``(bank_key, ac_number)``.  A row is skipped when a INS account with the
-  same ``policy_number`` already exists
-  (the unique constraint ``UNIQUE(policy_number)``).
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_ins_master.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_ins_master(filepath)`: Exports insurance policy profiles.
+    • `import_ins_master(filepath)`: Ingests insurance policy profiles.
+    • `show_ins_ex_import(parent)`: Launches the insurance import/export dialog.
 """
 
 import ast

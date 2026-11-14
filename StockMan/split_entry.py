@@ -2,8 +2,21 @@
 # StockMan/split_entry.py
 
 """
-This module handles the management of Stock Splits
-within the stock portfolio.
+Corporate Action Handler for Stock Splits & Consolidations.
+
+This module provides the interface and calculation engine for processing stock splits
+(e.g. 1 share of ₹10 face value split into 5 shares of ₹2 face value) and reverse share
+consolidations.
+
+Key Responsibilities:
+    • Split Multiplier Calculation: Multiplies existing share counts by the split ratio (e.g. 1:5).
+    • Cost Basis Adjustment: Proportionately divides the acquisition price per share by the split
+      factor, ensuring that total invested capital remains identical before and after the event.
+    • Historical Lot Updating: Updates purchase lot records chronologically to preserve accurate
+      FIFO matching for future sell trades.
+
+Key Functions:
+    • `show_split_entry(parent)`: Displays the stock split recording dialog.
 """
 
 from typing import Union

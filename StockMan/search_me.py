@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
 # StockMan/search_me.py
+"""
+Archive & Document Search Utility.
+
+This module provides high-speed text search capabilities across compressed archives,
+statement zips, and historical text logs stored in the local file repository.
+
+Key Responsibilities:
+    • Compressed File Search: Searches for keywords, ticker symbols, or dates inside ZIP archives
+      without requiring full extraction to disk.
+
+Key Functions:
+    • `search_text_in_zips(directory, search_term)`: Scans zip files for target text patterns.
+"""
+
 import os
 import zipfile
 

@@ -1,7 +1,17 @@
 # -*- coding: utf-8 -*-
 # tests/test_pick_of_the_day.py
 
-"""Tests for Pick of the Day AI analysis feature."""
+"""
+Unit & Mock Tests for Daily AI Pick of the Day Recommendations.
+
+This test suite verifies the generation, cleaning, parsing, and logging of the daily AI
+"Pick of the Day" in `StockMan.ai_analyzer` and `StockMan.advice_tracker`.
+
+Key Scenarios Tested:
+    • Mock Gemini response ingestion and structured parameter extraction.
+    • Ticker, entry range, stop-loss, and target price parsing.
+    • Logging into SQLite `advice_log` and status initialization.
+"""
 
 import sqlite3
 import tkinter as tk

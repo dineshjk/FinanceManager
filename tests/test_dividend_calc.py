@@ -1,4 +1,16 @@
 # -*- coding: utf-8 -*-
+"""
+Unit Tests for Dividend Mathematics, Yields, & Bank Integration.
+
+This test suite verifies dividend calculations in `StockMan.dividend` and `StockMan.trade_utils`,
+testing gross amounts, annualized dividend yields, and bank ledger reconciliation.
+
+Key Scenarios Tested:
+    • Per-share dividend rate multiplied by holding quantity as of record date.
+    • Annualized dividend yield calculation relative to original purchase cost.
+    • Automatic creation of matching cash credit entries in BankMan passbook tables.
+"""
+
 import tkinter as tk
 import unittest
 

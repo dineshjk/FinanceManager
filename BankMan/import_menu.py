@@ -2,8 +2,17 @@
 # BankMan/import_menu.py
 
 """
-Import Data menu for the BankMan application.
-Provides navigation to module-specific import sub-menus.
+Central Data Import Hub for BankMan.
+
+This module constructs the central import navigation menu for ingesting external financial
+spreadsheets across all banking and sub-ledger domains.
+
+Key Responsibilities:
+    • Import Categories: Houses entry points for importing Banks, Accounts, Categories,
+      Passbook Statements, FDs, Credit Cards, Loans, PPF, Insurance, and Mutual Funds.
+
+Key Functions:
+    • `show_import_menu(parent)`: Launches the central import menu window.
 """
 
 from Shared.menu_factory import create_menu_window

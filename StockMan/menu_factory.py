@@ -2,10 +2,14 @@
 # StockMan/menu_factory.py
 
 """
-Universal menu window factory for Tkinter/ttk GUIs.
+StockMan Subsystem Menu Factory Wrapper.
 
-Creates both modal (Toplevel) and main (Tk) windows with consistent
-navigation, hotkeys, and styling.
+This module provides a subsystem-specific wrapper around `Shared.menu_factory` ensuring
+that all StockMan menus adhere to uniform geometry, palettes, button fonts, and hotkey rules.
+
+Key Responsibilities:
+    • Subsystem Menu Standardization: Injects StockMan theme defaults (`UI_THEME`),
+      standard button widths, and status bar configurations into `create_menu_window`.
 """
 
 import tkinter as tk

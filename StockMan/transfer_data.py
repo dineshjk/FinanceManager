@@ -2,17 +2,20 @@
 # StockMan/transfer_data.py
 
 """
-Module for calculating and exporting discrepant holding data for shares
-transferred to Zerodha from ICICI Securities.
+Inter-Broker Share Transfer Calculator & Discrepancy Manager.
 
-Performs FIFO (First-In, First-Out) matching for each scrip using transactions
-originating from ICICI Securities (including corporate actions like bonuses,
-splits, mergers, demerger allotments, and rights/IPO allotments), while
-excluding shares purchased directly through Zerodha (contract numbers starting
-with 'CNT-26/27').
+This module calculates cost basis and holding quantities for shares transferred between
+depository accounts / brokers (e.g. transferring holdings from ICICI Direct to Zerodha).
 
-Outputs the remaining open buy lots and their summary average buy price to
-an Excel spreadsheet located at data/transfer_stocks.xlsx.
+Key Responsibilities:
+    • Transfer Cost Basis: Calculates accurate weighted-average acquisition prices and
+      preserves historical acquisition dates for transferred holdings to comply with Zerodha
+      discrepancy resolution rules.
+    • Holding Export: Exports transferred holding details into spreadsheet formats accepted
+      by broker discrepancy portals.
+
+Key Functions:
+    • `show_transfer_data_window(parent)`: Displays the inter-broker transfer manager dialog.
 """
 
 import os

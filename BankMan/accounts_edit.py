@@ -2,30 +2,19 @@
 # BankMan/accounts_edit.py
 
 """
-Edit form for the ``accounts`` master table.
+Bank Account Master Record Editor.
 
-Opened from the BankMan data-entry menu when the user clicks
-"Edit Account".  Presents a two-panel layout:
+This module provides the editing dialog for modifying existing bank account parameters
+in the `accounts` table.
 
-* **Top panel** — sortable treeview of every account (bank, type,
-  number, opening date, balance, status).  Click a row to load it
-  into the edit form; double-click also triggers load.
+Key Responsibilities:
+    • Record Modification: Allows editing account nicknames, branch details, account type,
+      and overdraft limits while safeguarding primary account identifier integrity.
+    • Integrity Checks: Prohibits destructive changes to account numbers that have linked
+      passbook transaction records.
 
-* **Bottom panel** — form with all editable fields pre-populated
-  from the selected row.  Save validates the input and persists the
-  change via ``db_update_account``.
-
-Fields exposed
---------------
-Bank (combobox), Account Type (combobox), Account Number (Entry),
-Opening Date (DateEntry), Current Balance (Entry),
-Balance Date (DateEntry), Joint Account (checkbox), Active (checkbox).
-
-Theme
------
-``ACCOUNTS_EDIT_UI_THEME`` — warm coral / terracotta — is the visual
-complement of ``ACCOUNTS_ADD_UI_THEME`` (deep navy blue), so edit and
-add windows are immediately distinguishable at a glance.
+Key Functions:
+    • `show_accounts_edit_window(parent, account_id)`: Displays the account editor dialog.
 """
 
 from datetime import datetime

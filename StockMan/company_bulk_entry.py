@@ -3,11 +3,21 @@
 # File:
 
 """
-Bulk entry of company data into the stocks table with progress UI and
-modal management.
+High-Throughput Batch Company Entry & Spreadsheet Ingestion.
 
-This module provides a GUI for bulk inserting company records, using
-centralized modal window management (disable_parent/enable_parent).
+This module provides a grid-based and multi-line batch entry interface for rapidly
+importing multiple companies into the `stocks` database simultaneously.
+
+Key Responsibilities:
+    • Multi-Row Data Grid: Allows users to paste or type multiple stock tickers, names,
+      ISINs, and sectors in a single batch session.
+    • Real-Time Row Validation: Validates each row individually, highlighting errors
+      (e.g. duplicate tickers, malformed ISINs) while preserving valid rows for bulk commit.
+    • Atomic Database Commit: Commits all validated company entries within a single SQLite
+      transaction to ensure database consistency.
+
+Key Functions:
+    • `show_company_bulk_entry(parent)`: Displays the bulk company entry interface.
 """
 
 # import re

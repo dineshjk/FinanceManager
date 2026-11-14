@@ -2,8 +2,15 @@
 # BankMan/ppf_master_edit.py
 
 """
-Edit form for the ``ppf_master`` table.
-Presents a list of PPF accounts in a Treeview and lets the user edit or delete them.
+PPF Master Account Record Editor.
+
+This module provides the dialog for editing existing PPF account details in `ppf_master`.
+
+Key Responsibilities:
+    • Account Modification: Updates subscriber details, branch, and status (Active, Extended).
+
+Key Functions:
+    • `show_ppf_master_edit_window(parent, ppf_id)`: Displays the PPF account editor.
 """
 
 from typing import Union

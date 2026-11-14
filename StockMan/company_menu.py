@@ -4,13 +4,24 @@
 
 
 """
-Company management menu window for the Stock Portfolio Management System.
+Navigation Menu for Company Management Operations.
 
-Provides access to:
-- Add Company
-- Update Company
-- Remove Company
-- Bulk Entry Company
+This module constructs the Company Management sub-menu window, serving as the central
+hub for all operations related to listed company profiles and master data.
+
+Key Responsibilities:
+    • Navigation Actions: Provides hotkey-enabled buttons for:
+        - [A] Add New Company: Single company registration form.
+        - [U] Update Company: Edit existing company profiles.
+        - [B] Bulk Company Entry: Rapid spreadsheet batch ingestion.
+        - [R] Remove Company: Safe deletion of untraded company profiles.
+        - [E] Import/Export Companies: CSV and Excel master data transfer.
+        - [X] Close Menu: Return to main StockMan menu.
+    • Modal Stack Integration: Integrates with `Shared.window_manager` and
+      `Shared.modal_utils` to ensure seamless window focus and keyboard navigation.
+
+Key Functions:
+    • `show_company_menu(parent)`: Constructs and displays the Company Management menu.
 """
 
 # import tkinter as tk

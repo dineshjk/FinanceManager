@@ -2,29 +2,17 @@
 # BankMan/manage_fd.py
 
 """
-UI module for viewing and managing Fixed Deposit master records and transactions.
+Fixed Deposit Portfolio Dashboard & Maturity Tracker.
 
-Mirrors the structure and features of StockMan/trade_manager.py and
-BankMan/manage_bank.py:
-  • Sortable treeview (click any heading to toggle ascending/descending).
-  • Colour-coded rows.
-  • Edit Selected — placeholder (inline editing not yet implemented).
-  • Delete Selected — removes the row and cascades required changes.
-  • Close / Escape — safe modal teardown via safe_close_modal.
+This module provides a comprehensive overview of all active and matured Fixed Deposits,
+calculating accrued interest, maturity dates, and renewal timelines.
 
-Two public functions are exposed:
+Key Responsibilities:
+    • FD Portfolio Grid: Lists FDs with principal, interest rate, maturity value, and tenure.
+    • Maturity Alerts: Highlights deposits approaching maturity within 30 days.
 
-  show_fd_manager(parent, calling_button=None)
-      Displays all fd_master rows.  Deleting an FD is blocked when
-      fd_transactions reference it (ON DELETE RESTRICT in the schema).
-
-  show_fd_transactions_manager(parent, calling_button=None)
-      Displays all fd_transactions rows.  Deleting a row also:
-        1. Finds and removes the linked bank_transactions row
-           (module_type='FD', module_ref_id=fd_trans_id).
-        2. Nulls out pair_id on any transfer counterpart.
-        3. Recalculates balance_after for every subsequent row in the
-           same bank account so the running total stays correct.
+Key Functions:
+    • `show_manage_fd(parent)`: Launches the Fixed Deposit management dashboard.
 """
 
 import tkinter as tk

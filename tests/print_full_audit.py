@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/print_full_audit.py
+"""
+Exhaustive Discrepancy & Transaction Audit Report Generator.
+
+This script performs a deep, comprehensive audit of every record across all tables,
+outputting an exhaustive line-by-line report of all data points and link states.
+
+Key Responsibilities:
+    • Deep Record Comparison: Compares every field across matched records.
+    • Detailed Log Output: Generates comprehensive audit logs for compliance review.
+"""
+
 from pathlib import Path
 import json
 import glob

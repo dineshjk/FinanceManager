@@ -1,39 +1,18 @@
 # -*- coding: utf-8 -*-
 # BankMan/ppf_transactions_ex_import.py
 
-"""ppf_transactions_ex_import.py
+"""
+PPF Transaction CSV/Excel Importer & Exporter.
 
-Export and import the ``ppf_transactions`` table (PPF transactions).
+This module handles batch exporting and importing of PPF transaction ledgers.
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'PPFT'``::
+Key Responsibilities:
+    • Ledger Transfer: Ingests and serializes historical PPF deposits and interest credits.
 
-    ('PPFT', ppf_account_number, ppf_trans_dt, ppf_description,
-             ppf_saving, ppf_withdrawal, ppf_balance)
-
-``ppf_account_number`` (UNIQUE on ``ppf_master``) identifies the parent PPF
-account portably across databases.  ``account_id`` is derived from the
-ppf_master record and is never stored in the file.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* The parent PPF account is resolved by ``ppf_account_number``; the row is
-  skipped when the account is not found.  ``account_id`` is taken from the
-  ppf_master record.
-* Duplicate detection uses
-  ``(ppf_master_id, ppf_trans_dt, ppf_saving, ppf_withdrawal, ppf_balance)``
-  ; a matching row is skipped.
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_ppf_transactions.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_ppf_transactions(filepath)`: Exports PPF transaction ledgers.
+    • `import_ppf_transactions(filepath)`: Ingests PPF transaction ledgers.
+    • `show_ppf_transactions_ex_import(parent)`: Displays the import/export GUI.
 """
 
 import ast

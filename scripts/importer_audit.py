@@ -1,9 +1,17 @@
 # -*- coding: utf-8 -*-
 # scripts/importer_audit.py
-r"""Small verification script producing a CSV audit of transactions vs
-exchange_orders.
+"""
+Data Migration Audit & Transaction Verification Utility.
 
-Usage: run from the project root. It writes audit.csv in the data/ directory.
+This script executes an automated post-migration audit of the active database. It verifies
+the relational integrity of imported contract notes, double-entry passbook linkages,
+and cash ledger balances.
+
+Key Responsibilities:
+    • Ledger Integrity Audit: Verifies that all polymorphic links in `bank_transactions`
+      reference valid primary keys in specialist tables (`fd_transactions`, `cc_transactions`, etc.).
+    • Share Balance Audit: Checks cumulative trade histories to ensure no negative holding balances exist.
+    • Summary Generation: Outputs structured diagnostic metrics to the console or log files.
 """
 import sqlite3
 import csv

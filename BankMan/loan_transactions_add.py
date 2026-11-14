@@ -2,17 +2,18 @@
 # BankMan/loan_transactions_add.py
 
 """
-Module for adding Loan Transaction records (loan_transactions table).
+Loan EMI Repayment & Principal Prepayment Form.
 
-Pattern: coloured band frames, label_row / entry_row, F1/F2/Escape, central
-entry theme (yellow-on-black), dark maroon/wine chrome.
+This module provides the interface for logging loan repayment installments in `loan_transactions`.
 
-Auto-logic:
-  - Selecting a loan pre-fills Prevailing Rate from loan_master.interest_rate
-    and fetches the last principal_due as the opening balance.
-  - Changing Principal / Interest / Charges auto-computes Loan Payment.
-  - Changing Principal auto-computes New Principal Due =
-    previous_principal_due − principal.
+Key Responsibilities:
+    • Repayment Bifurcation: Captures total EMI installment amount, bifurcating into
+      Principal Repayment and Interest Component according to amortization schedules.
+    • Polymorphic Passbook Link: Debits the repayment amount from the linked savings account
+      in `bank_transactions` (`module_type='LOAN'`).
+
+Key Functions:
+    • `show_loan_transactions_add_window(parent)`: Launches the loan transaction entry form.
 """
 
 from typing import Union

@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Tests for income_tax table, helpers, and bank transaction integration."""
+"""
+Unit Tests for Income Tax Rules & Capital Gains Tax Computation.
+
+This test suite verifies tax computation rules in `StockMan.reporting`, testing Short-Term
+Capital Gains (STCG under Section 111A at 15%/20%) and Long-Term Capital Gains (LTCG under
+Section 112A with the ₹1,00,000 / ₹1,25,000 exemption threshold).
+
+Key Scenarios Tested:
+    • STCG calculation for equity shares held for 365 days or less.
+    • LTCG calculation for equity shares held for greater than 365 days.
+    • Section 112A Grandfathering provisions using January 31, 2018 benchmark prices.
+"""
 
 import os
 import sqlite3

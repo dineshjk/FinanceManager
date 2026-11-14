@@ -1,7 +1,17 @@
 # -*- coding: utf-8 -*-
 # tests/repair_db_links.py
 #!/usr/bin/env python3
-"""Repair deterministic link fields in an existing StockMan database."""
+"""
+Automated Relational Foreign-Key Link Repair Tool.
+
+This maintenance script identifies and repairs corrupted, missing, or mismatched
+foreign keys between central `bank_transactions` and specialist sub-ledger tables.
+
+Key Responsibilities:
+    • Link Reconstruction: Matches orphan transaction rows with specialist entries based
+      on date, amount, and account identifiers.
+    • Safe Update: Applies repairs within isolated transactions with dry-run verification.
+"""
 
 from __future__ import annotations
 

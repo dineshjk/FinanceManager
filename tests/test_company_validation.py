@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 # tests/test_company_validation.py
+"""
+Unit Tests for Listed Company Master Validation & Constraints.
+
+This test suite verifies validation logic and SQLite constraints for company registrations
+in `StockMan.company_add` and `StockMan.validation_utils`.
+
+Key Scenarios Tested:
+    • Ticker uniqueness and Yahoo Finance formatting compliance (e.g. '.NS', '.BO').
+    • ISIN checksum and length validation.
+    • Sector and market capitalization tier assignment constraints.
+"""
+
 import importlib
 import sys
 from pathlib import Path

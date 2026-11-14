@@ -2,16 +2,23 @@
 # StockMan/sell_management.py
 
 """
-sell_management.py
-------------------
+FIFO Sell Execution Engine & Overselling Prevention Guardian.
 
-Central FIFO sell-management UI for StockMan.
+This module enforces strict First-In-First-Out (FIFO) share accounting and guarantees that
+users cannot oversell shares beyond their currently settled, available holding quantities.
 
-Provides a two-mode workflow:
-  - All Stocks: rebuild FIFO allocations for every stock with SELL trades.
-  - Select Stock(s): let the user pick one or more stocks, then rebuild.
+Key Responsibilities:
+    • Available Share Calculation: Evaluates total historical buys minus cumulative previous
+      sells, splits, and bonus allocations for a given stock to calculate exact sellable balance.
+    • Overselling Prevention: Validates sell orders prior to execution; rejects orders if the
+      requested sell quantity exceeds available shares.
+    • FIFO Lot Allocation: Sequentially matches sell orders against the earliest available buy lots,
+      recording purchase dates, holding durations, and cost bases for capital gains tax filing.
+    • Modal User Interface: Spawns the dedicated sell trade entry dialog with live holding balances.
 
-Entry point: ``show_sell_management_modal(parent)``
+Key Functions:
+    • `show_sell_management_modal(parent)`: Launches the guided FIFO sell trade modal dialog.
+    • `_show_mode_selection(...)`: Guided workflow selector for standard or custom sell orders.
 """
 
 from typing import Union

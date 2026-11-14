@@ -2,9 +2,24 @@
 # StockMan/dividend.py
 
 """
-This module handles the management of dividends within the stock portfolio.
-It includes automatic calculation of holdings based on the record date,
-ex-date generation, payment date generation, and multi-table ledger updates.
+Corporate Dividend Accounting & Bank Ledger Integration.
+
+This module handles the recording, calculation, and bank reconciliation of corporate
+cash dividends received on stock holdings.
+
+Key Responsibilities:
+    • Dividend Calculations: Calculates gross dividend amounts based on per-share dividend
+      rate multiplied by eligible holding quantity as of the record date.
+    • Yield Analytics: Computes dividend yield relative to invested purchase cost and
+      annualized holding duration.
+    • Linked Bank Accounting: Automatically creates matching computed bank deposit entries
+      in BankMan, ensuring total net worth and cash balance reconciliation.
+    • Tax Deducted at Source (TDS): Captures optional TDS deductions (Section 194) for net
+      dividend receipt tracking.
+
+Key Functions:
+    • `show_dividend_entry(parent)`: Displays the dividend recording modal form.
+    • `record_dividend(...)`: Commits dividend data and triggers bank ledger synchronization.
 """
 
 from typing import Union

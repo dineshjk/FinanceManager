@@ -2,24 +2,28 @@
 # Shared/modal_utils.py
 
 """
-Centralized Modal Window Management System
+Centralized Modal Window Lifecycle & Focus Management System.
 
-This module provides a unified system for managing modal windows with automatic
-focus restoration and parent window state management.
+This module manages the lifecycle, parent-child window states, and focus transitions
+of modal dialogs in Tkinter. It guarantees that parent windows are disabled while child
+dialogs are active, traps Escape key dismissals safely, and reliably restores focus to
+the initiating widget upon closure.
 
-Usage:
-    from modal_utils import disable_parent, enable_parent
+Key Responsibilities:
+    • Parent Disablement & Safety: Disables user interaction on parent windows when a modal
+      dialog opens, preventing concurrent edit race conditions and orphan dialog windows.
+    • Modal Window Setup: Sets window transient relationship, enforces modal grab (`grab_set`),
+      lifts the window above its parent, and configures standard window close protocols.
+    • Escape Key Trapping: Binds `<Escape>` to cleanly dismiss the modal window, invoking
+      closure callbacks and preventing escape events from bubbling up to parent windows.
+    • Focus Restoration: Remembers the exact widget that held focus prior to opening the modal
+      and safely returns OS focus to it when the dialog terminates.
 
-    # In your modal window function:
-    modal_id = disable_parent(parent)
-    # ... create and show modal window ...
-    enable_parent(modal_id)
-
-Features:
-    - Automatic focus restoration to next button
-    - Parent window state management
-    - Error handling and debugging
-    - Minimal API with just 2 function calls
+Key Functions:
+    • `disable_parent(parent)`: Disables parent window events and records its active focus state.
+    • `enable_parent(parent, original_focus)`: Re-enables parent interactivity and restores focus.
+    • `setup_modal_window(window, parent, close_callback)`: Standardizes modal configuration.
+    • `add_escape_binding(window, close_callback)`: Attaches safe escape dismissal.
 """
 
 import tkinter as tk

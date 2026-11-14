@@ -1,4 +1,18 @@
 # -*- coding: utf-8 -*-
+"""
+Unit & Widget Tests for Shared GUI Utilities & Animations.
+
+This test suite verifies graphical user interface helpers in `Shared.gui_utils`, testing
+button hover animations, entry field theme styling, date spinner keyboard shortcuts,
+and treeview multi-column natural sorting.
+
+Key Scenarios Tested:
+    • Date spinner key bindings (`+`/`-` days on ISO date fields).
+    • Enter-key focus progression (`on_enter_focus_next`).
+    • Universal Treeview column sorting for alphanumeric and numerical data.
+    • Input field error flashing and visual styling.
+"""
+
 import unittest
 from Shared.gui_utils import universal_tree_sort
 

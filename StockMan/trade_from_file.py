@@ -2,11 +2,21 @@
 # StockMan/trade_from_file.py
 
 """
-trade_from_file.py
-------------------
-Bulk importer for legacy databases. Reads Stocks, Trades, IPOs, Rights,
-and Corporate Actions, sorts them chronologically, and allows the user
-to batch-import them into the current database via a checklist UI.
+Broker Trade Report & Contract Note File Parser.
+
+This module imports historical trade statements and digital contract notes (CSV, Excel)
+directly into the SQLite trade database.
+
+Key Responsibilities:
+    • Broker Format Parsing: Parses trade reports from major Indian brokers (ICICI Direct,
+      Zerodha, Groww, Angel One).
+    • Deduplication: Checks trade dates, order IDs, and execution quantities to prevent duplicate
+      imports.
+    • Batch Commitment: Validates all parsed rows before atomically committing to the database.
+
+Key Functions:
+    • `import_trades_from_file(filepath)`: Ingests trade reports from disk.
+    • `show_trade_from_file_window(parent)`: Displays the file import GUI dialog.
 """
 
 import os

@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/test_stock_aggregate_triggers.py
+"""
+Integration Tests for Stock Holding Aggregate Triggers.
+
+This test suite validates automated database triggers that maintain aggregated holding
+quantities and average cost balances upon trade commits.
+
+Key Scenarios Tested:
+    • Live recalculation of cumulative share balances after trade inserts and deletions.
+    • Data consistency across rapid concurrent trade modifications.
+"""
+
 import importlib
 import sqlite3
 import sys

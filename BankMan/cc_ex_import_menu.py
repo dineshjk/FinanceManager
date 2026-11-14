@@ -2,8 +2,16 @@
 # BankMan/cc_ex_import_menu.py
 
 """
-Credit Card Export / Import sub-menus for the BankMan application.
-Each function opens a 3-button sub-menu (Master | Transactions | Back).
+Credit Card Batch Import & Export Navigation Menu.
+
+This module builds the sub-menu for batch transferring credit card master data and
+transaction histories.
+
+Key Responsibilities:
+    • Navigation Hub: Offers choices to import/export credit card masters and transaction logs.
+
+Key Functions:
+    • `show_cc_ex_import_menu(parent)`: Spawns the credit card import/export menu.
 """
 
 from Shared.menu_factory import create_menu_window

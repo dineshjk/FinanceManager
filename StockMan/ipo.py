@@ -2,7 +2,22 @@
 # StockMan/ipo.py
 
 """
-This module handles the management of IPOs within the stock portfolio.
+Initial Public Offering (IPO) Bid & Allotment Manager.
+
+This module provides the user interface and transaction workflow for recording IPO
+applications, tracking allotment results, handling refund reconciliations, and transferring
+allotted shares into active portfolio holdings.
+
+Key Responsibilities:
+    • Application Recording: Captures IPO bid parameters including application number,
+      company name, bid lot size, cut-off bid price, and bank ASBA account used.
+    • Allotment Processing: When allotment is finalized, records allotted share quantities
+      and creates formal purchase trade entries in the `trades` table at issue price.
+    • Refund Accounting: Reconciles unallotted bid capital and unblocks funds in linked
+      bank accounts in BankMan.
+
+Key Functions:
+    • `show_ipo_entry(parent)`: Displays the IPO application and allotment dialog.
 """
 
 from typing import Union

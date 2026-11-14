@@ -2,7 +2,20 @@
 # StockMan/trade_manager.py
 
 """
-UI module for viewing historical trades and triggering safe database rollbacks.
+Trade Transaction Review & Historical Ledger Manager.
+
+This module provides an interactive graphical interface for reviewing, searching, and
+filtering historical stock trades, with direct integration into the rollback engine.
+
+Key Responsibilities:
+    • Interactive Trade Treeview: Displays trades sorted chronologically with columns for
+      date, ticker, company, type (BUY/SELL), quantity, price, charges, and net settlement.
+    • Dynamic Filtering: Filters trades by company name, ticker symbol, broker, or date range.
+    • Rollback Integration: Allows users to select any trade and trigger safe deletion via
+      `StockMan.rollback_manager`, restoring purchase lots and updating bank ledgers.
+
+Key Functions:
+    • `show_trade_manager(parent)`: Displays the trade transaction review window.
 """
 
 import tkinter as tk

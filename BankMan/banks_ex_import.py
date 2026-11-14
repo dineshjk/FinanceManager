@@ -1,47 +1,19 @@
 # -*- coding: utf-8 -*-
 # BankMan/banks_ex_import.py
 
-"""banks_ex_import.py
+"""
+Bank Master Data CSV/Excel Importer & Exporter.
 
-Export and import the ``banks`` and ``accounts`` tables, preserving the
-foreign-key relationship between them.
+This module provides bulk data transfer capabilities for the `banks` master table.
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element of every tuple is a single-character *row type*:
+Key Responsibilities:
+    • Master Export: Serializes all bank master profiles into CSV or Excel format.
+    • Master Import: Parses external bank lists and populates the database with deduplication.
 
-``'B'`` — a bank row::
-
-    ('B', name, branch, IFSC, MICR)
-
-``'A'`` — an account row::
-
-    ('A', bank_key, open_dt, ac_number, type,
-          curr_balance, curr_balance_dt, is_joint, is_active)
-
-``bank_key`` is the bank's ``IFSC`` when it is non-NULL, otherwise the
-bank's ``name``.  All bank rows are emitted before any account rows so
-that a single-pass import always resolves FKs correctly.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* **Bank rows (``'B'``)**: a row is skipped when a bank with the same
-  ``IFSC`` already exists (or, for banks without an IFSC, when a bank with
-  the same ``name`` and no IFSC exists).  The newly inserted or matched
-  ``b_id`` is cached so following account rows can resolve their FK
-  immediately without an extra DB round-trip.
-* **Account rows (``'A'``)**: a row is skipped when ``(b_id, ac_number)``
-  already exists (the unique constraint ``UNIQUE(b_id, ac_number)``).
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_banks_and_accounts.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_banks(filepath)`: Exports bank records.
+    • `import_banks(filepath)`: Ingests bank records.
+    • `show_banks_ex_import(parent)`: Displays the import/export GUI dialog.
 """
 
 import ast

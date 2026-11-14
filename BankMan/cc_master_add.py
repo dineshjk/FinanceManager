@@ -2,14 +2,17 @@
 # BankMan/cc_master_add.py
 
 """
-Module for adding new Credit Card master records (card_master table).
+Credit Card Master Contract Registration Form.
 
-Structural pattern from bank_transactions_add.py / ppf_master_add.py:
-  - Coloured band frames, each with a label_row / entry_row
-  - apply_entry_theme / bind_tooltip / setup_footer_tooltip from Shared.gui_utils
-  - F1 = Help, F2 = Session viewer, Escape = close without saving
-  - Yellow-on-black entry theme via centrally defined apply_entry_theme()
-  - Distinct deep-crimson / ruby-red window theme (CC_MASTER_ADD_UI_THEME)
+This module provides the interface for registering credit cards in the `card_master` table.
+
+Key Responsibilities:
+    • Card Parameters: Captures card nickname, issuing bank, card network (Visa, Mastercard,
+      RuPay, Amex), credit limit, billing cycle date, payment due date, and linked auto-debit bank.
+    • Limit Validation: Enforces positive credit limits and valid calendar day integers (1-31).
+
+Key Functions:
+    • `show_cc_master_add_window(parent)`: Displays the credit card registration dialog.
 """
 
 from typing import Union

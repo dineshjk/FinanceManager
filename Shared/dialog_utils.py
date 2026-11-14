@@ -2,11 +2,29 @@
 # Shared/dialog_utils.py
 
 """
-Professional dialog components with dynamic sizing for the Stock Portfolio
-Management System.
+Standardized Modal Dialog Factory with Dynamic Sizing.
 
-This module provides styled dialog functions for information, error, and
-confirmation messages with automatic sizing based on content.
+This module provides professionally styled replacement dialogs for standard Tkinter
+message boxes (`tkinter.messagebox`). It delivers consistent typography, themed buttons,
+content-aware auto-sizing, keyboard accessibility, and safe modal window integration.
+
+Key Responsibilities:
+    • Styled Dialog Variants:
+        - `show_info_dialog`: Informational notifications with an OK button.
+        - `show_error_dialog`: Error alerts with prominent warning styling.
+        - `show_confirmation_dialog`: Yes/No or OK/Cancel query dialogs returning booleans.
+        - `show_custom_dialog`: Fully configurable dialog with custom buttons and callbacks.
+    • Dynamic Sizing Integration: Uses `Shared.dialog_sizing` to calculate responsive
+      geometry, ensuring long messages or stack traces remain readable without clipping.
+    • Window Stack Coordination: Cooperates with `Shared.window_manager` and
+      `Shared.modal_utils` to disable the parent window, capture focus, handle Escape/Enter
+      key bindings, and gracefully restore parent state upon dismissal.
+
+Key Functions:
+    • `show_info_dialog(parent, title, message)`: Displays a themed information dialog.
+    • `show_error_dialog(parent, title, message)`: Displays a themed error dialog.
+    • `show_confirmation_dialog(parent, title, message)`: Displays a confirmation prompt; returns bool.
+    • `show_custom_dialog(...)`: Generic modal dialog generator with custom actions.
 """
 
 import tkinter as tk

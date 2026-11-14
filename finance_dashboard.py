@@ -1,6 +1,50 @@
 # -*- coding: utf-8 -*-
 # finance_dashboard.py
 
+"""Master Application Launcher & Central Dashboard.
+
+This module serves as the primary root entry point for the Universal
+Finance Manager desktop application. It initializes the main Tkinter
+root window, sets up the master navigation hub, binds universal keyboard
+shortcuts, and orchestrates launching the primary financial subsystems:
+StockMan (Equity Portfolio & Market Intelligence), BankMan (Banking,
+Passbook, & Budgeting), MFMan (Mutual Funds), and InsMan (Insurance).
+
+Key Responsibilities:
+    • Root Window Initialization: Creates the master `tk.Tk()` instance,
+      sets geometry, applies titles, and ensures aggressive OS focus.
+    • Subsystem Navigation: Hosts buttons with single-key hotkeys:
+        - [S] Launch StockMan: Equity trades, corporate actions, reports.
+        - [B] Launch BankMan: Bank accounts, double-entry passbook, budgets.
+        - [M] Launch MFMan: Mutual fund folios, SIPs, and NAV valuation.
+        - [I] Launch InsMan: Life, health, and vehicle policies/premiums.
+        - [X] Exit: Graceful shutdown and cleanup.
+    • Global Keyboard Handlers:
+        - Ctrl+F1: Launches the Global Help Center from any active screen.
+        - F1: Displays contextual help and FAQ for the dashboard.
+        - Escape / X: Closes the application.
+    • Dynamic Background Customization: Automatically detects custom
+      wallpapers located in `Pics/` (e.g. `dashboard_bg.jpg`,
+      `dashboard_bg.png`, `DN.jpg`), dynamically adjusting widget
+      positioning, top spacing, and styling to keep image subjects
+      visible. Falls back to clean original blue theme.
+
+Primary Functions:
+    • `main()`: Instantiates the root Tkinter application, configures
+      global bindings, evaluates wallpaper availability, builds the
+      menu configuration, and starts the Tkinter event loop.
+    • `_get_dashboard_help_data()`: Generates the guide lines and FAQ data
+      passed to `Shared.help_utils.show_standard_help` for F1 help.
+
+Dependencies & Architecture:
+    • `Shared.menu_factory.create_menu_window`: Declarative menu creation.
+    • `Shared.global_help.show_global_help`: System-wide help center.
+    • `StockMan.stocks.show_stock_portfolio_menu`: StockMan launcher.
+    • `BankMan.banks.show_bank_main_menu`: BankMan subsystem launcher.
+    • `BankMan.manage_mf.show_mf_main_menu`: MFMan subsystem launcher.
+    • `BankMan.manage_ins.show_ins_main_menu`: InsMan subsystem launcher.
+"""
+
 import tkinter as tk
 import sys
 import os
@@ -41,9 +85,7 @@ def _get_dashboard_help_data():
             "• If you want a custom background picture on the dashboard, "
             "create a folder"
         ),
-        (
-            "  named 'Pics' in FinanceManager and place an image file there"
-        ),
+        ("  named 'Pics' in FinanceManager and place an image file there"),
         "  (e.g. 'dashboard_bg.jpg', 'dashboard_bg.png', or 'DN.jpg').",
         (
             "• If no picture is present in 'Pics', the dashboard "
@@ -165,15 +207,17 @@ def main():
 
     # If background image is present, apply picture-specific layout & styling
     if bg_image_path:
-        menu_config.update({
-            "bg_image": bg_image_path,
-            "bg_centering": (0.5, 0.35),
-            "top_spacer": 260,  # Leaves gap so picture subject remains visible
-            "title_bg": "#1e293b",
-            "title_fg": "#ffffff",
-            "title_relief": "groove",
-            "title_bd": 1,
-        })
+        menu_config.update(
+            {
+                "bg_image": bg_image_path,
+                "bg_centering": (0.5, 0.35),
+                "top_spacer": 260,  # Leaves gap for wallpaper subject
+                "title_bg": "#1e293b",
+                "title_fg": "#ffffff",
+                "title_relief": "groove",
+                "title_bd": 1,
+            }
+        )
 
     create_menu_window(menu_config)
     root.mainloop()

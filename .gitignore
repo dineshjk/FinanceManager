@@ -23,6 +23,7 @@ data/*
 # Editor & IDE folders
 .vs/
 .vscode/
+*.code-workspace
 
 # Python cache and temporary files
 __pycache__/

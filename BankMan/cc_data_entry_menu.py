@@ -2,7 +2,21 @@
 # BankMan/cc_data_entry_menu.py
 
 """
-Credit Card Data Entry menu for the BankMan application.
+Credit Card Data Entry Navigation Sub-Menu.
+
+This module provides the navigation sub-menu for recording credit card statements,
+card purchases, card bill payments, and reward points.
+
+Key Responsibilities:
+    • Menu Options:
+        - [T] Add Card Transaction: Log purchase, fee, or interest charge.
+        - [P] Record Bill Payment: Link bank payment to card balance.
+        - [R] Reward Points: Track points earned and redeemed.
+        - [I] Import Card Statement: Batch import card bills.
+        - [X] Close Menu: Returns to main banking menu.
+
+Key Functions:
+    • `show_cc_data_entry_menu(parent)`: Spawns the credit card data entry menu.
 """
 
 from Shared.menu_factory import create_menu_window

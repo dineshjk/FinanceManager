@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 # scripts/importer_cli.py
-r"""Importer CLI: preview (dry-run) or commit imports from a legacy DB into the
-app DB.
+"""
+Command-Line Interface (CLI) for Data Migration & Importers.
 
-Usage:
-    python scripts/importer_cli.py --src data/mystocks_old.db --action preview
-    python scripts/importer_cli.py --src data/mystocks_old.db --action commit
+This command-line tool provides headless execution of data migration pipelines, allowing
+users or automated jobs to import legacy databases, contract notes, and bank statements
+without launching the Tkinter GUI.
 
-The preview runs all imports inside a rollback and reports counts. The commit
-creates a timestamped backup of the app DB and then performs the imports.
+Key Responsibilities:
+    • Headless Migration Runner: Accepts CLI flags for source database paths, dry-run mode,
+      and target database environments.
+    • Step-by-Step Pipeline: Runs schema setup, company mapping, trade ingestion, and balance
+      recalculation in a single unattended execution.
+    • Dry-Run Mode: Validates data without committing changes, reporting potential errors.
 """
 
 from __future__ import annotations

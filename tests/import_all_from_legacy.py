@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/import_all_from_legacy.py
 #!/usr/bin/env python3
-"""Import all transactions from resolved legacy DB into the current DB.
+"""
+Automated Migration Runner for Ingesting All Legacy Financial Data.
 
-This script uses the same resolution and import functions as the GUI importer
-so behavior is consistent. It will backup the current DB before modifying it.
+This script orchestrates the complete migration pipeline, importing company masters,
+historical equity trades, corporate actions, and bank passbooks from legacy files.
+
+Key Responsibilities:
+    • Full Pipeline Orchestration: Runs sequential migration stages in correct dependency order.
+    • Integrity Commits: Commits transactions with automatic rollback on unhandled errors.
 """
 
 import os

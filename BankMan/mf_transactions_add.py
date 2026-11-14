@@ -2,7 +2,18 @@
 # BankMan/mf_transactions_add.py
 
 """
-Module for adding Mutual Fund transaction records (mf_transactions table).
+Mutual Fund Investment & Redemption Transaction Form.
+
+This module provides the interface for recording mutual fund investments, SIP debits,
+and redemption payouts in `mf_transactions`.
+
+Key Responsibilities:
+    • Transaction Logging: Captures investment date, units allotted, purchase NAV, gross amount,
+      and transaction type (Purchase, SIP, Redemption, Switch).
+    • Polymorphic Passbook Link: Automatically links cash movement to `bank_transactions` (`module_type='MF'`).
+
+Key Functions:
+    • `show_mf_transactions_add_window(parent)`: Launches the MF transaction entry form.
 """
 
 from typing import Union

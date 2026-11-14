@@ -1,12 +1,26 @@
 # -*- coding: utf-8 -*-
 # StockMan/company_add.py
 
-"""company_add.py
+"""
+Company Master Registration Form.
 
-Provides the Add Company modal dialog used by the StockMan GUI.
-Contains helpers to render the form, validate input, and persist a
-company record to the application's SQLite database. The dialog is
-modal and uses the project's dialog utilities for user feedback.
+This module provides the graphical interface for registering new listed companies and
+equities into the `stocks` master table. It enforces data validation, ticker uniqueness,
+and classification rules before storing records in SQLite.
+
+Key Responsibilities:
+    • Form Fields: Captures company ticker symbol, full company name, International
+      Securities Identification Number (ISIN), exchange listing (NSE/BSE), industry
+      sector, and market cap tier (Large Cap, Mid Cap, Small Cap, Micro Cap).
+    • Uniqueness Validation: Prevents duplicate ticker entries or duplicate ISINs across
+      the database.
+    • Live Verification: Validates ticker format against standard Yahoo Finance conventions
+      (e.g. '.NS' for NSE, '.BO' for BSE) for automated CMP and price quote downloads.
+    • UI Polish: Implements dynamic hover highlights, Enter-key focus progression, and
+      standardized modal dialog management.
+
+Key Functions:
+    • `show_company_add_window(parent)`: Launches the company registration modal window.
 """
 
 import re

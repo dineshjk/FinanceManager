@@ -2,9 +2,19 @@
 # StockMan/watchlist_from_file.py
 
 """
-watchlist_from_file.py
-----------------------
-Imports watchlist data from a legacy database into the current database.
+Watchlist File Parser & Batch Ingestion Utility.
+
+This module parses external text and CSV files containing stock tickers and company names,
+importing them in bulk into user-configured watchlists.
+
+Key Responsibilities:
+    • File Parsing: Ingests plain text ticker lists, CSV files, and broker watchlists.
+    • Ticker Validation: Cross-references tickers against the `stocks` master table, adding
+      missing companies if requested.
+
+Key Functions:
+    • `import_watchlist_from_file(filepath)`: Ingests external watchlist files.
+    • `show_watchlist_from_file(parent)`: Displays the watchlist import GUI.
 """
 
 import os

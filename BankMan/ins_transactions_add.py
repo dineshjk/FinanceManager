@@ -2,7 +2,18 @@
 # BankMan/ins_transactions_add.py
 
 """
-Module for adding Insurance transaction records (ins_transactions table).
+Insurance Premium Payment & Claim Transaction Form.
+
+This module provides the form for recording insurance premium payments and claim disbursements
+in the `ins_transactions` table.
+
+Key Responsibilities:
+    • Transaction Logging: Captures payment date, premium amount, receipt number, and payment mode.
+    • Polymorphic Passbook Link: Automatically creates the matching debit entry in `bank_transactions`
+      representing the premium outflow from the policyholder's bank account (`module_type='INS'`).
+
+Key Functions:
+    • `show_ins_transactions_add_window(parent)`: Launches the insurance transaction entry form.
 """
 
 from typing import Union

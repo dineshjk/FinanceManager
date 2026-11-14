@@ -1,7 +1,16 @@
 # -*- coding: utf-8 -*-
 # tests/inspect_db.py
 #!/usr/bin/env python3
-"""Inspect a SQLite DB: list tables and row counts for key tables."""
+"""
+SQLite Schema & Table Inspection Diagnostic Tool.
+
+This utility inspects SQLite database files, enumerating tables, columns, indexes,
+and foreign-key constraints, while reporting row counts and sample data.
+
+Key Responsibilities:
+    • Schema Dumping: Queries `sqlite_master` to display table DDL and active indexes.
+    • Health Inspection: Verifies database structure after schema migrations.
+"""
 import os
 import sqlite3
 import sys

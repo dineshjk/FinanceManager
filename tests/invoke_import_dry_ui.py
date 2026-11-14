@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/invoke_import_dry_ui.py
 #!/usr/bin/env python3
-"""Open a hidden root and call the trade menu Import (dry-run) action.
-This simulates a user pressing the Import (dry-run) button.
+"""
+UI Migration Runner Headless Test Wrapper.
+
+This test wrapper instantiates the GUI migration dialog in a headless or automated
+test mode to verify Tkinter widget bindings and event callbacks without manual user input.
+
+Key Responsibilities:
+    • Headless GUI Testing: Spawns the importer window within a test harness.
+    • Workflow Validation: Simulates button clicks and verifies progress bar updates.
 """
 from pathlib import Path
 import sys

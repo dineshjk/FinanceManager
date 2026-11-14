@@ -2,28 +2,31 @@
 # StockMan/stocks.py
 
 """
-Main entry point for Stock Portfolio Management GUI application.
+StockMan Subsystem Root Window & Central Application Hub.
 
-This script launches the main window and menu system for the Stock
-Portfolio Management System. It defines button actions, hotkey support,
-and the main application loop.
+This script is the main entry point and master GUI window for the Stock Portfolio
+Management (StockMan) subsystem. It builds the primary navigation menu, market indices
+ticker, status bar, and subsystem shortcuts.
 
-Functions:
-    create_stock_database_gui(): Show info dialog for stock database creation.
-    show_company_menu(): Show info dialog for company management.
-    show_trade_menu(): Show info dialog for transaction management.
-    show_corporate_action_menu(): Show info dialog for corporate
-        actions.
-    show_maintenance_menu(): Show info dialog for maintenance.
-    show_report_menu(): Show info dialog for reports.
-    exit_program(): Show info dialog for exit.
-    main(): Initialize and run the main application window.
+Key Responsibilities:
+    • Root GUI Window: Initializes the StockMan main window, sets up ttk themes, and manages
+      the lifecycle of the subsystem.
+    • Market Indices Bar: Displays live benchmark index quotes (NIFTY 50, SENSEX, NIFTY BANK)
+      refreshed via background threads.
+    • Navigation Hub: Hosts primary buttons:
+        - Company Management (`company_menu.py`)
+        - Trade Management (`trade_menu.py`)
+        - Corporate Actions (`corpo_menu.py`)
+        - Financial Reports (`report_menu.py`)
+        - Watchlist & Scanners (`watchlist_menu.py`)
+        - Maintenance & Cloud Sync (`maint_menu.py`)
+        - Advice Tracker (`advice_tracker.py`)
+    • First-Run Startup Cycle: Evaluates morning first-run prompts (Google Drive sync and
+      CMP updates), integrating with `StockMan.drive_sync`.
 
-Dependencies:
-    - tkinter, tkinter.messagebox
-    - (removed windows.py dependency)
-    - globals (APP_TITLE)
-    - menu_factory (create_menu_window)
+Key Functions:
+    • `show_stock_portfolio_menu(parent)`: Spawns or restores the main StockMan window.
+    • `main()`: Standalone execution entry point for running StockMan independently.
 """
 
 import tkinter as tk

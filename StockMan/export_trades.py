@@ -2,7 +2,20 @@
 # StockMan/export_trades.py
 
 """
-This module contains the function to export all database tables to an Excel file.
+Multi-Format Trade & Portfolio Export Engine.
+
+This module generates comprehensive spreadsheet and text exports of historical trades,
+portfolio holdings, and capital gains statements for tax accounting and external audits.
+
+Key Responsibilities:
+    • Export Formats: Generates structured Excel (.xlsx), CSV, and TSV files.
+    • Comprehensive Data Extraction: Exports trade dates, broker tags, buy/sell prices,
+      brokerages, STT, exchange fees, net amounts, and holding durations.
+    • Tax Audit Compliance: Formats output data to align with Indian Income Tax Schedule 112A
+      (LTCG on listed equity) and Section 111A (STCG).
+
+Key Functions:
+    • `export_all_trades_to_excel(filepath)`: Exports complete trade transaction ledger.
 """
 
 import os

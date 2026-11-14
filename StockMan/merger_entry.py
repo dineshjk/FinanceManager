@@ -2,9 +2,21 @@
 # StockMan/merger_entry.py
 
 """
-This module handles the management of Corporate Mergers,
-including target extinguishing, new share allotment,
-and fractional cash settlements.
+Corporate Merger & Amalgamation Share Swap Processor.
+
+This module provides the interface and underlying calculations for processing corporate
+mergers and acquisitions (e.g. HDFC Ltd merging into HDFC Bank).
+
+Key Responsibilities:
+    • Share Swap Ratio: Implements swap ratios (e.g. 42 shares of HDFC Bank for every 25
+      shares of HDFC Ltd), calculating resulting share quantities and fractional cash settlements.
+    • Cost Basis Preservation: Carries forward original purchase dates and historical total
+      cost basis to the newly issued shares of the acquiring entity.
+    • Holding Replacement: Atomically closes out holdings of the merged entity and creates
+      corresponding opening holdings under the acquiring company ticker.
+
+Key Functions:
+    • `show_merger_entry(parent)`: Displays the corporate merger recording dialog.
 """
 
 from typing import Union

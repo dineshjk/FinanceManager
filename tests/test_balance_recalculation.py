@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
-"""Unit tests for balance recalculation on intermediate date entries and account recompute."""
+"""
+Unit Tests for Bank Account Running Balance Recalculation.
+
+This test suite verifies the mathematical accuracy and integrity of running balance
+recalculations in `BankMan.bank_db_utils`.
+
+Key Scenarios Tested:
+    • Chronological balance progression across deposits, withdrawals, and transfers.
+    • Reversal and re-sequencing of balances after mid-history transaction edits.
+    • Multi-account balance isolation and overdraft limit enforcement.
+"""
 
 import sqlite3
 import pytest

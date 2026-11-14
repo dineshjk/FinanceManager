@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 # tests/test_db_date_checks.py
+"""
+Database Schema Check Constraint Tests for ISO Date Formats.
+
+This test suite validates that SQLite table CHECK constraints across BankMan and StockMan
+strictly enforce 10-character `YYYY-MM-DD` ISO formatting and reject malformed dates.
+
+Key Scenarios Tested:
+    • Valid ISO dates accepted across all date columns.
+    • Malformed dates (e.g. 'DD/MM/YYYY', 8-character dates, non-numeric strings) rejected.
+    • Nullable date column behavior.
+"""
+
 import importlib
 import sys
 from pathlib import Path

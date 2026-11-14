@@ -2,7 +2,15 @@
 # BankMan/fd_master_edit.py
 
 """
-Module for editing an existing Fixed Deposit master record.
+Fixed Deposit Master Contract Editor.
+
+This module provides the dialog for editing existing Fixed Deposit records in `fd_master`.
+
+Key Responsibilities:
+    • Contract Editing: Modifies interest rates, maturity dates, and status (Active, Closed).
+
+Key Functions:
+    • `show_fd_master_edit_window(parent, fd_id)`: Displays the FD contract editor.
 """
 
 from typing import Union

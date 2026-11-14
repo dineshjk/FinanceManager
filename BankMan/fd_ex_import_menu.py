@@ -2,8 +2,16 @@
 # BankMan/fd_ex_import_menu.py
 
 """
-Fixed Deposit Export / Import sub-menus for the BankMan application.
-Each function opens a 3-button sub-menu (Master | Transactions | Back).
+Fixed Deposit Batch Import & Export Navigation Menu.
+
+This module builds the sub-menu for batch transferring Fixed Deposit master data and
+transaction records.
+
+Key Responsibilities:
+    • Navigation Hub: Provides choices to transfer FD contracts and interest payment logs.
+
+Key Functions:
+    • `show_fd_ex_import_menu(parent)`: Opens the FD import/export menu.
 """
 
 from Shared.menu_factory import create_menu_window

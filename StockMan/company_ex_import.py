@@ -1,10 +1,23 @@
 # -*- coding: utf-8 -*-
 # StockMan/company_ex_import.py
 
-"""company_export.py
+"""
+Company Master Data Import & Export Engine.
 
-Reads company data from the database and exports it to a text file where each
-row is written as a Python tuple literal (one tuple per line).
+This module handles exporting company master tables to external files (CSV, Excel)
+and importing external company rosters into the SQLite database.
+
+Key Responsibilities:
+    • Master Export: Dumps the entire `stocks` table into structured CSV or Excel spreadsheets
+      for backup, reporting, or external spreadsheet editing.
+    • Master Import: Reads external company lists, validates columns (Ticker, Name, ISIN,
+      Sector), skips or updates duplicates based on user preference, and commits new entities.
+    • Error Reporting: Generates detailed row-by-row error summaries for any unparseable entries.
+
+Key Functions:
+    • `export_companies_to_file(filepath)`: Serializes company master data to disk.
+    • `import_companies_from_file(filepath)`: Ingests and validates company spreadsheets.
+    • `show_company_ex_import(parent)`: Launches the company import/export dialog.
 """
 
 import sqlite3

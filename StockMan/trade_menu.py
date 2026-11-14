@@ -1,9 +1,23 @@
 # -*- coding: utf-8 -*-
 # StockMan/trade_menu.py
 
-"""Trade management menu for StockMan.
+"""
+Trade Management Sub-Menu & Navigation Hub.
 
-Minimal, well-formatted implementation — single copy only.
+This module constructs the Trade Management navigation menu, serving as the central hub
+for all trade entry, contract note import, trade modification, and rollback operations.
+
+Key Responsibilities:
+    • Navigation Actions:
+        - [A] Add Trade (ICICI / Standard): Manual trade entry form.
+        - [Z] Add Trade (Zerodha): Contract-note optimized entry form.
+        - [I] Direct Trading (IPO / Rights / OFS): Primary market offerings.
+        - [F] Import Trades from File: CSV / Excel contract note importer.
+        - [M] Manage / Review Trades: Interactive trade log and rollback triggers.
+        - [X] Close Menu: Returns to main StockMan menu.
+
+Key Functions:
+    • `show_trade_menu(parent)`: Constructs and opens the Trade Management menu.
 """
 
 from typing import Any

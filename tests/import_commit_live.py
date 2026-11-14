@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/import_commit_live.py
 #!/usr/bin/env python3
-"""Import legacy DB rows into the live DB and commit changes.
+"""
+Production Migration Commit Runner.
 
-This script will create a timestamped backup of the live DB before making
-any changes. Use with care — this performs real writes.
+This script executes the final, permanent import of validated legacy records into the
+live production SQLite databases.
+
+Key Responsibilities:
+    • Atomic Live Commit: Writes verified trade and banking rows into production tables.
+    • Post-Import Recalculation: Automatically triggers running balance and FIFO recalculations.
 """
 
 from pathlib import Path

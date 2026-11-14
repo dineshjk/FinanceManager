@@ -3,7 +3,19 @@
 
 
 """
-This module handles the management of Rights Issues within the stock portfolio.
+Rights Issue Entitlement & Subscription Management.
+
+This module handles the workflow for corporate rights issues, capturing rights entitlements,
+renunciation, payment of application money, and allotment of fully paid shares.
+
+Key Responsibilities:
+    • Rights Entitlements: Records entitlement ratios and warrants credited to the investor.
+    • Call Money Payments: Tracks multi-stage call money payments and linked bank disbursements.
+    • Conversion to Shares: Allots final shares and adds them to active holdings with exact
+      accumulated cost basis.
+
+Key Functions:
+    • `show_rights_entry(parent)`: Displays the rights issue management form.
 """
 
 from typing import Union

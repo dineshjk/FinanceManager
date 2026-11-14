@@ -2,29 +2,17 @@
 # BankMan/manage_loan.py
 
 """
-UI module for viewing and managing Loan master records and transactions.
+Loan & Debt Portfolio Dashboard with Amortization Monitor.
 
-Mirrors the structure and features of StockMan/trade_manager.py and
-BankMan/manage_bank.py:
-  * Sortable treeview (click any heading to toggle ascending/descending).
-  * Colour-coded rows.
-  * Edit Selected -- placeholder (inline editing not yet implemented).
-  * Delete Selected -- removes the row and cascades required changes.
-  * Close / Escape -- safe modal teardown via safe_close_modal.
+This module provides a centralized debt tracker displaying active loans, outstanding principal
+balances, monthly EMI liabilities, and interest paid to date.
 
-Two public functions are exposed:
+Key Responsibilities:
+    • Debt Portfolio Overview: Lists loans with sanctioned amounts, current balances, and tenures.
+    • EMI Liability Tracking: Aggregates total monthly debt service obligations across all accounts.
 
-  show_loan_manager(parent, calling_button=None)
-      Displays all loan_master rows.  Deleting a loan is blocked when
-      loan_transactions reference it (ON DELETE RESTRICT in the schema).
-
-  show_loan_transactions_manager(parent, calling_button=None)
-      Displays all loan_transactions rows.  Deleting a row also:
-        1. Finds and removes the linked bank_transactions row
-           (module_type='LOAN', module_ref_id=loan_trans_id).
-        2. Nulls out pair_id on any transfer counterpart.
-        3. Recalculates balance_after for every subsequent row in the
-           same bank account so the running total stays correct.
+Key Functions:
+    • `show_manage_loan(parent)`: Displays the loan management dashboard.
 """
 
 import tkinter as tk

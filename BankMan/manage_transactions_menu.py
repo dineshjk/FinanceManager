@@ -2,8 +2,24 @@
 # BankMan/manage_transactions_menu.py
 
 """
-Manage Transactions menu for the BankMan application.
-Provides navigation to module-specific transaction-management sub-menus.
+Transaction Review & Historical Ledger Menu.
+
+This module constructs the central review navigation menu for inspecting and auditing
+historical transaction logs across all banking and sub-ledger instruments.
+
+Key Responsibilities:
+    • Menu Options:
+        - [B] Review Bank Passbook Transactions
+        - [C] Review Credit Card Spends
+        - [F] Review Fixed Deposit Transactions
+        - [L] Review Loan Repayments
+        - [P] Review PPF Transactions
+        - [I] Review Insurance Payments
+        - [M] Review Mutual Fund Transactions
+        - [X] Close Menu
+
+Key Functions:
+    • `show_manage_transactions_menu(parent)`: Spawns the transaction review menu.
 """
 
 from Shared.menu_factory import create_menu_window

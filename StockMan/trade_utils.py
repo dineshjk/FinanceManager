@@ -2,12 +2,25 @@
 # StockMan/trade_utils.py
 
 """
-trade_utils.py
---------------
+Trade Mathematics, Brokerage Formulas, & Statutory Levy Calculators.
 
-Shared utility functions for trade and company management in the StockMan application.
-This module centralizes common logic to avoid code duplication.
+This module centralizes financial formulas for computing brokerages, Securities Transaction
+Tax (STT), stamp duty, exchange turnover fees, SEBI turnover charges, and GST.
 
+Key Responsibilities:
+    • Statutory Fee Formulas: Implements current Indian statutory fee schedules for equity delivery:
+        - STT: 0.1% on both Buy and Sell delivery turnover.
+        - Stamp Duty: 0.015% on Buy turnover only.
+        - Exchange Turnover Charges: 0.00297% (NSE) / 0.00375% (BSE).
+        - SEBI Turnover Fee: ₹10 per crore (0.0001%).
+        - GST: 18% on (Brokerage + Exchange Charges + SEBI Charges).
+    • Net Settlement Calculations: Accurately computes net payable on buys and net receivable on sells.
+    • Dividend Yield Mathematics: Computes dividend returns, holding durations, and annualized yields.
+
+Key Functions:
+    • `compute_dividend_return_percent(...)`: Calculates dividend yield relative to invested capital.
+    • `compute_dividend_annualized_yield(...)`: Computes annualized dividend yield percentage.
+    • `select_trade_from_list(trades, parent)`: Helper dialog for disambiguating matching trades.
 """
 
 from datetime import datetime

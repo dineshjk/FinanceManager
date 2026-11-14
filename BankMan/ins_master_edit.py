@@ -2,8 +2,15 @@
 # BankMan/ins_master_edit.py
 
 """
-Edit form for the ``ins_master`` table.
-Presents a list of Insurance policies in a Treeview and lets the user edit or delete them.
+Insurance Policy Master Record Editor.
+
+This module provides the dialog for editing existing insurance policy parameters in `ins_master`.
+
+Key Responsibilities:
+    • Policy Modification: Updates sum assured, premium terms, nominee details, and status.
+
+Key Functions:
+    • `show_ins_master_edit_window(parent, ins_id)`: Displays the insurance editor.
 """
 
 from typing import Union

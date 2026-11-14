@@ -2,23 +2,26 @@
 # BankMan/__init__.py
 
 """
-BankMan Package Initialization.
+BankMan - Banking, Cash Flow, Sub-Ledgers, & Personal Finance Subsystem.
 
-Exposes every public entry point, database utility, menu function, and
-export/import helper so callers can do::
+This package provides a comprehensive, double-entry personal finance ledger system.
+It tracks bank accounts, passbook income/expense/transfer movements, categorical budget
+hierarchies, and specialized sub-ledgers for Fixed Deposits (FDs), Credit Cards, Loans,
+Public Provident Fund (PPF), Insurance Policies, and Mutual Funds.
 
-    from BankMan import add_bank_transaction_main, export_banks, ...
-
-Organisation
-------------
-1. Database setup & migrations
-2. Main application menu
-3. Top-level navigation menus  (data entry, export, import)
-4. Sub-menus  (bank, CC, FD, loan, PPF)
-5. GUI add / edit dialogs
-6. Export / import helpers
-7. Database utility functions
-   (db_add_* aliases are used where a GUI function shares a bare name)
+Core Subsystem Architecture:
+    • Database & Setup: `bank_database_setup`, `bank_db_utils`.
+    • Bank & Account Master: `banks`, `banks_add`, `bank_edit`, `accounts_add`, `accounts_edit`.
+    • Budgeting & Categories: `budget_head_add`, `budget_head_edit`, `manage_bh`.
+    • Passbook & Transactions: `bank_transactions_add`, `bank_transaction_edit`, `bank_import_excel`.
+    • Specialist Sub-Ledgers:
+        - Fixed Deposits (`fd_*`, `manage_fd`)
+        - Credit Cards & Rewards (`cc_*`, `manage_cc`, `rewards_points_add`)
+        - Loans & EMIs (`loan_*`, `manage_loan`)
+        - Public Provident Fund (`ppf_*`, `manage_ppf`)
+        - Insurance Policies (`ins_*`, `manage_ins`)
+        - Mutual Funds (`mf_*`, `manage_mf`)
+    • Navigation & Management: `data_entry_menu`, `manage_master_menu`, `manage_transactions_menu`.
 """
 
 # ---------------------------------------------------------------------------

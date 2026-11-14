@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/debug_import_dryrun.py
 #!/usr/bin/env python3
-"""Attempt importing transactions into a temporary DB and print exceptions.
+"""
+Dry-Run Migration Diagnostic & Debugging Script.
 
-This will help surface why import_transaction returns False for each transaction.
+This script executes a dry-run import of transaction batches into a temporary database
+instance, producing granular per-row logging to isolate syntax or schema constraints.
+
+Key Responsibilities:
+    • Non-Destructive Validation: Ingests transactions without writing to production databases.
+    • Constraint Trace: Identifies foreign-key violations, type errors, or format mismatches.
 """
 import os
 import sqlite3

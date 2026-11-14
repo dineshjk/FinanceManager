@@ -2,7 +2,26 @@
 # Shared/globals.py
 
 """
-Global constants, configurations, and standardized messages for the Stock Portfolio Management application.
+Global Constants, Color Themes, File Paths, and Application Defaults.
+
+This module centralizes system-wide configuration settings, file paths, database
+locations, typography parameters, UI color palettes, and standardized user messages.
+Centralizing these constants ensures uniform visual styling and consistent data routing
+across both the StockMan and BankMan application domains.
+
+Key Constants & Structures:
+    • Application Identity: `UNIVERSAL_APP_TITLE`, `STOCKMAN_APP_TITLE`, `BANKMAN_APP_TITLE`.
+    • Database Paths:
+        - `DATABASE_PATH`: SQLite database file for StockMan (`stocks.db`).
+        - `BANK_DB_PATH`: SQLite database file for BankMan (`bank.db`).
+        - `BACKUP_DIR`: Directory designated for automated SQLite backup copies.
+    • Visual Themes & Color Schemes:
+        - `UI_THEME`: Standard palette for StockMan (slate blues, cool grays, emerald accents).
+        - `BANK_UI_THEME`: Standard neutral gray/blue palette for BankMan general views.
+        - `BANK_ADD_UI_THEME`: Vibrant theme used for BankMan data entry forms.
+    • UI Geometry & Fonts: Standard window sizes, button paddings, font family tuples
+      (`HEADER_FONT`, `BODY_FONT`, `BUTTON_FONT`), and entry field metrics.
+    • Cloud & Export Settings: `GOOGLE_DRIVE_FOLDER_NAME`, `PORTFOLIO_EXCEL_FILENAME`.
 """
 
 import os

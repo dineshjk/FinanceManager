@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 # scripts/inspect_legacy_tx.py
+"""
+Low-Level Legacy Transaction Inspector & Schema Debugger.
+
+This diagnostic tool dumps and inspects raw transaction records, polymorphic keys, and
+legacy field formats directly from legacy database files.
+
+Key Responsibilities:
+    • Schema Diagnostics: Inspects raw SQLite table structures and dumps sample records
+      for debugging migration parsers.
+    • Polymorphic Key Analysis: Validates legacy reference ID patterns to guide mapping logic.
+"""
+
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path('.').resolve()))

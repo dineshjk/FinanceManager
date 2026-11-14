@@ -1,13 +1,21 @@
 # -*- coding: utf-8 -*-
 # StockMan/database_setup_old.py
 
-"""Database schema and initialization helpers for StockMan.
+"""
+Legacy Database Initialization & Backward Compatibility Layer.
 
-This module defines the SQLite schema (tables, views and triggers)
-used by the StockMan application and exposes the
-``create_database`` helper which initializes the database file at
-``STOCK_DB_PATH``. Tests may override ``STOCK_DB_PATH`` before calling
-``create_database`` to use ephemeral or in-memory databases.
+This module contains historical SQLite schema initialization logic preserved for backward
+compatibility, regression verification, and historical database migration scripts.
+
+Key Responsibilities:
+    • Historical Schema Reference: Maintains table schemas as defined in earlier iterations
+      of StockMan, allowing legacy test suites and data migration scripts to construct
+      ephemeral legacy databases for parity testing.
+    • Parity Auditing: Used by `scripts/compare_legacy_live.py` and test harnesses to verify
+      that modern schema migrations preserve 100% data fidelity against legacy databases.
+
+Key Functions:
+    • `create_database_old(db_path)`: Creates the legacy schema tables and constraints.
 """
 
 import os

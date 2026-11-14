@@ -2,8 +2,21 @@
 # StockMan/watchlist_menu.py
 
 """
-Watchlist and Price Alerts UI.
-Allows users to track potential investments and set target buy/sell prices.
+Watchlist Dashboard, Price Alerts, & Technical Scan Hub.
+
+This module builds the Watchlist and Price Alerts user interface, displaying tracked equities,
+live market quotes, target entry/exit prices, and technical indicators.
+
+Key Responsibilities:
+    • Interactive Watchlist Grid: Displays tracked stocks with 52-week highs/lows, daily change,
+      target buy/sell prices, and current price distance to targets.
+    • Live Market Quotes: Asynchronously queries Yahoo Finance (`yfinance`) for latest CMPs
+      without freezing the user interface.
+    • Technical Scanner Integration: Hosts triggers to launch technical momentum scans
+      (`StockMan.scanner`) and generate the daily AI "Pick of the Day" (`StockMan.ai_analyzer`).
+
+Key Functions:
+    • `show_watchlist_menu(parent)`: Constructs and opens the Watchlist dashboard window.
 """
 
 import tkinter as tk

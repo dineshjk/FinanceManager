@@ -1,39 +1,19 @@
 # -*- coding: utf-8 -*-
 # BankMan/loan_ex_import.py
 
-"""loan_ex_import.py
+"""
+Loan Master Contract CSV/Excel Importer & Exporter.
 
-Export and import the ``loan_master`` table (Loan master records).
+This module manages bulk export and import operations for loan contracts (`loan_master`).
 
-Export format
--------------
-Each line is a Python tuple literal (produced by ``repr(tuple(...))``).
-The first element is the row type ``'LN'``::
+Key Responsibilities:
+    • Loan Master Transfer: Ingests and serializes loan account numbers, lenders, sanction amounts,
+      interest rates, tenures, and monthly EMI schedules.
 
-    ('LN', bank_key, ac_number, loan_type, loan_account_number,
-            principal_amount, interest_rate, emi_amount,
-            start_dt, end_dt, is_active)
-
-``bank_key`` is the linked account's bank IFSC when non-NULL, otherwise the
-bank's ``name``.  Together with ``ac_number`` this uniquely identifies the
-linked account portably across databases.  ``loan_account_number`` (UNIQUE on
-``loan_master``) is used as the portable loan identifier for transaction rows.
-
-Import behaviour
-----------------
-* Lines starting with ``#`` and blank lines are silently ignored.
-* **LN rows (``'LN'``)**: the linked account is resolved via
-  ``(bank_key, ac_number)``.  A row is skipped when a loan with the same
-  ``loan_account_number`` already exists
-  (the unique constraint ``UNIQUE(loan_account_number)``).
-* DB and file errors are reported via the GUI and logged; processing
-  continues for the remaining lines.
-
-Output / input file
--------------------
-``C:\\Data\\Personal\\Finance_and_Investment\\finprog\\FinanceManager\\data\\all_loan_master.txt``
-
-A ``Backup/`` copy is made before every export.
+Key Functions:
+    • `export_loan_master(filepath)`: Exports loan contracts.
+    • `import_loan_master(filepath)`: Ingests loan contracts.
+    • `show_loan_ex_import(parent)`: Displays the loan master import/export GUI.
 """
 
 import ast

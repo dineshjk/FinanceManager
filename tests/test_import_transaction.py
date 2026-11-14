@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 # tests/test_import_transaction.py
+"""
+Integration Tests for Bank & Trade Statement Transaction Import.
+
+This test suite verifies parsing, mapping, and database insertion logic for external
+bank and trade statements.
+
+Key Scenarios Tested:
+    • Multi-format transaction parsing (CSV, TSV, Excel).
+    • Account and budget category automated keyword matching.
+    • Duplicate transaction rejection based on date, amount, and reference numbers.
+"""
+
 import sqlite3
 from StockMan.trade_from_file import import_transaction
 from Shared.globals import STOCK_DB_PATH

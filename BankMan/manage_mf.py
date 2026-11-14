@@ -1,6 +1,21 @@
 # -*- coding: utf-8 -*-
 # BankMan/manage_mf.py
 
+"""
+Mutual Fund Portfolio Dashboard & SIP Manager.
+
+This module provides a centralized dashboard for tracking mutual fund folios, SIP mandates,
+lump-sum investments, and scheme categories.
+
+Key Responsibilities:
+    • MF Portfolio Overview: Lists active folios, Asset Management Companies (AMCs), and schemes.
+    • Subsystem Launcher: Exposes `show_mf_main_menu` for launching MFMan from the root dashboard.
+
+Key Functions:
+    • `show_mf_main_menu(parent)`: Subsystem launcher for MFMan.
+    • `show_manage_mf(parent)`: Displays the interactive mutual fund management dashboard.
+"""
+
 import tkinter as tk
 from tkinter import ttk
 

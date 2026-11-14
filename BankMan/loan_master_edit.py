@@ -2,23 +2,15 @@
 # BankMan/loan_master_edit.py
 
 """
-Edit form for the ``loan_master`` table.
+Loan Master Contract Record Editor.
 
-Layout follows the same two-panel pattern as ``accounts_edit.py``:
+This module provides the dialog for editing existing loan contract parameters in `loan_master`.
 
-* **Top panel** — sortable treeview of every loan master row (active and
-  closed).  Click a row to load it into the edit form below.
+Key Responsibilities:
+    • Loan Editing: Updates interest rates (floating rate revisions), tenure, and loan status.
 
-* **Bottom panel** — coloured band form matching the structure of
-  ``loan_master_add.py`` (Band 1: account / type, Band 2: numeric loan
-  details, Band 3: dates and active flag).  Save validates and persists
-  via ``db_update_loan_master``.
-
-Theme
------
-``LOAN_MASTER_EDIT_UI_THEME`` — vivid teal / cyan — is the visual
-complement of ``LOAN_MASTER_ADD_UI_THEME`` (near-black olive / gold),
-so edit and add windows are immediately distinguishable at a glance.
+Key Functions:
+    • `show_loan_master_edit_window(parent, loan_id)`: Displays the loan editor.
 """
 
 from datetime import datetime

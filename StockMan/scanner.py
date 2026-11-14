@@ -1,5 +1,25 @@
 # -*- coding: utf-8 -*-
 # StockMan/scanner.py
+"""
+Technical Market Scanner & Momentum Signal Generator.
+
+This module scans watchlists and active portfolio holdings using live Yahoo Finance market
+data to detect technical breakout signals, oversold conditions, and momentum setups.
+
+Key Responsibilities:
+    • Technical Indicators: Calculates 14-period Relative Strength Index (RSI), Simple Moving
+      Averages (20, 50, 200 DMA), and volume surge ratios.
+    • Signal Generation: Highlights high-probability technical setups:
+        - Bullish RSI Divergence & Oversold Rebounds (RSI < 30).
+        - Golden Cross / 200 DMA Breakouts.
+        - Unusual Volume Breakouts.
+    • UI Integration: Displays scan results in an interactive sortable grid.
+
+Key Functions:
+    • `calculate_rsi(price_series, period=14)`: Computes RSI values from historical closes.
+    • `scan_watchlist_for_signals(tickers)`: Evaluates technical indicators across watched equities.
+"""
+
 import os
 import pandas as pd
 

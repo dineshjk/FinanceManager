@@ -1,5 +1,18 @@
 # -*- coding: utf-8 -*-
 # StockMan/config.py
+"""
+StockMan Subsystem Configuration, Palette Presets, & Logger Setup.
+
+This module centralizes configuration constants, color palettes, typography presets,
+and logging handlers specific to the Stock Portfolio Management subsystem.
+
+Key Responsibilities:
+    • Subsystem Palettes: Defines color palettes for StockMan windows (`UI_THEME`),
+      including header backgrounds, status bar indicators, alert colors, and border styles.
+    • Logging Setup: Initializes logger instances for trade tracking, corporate action
+      housekeeping, and API diagnostic outputs.
+"""
+
 import logging
 
 # Centralized UI Theme (Decoupled from StockMan)

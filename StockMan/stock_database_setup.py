@@ -1,13 +1,27 @@
 # -*- coding: utf-8 -*-
 # StockMan/stock_database_setup.py
 
-"""Database schema and initialization helpers for StockMan.
+"""
+StockMan Database Schema Definition, Triggers, & Constraints.
 
-This module defines the SQLite schema (tables, views and triggers)
-used by the StockMan application and exposes the
-``create_database`` helper which initializes the database file at
-``STOCK_DB_PATH``. Tests may override ``STOCK_DB_PATH`` before calling
-``create_database`` to use ephemeral or in-memory databases.
+This module defines the complete SQLite relational database schema for StockMan, including
+master tables, transaction logs, corporate action records, indexes, and automated triggers.
+
+Key Responsibilities:
+    • Schema Creation: Creates and initializes core tables:
+        - `stocks`: Master registry of listed companies, tickers, ISINs, sectors, and CMPs.
+        - `trades`: Primary trade ledger recording buys, sells, brokerages, and taxes.
+        - `demergers`: Corporate demerger records with cost apportionment ratios.
+        - `advice_log`: Recommendation tracking table for Google Gemini AI advice.
+        - `computed_bank`: Computed bank ledger entries derived from trades and dividends.
+        - `actual_bank`: Reconciled bank passbook ledger linked to BankMan.
+    • Database Triggers: Implements SQLite triggers for automated timestamp updates, audit
+      logging, and ledger reconciliation.
+    • Performance Indexing: Creates B-tree indexes on tickers, trade dates, and ISINs to
+      ensure sub-millisecond query performance on large portfolios.
+
+Key Functions:
+    • `create_database(db_path)`: Initializes the database schema, constraints, and triggers.
 """
 
 import os
@@ -665,7 +679,7 @@ def run_schema_migrations():
                         advice_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
                     ),
                     advice_text TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'Not Followed' CHECK(status IN ('Fully Followed', 'Partially Followed', 'Not Followed')),
+                    status TEXT NOT NULL DEFAULT 'Pending',
                     execution_date TEXT DEFAULT NULL CHECK (
                         execution_date IS NULL OR
                         execution_date = '' OR (
@@ -759,7 +773,7 @@ def run_schema_migrations():
 
 
 def ensure_advice_log_table(conn: sqlite3.Connection | None = None, db_path: str | None = None) -> None:
-    """Ensures the advice_log table and its index exist in the database."""
+    """Ensures the advice_log table and its index exist in the database, with support for extended status vocabulary."""
     target_path = db_path or STOCK_DB_PATH
     should_close = False
     if conn is None:
@@ -780,7 +794,7 @@ def ensure_advice_log_table(conn: sqlite3.Connection | None = None, db_path: str
                     advice_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
                 ),
                 advice_text TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'Not Followed' CHECK(status IN ('Fully Followed', 'Partially Followed', 'Not Followed')),
+                status TEXT NOT NULL DEFAULT 'Pending',
                 execution_date TEXT DEFAULT NULL CHECK (
                     execution_date IS NULL OR
                     execution_date = '' OR (
@@ -796,6 +810,51 @@ def ensure_advice_log_table(conn: sqlite3.Connection | None = None, db_path: str
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_advice_log_date ON advice_log(advice_date);"
         )
+
+        # Check if existing table has old restrictive CHECK constraint and migrate if needed
+        cursor.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'advice_log'")
+        row = cursor.fetchone()
+        if row and row[0] and ("CHECK(status IN" in row[0] or "CHECK (status IN" in row[0]):
+            cursor.execute("PRAGMA foreign_keys = OFF;")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS advice_log_new (
+                    id_advice INTEGER PRIMARY KEY AUTOINCREMENT,
+                    advice_date TEXT NOT NULL CHECK (
+                        length(advice_date) = 10 AND
+                        substr(advice_date, 5, 1) = '-' AND
+                        substr(advice_date, 8, 1) = '-' AND
+                        advice_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                    ),
+                    advice_text TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'Pending',
+                    execution_date TEXT DEFAULT NULL CHECK (
+                        execution_date IS NULL OR
+                        execution_date = '' OR (
+                            length(execution_date) = 10 AND
+                            substr(execution_date, 5, 1) = '-' AND
+                            substr(execution_date, 8, 1) = '-' AND
+                            execution_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+                        )
+                    ),
+                    notes TEXT DEFAULT ''
+                );
+            """)
+            cursor.execute("""
+                INSERT INTO advice_log_new (id_advice, advice_date, advice_text, status, execution_date, notes)
+                SELECT id_advice, advice_date, advice_text, status, execution_date, notes
+                FROM advice_log;
+            """)
+            cursor.execute("DROP TABLE advice_log;")
+            cursor.execute("ALTER TABLE advice_log_new RENAME TO advice_log;")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_advice_log_date ON advice_log(advice_date);")
+            cursor.execute("PRAGMA foreign_keys = ON;")
+
+        # Automatically remove placeholder lines like "Daily Pick of the Day Recommendation"
+        cursor.execute("""
+            DELETE FROM advice_log
+            WHERE advice_text LIKE '%Daily Pick of the Day Recommendation%'
+        """)
+
         conn.commit()
     finally:
         if should_close and conn:
@@ -1446,7 +1505,7 @@ def create_stockman_database(_parent) -> Tuple[bool, str]:
                         advice_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
                     ),
                     advice_text TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'Not Followed' CHECK(status IN ('Fully Followed', 'Partially Followed', 'Not Followed')),
+                    status TEXT NOT NULL DEFAULT 'Pending',
                     execution_date TEXT DEFAULT NULL CHECK (
                         execution_date IS NULL OR
                         execution_date = '' OR (

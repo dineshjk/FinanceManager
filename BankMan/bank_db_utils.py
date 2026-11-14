@@ -2,7 +2,22 @@
 # BankMan/bank_db_utils.py
 
 """
-Database utility functions for the BankMan module.
+Core Database Operations, Balance Calculations, & Queries for BankMan.
+
+This module centralizes all CRUD operations, running balance recalculations, double-entry
+transfers, and validation queries for the BankMan database.
+
+Key Responsibilities:
+    • Running Balance Recalculation: Iterates chronologically through passbook transactions
+      to update `running_balance` values across all bank accounts after any insert, edit, or delete.
+    • Polymorphic Association Queries: Resolves foreign-key relationships between central
+      `bank_transactions` and specialist sub-ledger tables (`fd_transactions`, `cc_transactions`, etc.).
+    • Inter-Account Transfers: Handles atomic debit/credit pairs for fund transfers between accounts.
+
+Key Functions:
+    • `recalculate_account_balances(account_id)`: Recomputes running balances chronologically.
+    • `add_bank_transaction(...)`: Inserts passbook entry and triggers balance recalculation.
+    • `delete_bank_transaction(trans_id)`: Safely deletes transaction and unwinds balances.
 """
 
 import sqlite3

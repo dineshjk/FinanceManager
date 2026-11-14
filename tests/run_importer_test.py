@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/run_importer_test.py
-"""Test runner: create a small dummy source DB, simulate choosing it via
-the file dialog, open the importer modal, and auto-close after a short
-delay so logs are produced for verification."""
+"""
+Automated Test Runner for Contract Note Importer Pipelines.
+
+This test runner sets up temporary SQLite databases, populates them with sample broker
+contract notes, runs the importer pipeline, and verifies data fidelity against expected fixtures.
+
+Key Responsibilities:
+    • Sandbox Isolation: Uses ephemeral databases to ensure tests never touch live data.
+    • Test Assertion: Verifies calculated trade charges, net settlements, and FIFO lots.
+"""
 
 import os
 import sqlite3

@@ -3,6 +3,19 @@
 # Recompute transaction aggregates from exchange_orders and update transactions.
 # Creates a timestamped backup before modifying the DB and prints a short summary.
 
+"""
+Database Repair & Link Restoration Utility from End-of-Statement (EOS) Data.
+
+This repair script reconciles corrupted or broken foreign-key transaction linkages and
+re-aligns account running balances using official broker End-of-Statement (EOS) snapshots.
+
+Key Responsibilities:
+    • Broken Link Repair: Identifies orphaned transaction records missing specialist table links.
+    • Balance Re-Alignment: Uses known EOS closing balances to compute and correct historical
+      running balance drift in `bank_transactions`.
+    • Safe Commits: Wraps repairs in atomic SQLite transactions with detailed dry-run previews.
+"""
+
 import os
 import shutil
 import datetime

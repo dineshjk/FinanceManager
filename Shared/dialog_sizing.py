@@ -3,11 +3,24 @@
 
 
 """
-Dynamic dialog sizing calculations for the Stock Portfolio Management System.
+Dynamic Content-Aware Dialog Sizing Engine.
 
-This module provides functions to automatically calculate optimal dialog
-dimensions based on content length and complexity, ensuring professional
-appearance and always-visible buttons.
+This module provides mathematical layout calculations to determine optimal dialog
+dimensions (width, height, text wrapping length) dynamically based on the volume
+of message text, number of buttons, presence of icons, and screen resolution.
+
+Key Responsibilities:
+    • Dimension Calculation: Evaluates content length, line breaks, button counts,
+      and font metrics to calculate window dimensions that prevent text truncation.
+    • Resolution Adaptation: Queries display dimensions to ensure dialogs never exceed
+      screen bounds and remain ergonomically centered.
+    • Button Visibility Guarantee: Enforces minimum vertical clearances and padding so
+      action buttons (OK, Cancel, Yes, No) are never pushed below the visible viewport.
+
+Key Functions:
+    • `calculate_dialog_size(text, title, num_buttons, has_icon)`: Calculates the recommended
+      (width, height, wrap_length) tuple tailored to the given content and widget options.
+    • `get_screen_dimensions(root)`: Returns the current screen width and height in pixels.
 """
 import tkinter as tk
 

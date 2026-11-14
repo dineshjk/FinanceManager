@@ -1,6 +1,15 @@
 # -*- coding: utf-8 -*-
 # tests/test_integration_triggers.py
-"""Integration tests for current schema trigger and repair behavior."""
+"""
+Integration Tests for Relational Triggers & Cascade Constraints.
+
+This test suite verifies that SQLite triggers and foreign-key constraints maintain strict
+relational parity across dependent tables upon inserts, updates, and deletes.
+
+Key Scenarios Tested:
+    • Foreign-key cascade rules and deletion prevention on traded companies.
+    • Automated update timestamps and audit table population.
+"""
 
 import importlib
 import sqlite3

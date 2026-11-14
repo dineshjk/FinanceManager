@@ -2,14 +2,19 @@
 # BankMan/fd_transactions_add.py
 
 """
-Module for adding Fixed Deposit transaction records (fd_transactions table).
+Fixed Deposit Transaction & Interest Payout Recorder.
 
-Structural pattern from cc_transactions_add.py / ppf_transactions_add.py:
-  - Coloured band frames, each with a label_row / entry_row
-  - apply_entry_theme / bind_tooltip / setup_footer_tooltip from Shared.gui_utils
-  - F1 = Help, F2 = Session viewer, Escape = close without saving
-  - Yellow-on-black entry theme via centrally defined apply_entry_theme()
-  - Distinct dark copper/bronze window theme (FD_TRANS_ADD_UI_THEME)
+This module provides the form for recording interest credits, TDS deductions, and principal
+repayments for Fixed Deposits in `fd_transactions`.
+
+Key Responsibilities:
+    • Transaction Logging: Captures interest received, TDS deducted under Section 194A,
+      and net credited amount.
+    • Polymorphic Passbook Linking: Automatically deposits interest payouts into linked
+      savings accounts in `bank_transactions` (`module_type='FD'`).
+
+Key Functions:
+    • `show_fd_transactions_add_window(parent)`: Launches the FD transaction entry form.
 """
 
 from typing import Union, Literal
